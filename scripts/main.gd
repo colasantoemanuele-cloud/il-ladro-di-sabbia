@@ -51,11 +51,22 @@ func _run_play_loop() -> void:
 			print("")
 			continue
 
-		var risultato := stato.applica_azione_deterministica(azione)
+		var risultato := stato.applica_azione_con_dado(azione)
+		var roll: DiceSystem.RollResult = risultato.roll
 		print("")
-		print("-> %s" % azione.nome)
-		print("   Costo Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
-			risultato.costo_tempo_figlia_ore, risultato.effetto_sabbia_padre_ore
+		print("-> %s (CD %d)" % [azione.nome, roll.cd])
+		if roll.dadi.size() == 1:
+			print("   Tiro: %d (naturale %d) + mod %d = %d" % [roll.dadi[0], roll.naturale, roll.modificatore, roll.totale])
+		else:
+			print("   Tiro: %s -> tenuto %d + mod %d = %d" % [roll.dadi, roll.naturale, roll.modificatore, roll.totale])
+		if roll.successo_critico:
+			print("   SUCCESSO CRITICO (naturale 20)!")
+		elif roll.fallimento_critico:
+			print("   FALLIMENTO CRITICO (naturale 1)!")
+		print("   Esito: %s | Costo Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
+			"SUCCESSO" if risultato.successo else "FALLIMENTO",
+			risultato.costo_tempo_figlia_ore,
+			risultato.effetto_sabbia_padre_ore
 		])
 		print("")
 

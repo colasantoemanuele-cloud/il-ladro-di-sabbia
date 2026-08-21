@@ -123,3 +123,39 @@ godot --headless --path . -- --simulate=10000
   con quelli del foglio (160/29.97, 159/29.44, ... fino al game over del
   padre all'azione 8). Verificato anche il game over per Tempo-Figlia a
   zero (21x "Riposare").
+- **Fase 3 (sistema d20)**: fatto. `scripts/core/dice_system.gd`
+  (`class_name DiceSystem`, funzioni statiche pure) implementa CD = 1 +
+  arrotonda(Rischio% × 20), tiro 1d20, Vantaggio/Svantaggio (2d20,
+  migliore/peggiore), Bonus/Malus fissi sommati dopo la scelta del dado,
+  critici (naturale 20/1 ignorano CD e modificatori). `GameState` guadagna
+  `applica_azione_con_dado(azione, modo, modificatore)` che sostituisce
+  `applica_azione_deterministica()` nel loop di gioco (quest'ultima resta
+  nel codice: serve alla Fase 5 per calcolare il tetto economico
+  deterministico da confrontare col foglio Excel, separatamente dalla
+  simulazione Monte Carlo). Il tempo si spende sempre; l'effetto in
+  Sabbia-Padre si applica solo in caso di successo.
+  Vantaggio/Svantaggio/Bonus/Malus sono già parametri del metodo ma nel
+  loop di gioco arrivano sempre a default: nessuna fonte (oggetti, ranghi
+  di traccia) esiste ancora — fuori scope per queste fasi.
+  **Deciso ma NON implementato**: la conseguenza di fallimento su azioni
+  illegali (aumento di Attenzione Polizia/Rivalità Criminale, sezione 4.6)
+  è solo un placeholder in `risultato.conseguenza_risorsa` — quelle due
+  risorse appartengono al sistema di tracce (sezione 7.2), esplicitamente
+  fuori scope per le fasi 1-5. Va deciso con l'autore se questa scelta è
+  corretta o se serve un contatore minimo anche prima delle tracce.
+  **Verificato statisticamente** (200k tiri per valore di rischio, script
+  ad-hoc non incluso nel repo): il tasso di successo osservato coincide
+  con `1 - Rischio%` per ogni CD compreso tra 2 e 20 (rischio 10%-90%),
+  Vantaggio/Svantaggio si comportano nella direzione attesa. **Trovato un
+  disallineamento reale alle due code**: a Rischio 0% (CD 1) il tasso di
+  successo osservato è ~95%, non 100%, perché la regola "naturale 1 =
+  fallimento automatico" si applica sempre, anche quando la CD sarebbe
+  banalmente superata; simmetricamente a Rischio 100% (CD 21) il successo
+  osservato è ~5%, non 0%, per la regola opposta sul naturale 20. Questo
+  contraddice la frase del design doc 4.6 "la probabilità di riuscita
+  risultante è identica al Rischio% già calibrato" — vera per rischi
+  intermedi, falsa ai due estremi. Ho implementato le regole esattamente
+  come scritte (nessuna eccezione ai critici), perché è quanto richiesto
+  esplicitamente; segnalato nel resoconto finale per una decisione
+  dell'autore (in azioni.json ci sono righe con rischio 0% e due con
+  rischio 100%, quest'ultime pensate come eventi "sempre attivi").

@@ -46,6 +46,67 @@ func applica_azione_deterministica(azione: ActionData) -> Dictionary:
 	return risultato
 
 
+## Categorie considerate "illegali" ai soli fini della conseguenza di
+## fallimento (design doc 4.6: aumento di Attenzione Polizia/Rivalità
+## Criminale). Euristica basata sulla colonna Categoria, non sulla
+## Moralità (più fedele a "azione illegale" in senso stretto).
+const CATEGORIE_ILLEGALI := [
+	"Furto", "Crimine", "Grande colpo", "Minaccia 1 a 1",
+	"Crimine organizzato", "Corruzione", "Tradimento",
+]
+
+
+func _is_azione_illegale(azione: ActionData) -> bool:
+	return CATEGORIE_ILLEGALI.has(azione.categoria)
+
+
+## Applica un'azione risolvendola con un tiro di dado d20 (Fase 3, design doc
+## 4.6), al posto dell'applicazione diretta e deterministica di
+## applica_azione_deterministica(). Il tempo si spende sempre (anche in caso
+## di fallimento); l'effetto in Sabbia-Padre si applica solo in caso di
+## successo.
+##
+## `modo` e `modificatore` sono gli aggangi per Vantaggio/Svantaggio e
+## Bonus/Malus: nessuna fonte (oggetti, ranghi di traccia, soglie di
+## risorsa) esiste ancora nel gioco, quindi qui arrivano sempre i valori di
+## default — ma il sistema è già pronto a riceverli quando quelle fonti
+## verranno implementate.
+func applica_azione_con_dado(
+	azione: ActionData,
+	modo: DiceSystem.RollMode = DiceSystem.RollMode.NORMALE,
+	modificatore: int = 0
+) -> Dictionary:
+	turno += 1
+	tempo_figlia_ore -= azione.costo_tempo_figlia_ore
+
+	var roll := DiceSystem.risolvi(azione.rischio_pct, modo, modificatore)
+
+	var risultato := {
+		"turno": turno,
+		"azione": azione.nome,
+		"costo_tempo_figlia_ore": azione.costo_tempo_figlia_ore,
+		"roll": roll,
+		"successo": roll.successo,
+		"effetto_sabbia_padre_ore": 0.0,
+		"conseguenza_risorsa": null,  # placeholder: Attenzione Polizia / Rivalità Criminale non esistono ancora (fase futura)
+	}
+
+	if roll.successo:
+		sabbia_padre_ore += azione.effetto_sabbia_padre_ore
+		risultato.effetto_sabbia_padre_ore = azione.effetto_sabbia_padre_ore
+	elif _is_azione_illegale(azione):
+		risultato.conseguenza_risorsa = "rivalita_criminale_o_attenzione_polizia (fallimento%s)" % (
+			"_critico" if roll.fallimento_critico else ""
+		)
+
+	risultato["tempo_figlia_ore"] = tempo_figlia_ore
+	risultato["sabbia_padre_ore"] = sabbia_padre_ore
+	storico.append(risultato)
+
+	_controlla_fine_partita()
+	return risultato
+
+
 func _controlla_fine_partita() -> void:
 	if is_over:
 		return
