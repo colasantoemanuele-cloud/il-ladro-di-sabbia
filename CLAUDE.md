@@ -107,3 +107,19 @@ godot --headless --path . -- --simulate=10000
   nessun errore di parsing (corretto un bug su celle Excel vuote/null in
   `fonte_nota` che JSON.parse_string restituisce come `null` esplicito, non
   come chiave mancante — `Dictionary.get(key, default)` non copre quel caso).
+- **Fase 2 (loop testuale giocabile)**: fatto. `scripts/core/game_state.gd`
+  (`class_name GameState`) tiene i due countdown e applica costo/effetto
+  **deterministicamente** (nessun tiro di dado ancora — rispecchia
+  deliberatamente il foglio "Simulatore Run" dell'Excel, anch'esso
+  deterministico; il dado arriva in Fase 3 senza toccare questo file).
+  `scripts/main.gd` espone un loop testuale (`godot --headless --path . --
+  --play`) che legge da stdin con `OS.read_string_from_stdin()`, stampa le
+  60 azioni raggruppate per categoria e applica la scelta. Game over quando
+  un countdown arriva a 0 (`GameState.EndReason`).
+  **Validato**: ho rigiocato a mano la sequenza di 8 azioni del foglio
+  "Simulatore Run" dell'Excel (turno di lavoro → pasto → dormire → poker →
+  vendita oggetti → scippo → riattivare contatto → piani di sicurezza banca)
+  e i valori intermedi di Tempo-Figlia/Sabbia-Padre coincidono esattamente
+  con quelli del foglio (160/29.97, 159/29.44, ... fino al game over del
+  padre all'azione 8). Verificato anche il game over per Tempo-Figlia a
+  zero (21x "Riposare").
