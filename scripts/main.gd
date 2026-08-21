@@ -2,17 +2,58 @@ extends Node
 ## Entry point del gioco.
 ##
 ## Modalita' da riga di comando (dopo "--"):
-##   (nessun argomento) o --play   -> loop testuale giocabile da terminale
+##   (nessun argomento) o --play    -> loop testuale giocabile da terminale
+##   --simulate=N                   -> Fase 5, batch di N run automatiche
+##                                      (politiche greedy + random), report
+##                                      statistico aggregato
 ##
-## Esempio: godot --headless --path . -- --play
+## Esempi:
+##   godot --headless --path . -- --play
+##   godot --headless --path . -- --simulate=5000
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
-	if args.has("--play") or args.is_empty():
+	var simulate_arg := ""
+	for a in args:
+		if a.begins_with("--simulate="):
+			simulate_arg = a
+			break
+
+	if not simulate_arg.is_empty():
+		var n := int(simulate_arg.split("=")[1])
+		_run_simulation(n)
+	elif args.has("--play") or args.is_empty():
 		_run_play_loop()
 	else:
 		print("Argomento non riconosciuto: %s" % ", ".join(args))
 	get_tree().quit()
+
+
+func _run_simulation(n: int) -> void:
+	print("=== IL LADRO DI SABBIA — Fase 5: validazione bilanciamento (%d run per politica) ===" % n)
+	print("")
+	for politica in ["greedy", "greedy_no_free", "random"]:
+		var stats := BalanceSimulator.esegui_batch(n, politica)
+		_stampa_report_batch(stats)
+		print("")
+
+
+func _stampa_report_batch(s: Dictionary) -> void:
+	print("--- Politica: %s (%d run) ---" % [s.politica, s.n_run])
+	print("Punteggio totale (padre+figlia, anni): media=%.2f mediana=%.2f min=%.2f max=%.2f" % [
+		s.totale_anni_media, s.totale_anni_mediana, s.totale_anni_min, s.totale_anni_max
+	])
+	print("Anni medi accumulati dal solo padre: %.2f" % s.padre_anni_media)
+	print("Probabilità vittoria 100+100 anni: %.2f%%" % (s.prob_vittoria_100_100 * 100.0))
+	print("Probabilità di superare soglie di punteggio totale:")
+	for soglia in s.prob_soglie:
+		print("  >= %d anni: %.2f%%" % [int(soglia), s.prob_soglie[soglia] * 100.0])
+	print("Turni medi per run: %.1f" % s.turni_medi)
+	if s.prob_cap_turni_raggiunto > 0.0:
+		print("ATTENZIONE: %.2f%% delle run ha raggiunto il tetto di sicurezza di %d turni senza esaurire naturalmente il tempo o le azioni utili — sintomo dello sfruttamento di azioni a costo 0h (vedi tools/balance_ceiling.py)." % [
+			s.prob_cap_turni_raggiunto * 100.0, BalanceSimulator.MAX_TURNI
+		])
+	print("Motivi di fine run (0=nessuno/cap, 1=figlia morta, 2=padre morto, 3=donazione): %s" % s.end_reasons)
 
 
 func _run_play_loop() -> void:

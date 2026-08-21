@@ -95,6 +95,14 @@ godot --headless --path .
 # (Fase 2+) loop testuale giocabile da terminale
 godot --headless --path . -- --play
 
+# (Fase 5) simulazione Monte Carlo di bilanciamento, N run per ciascuna
+# delle 3 politiche (greedy / greedy_no_free / random)
+godot --headless --path . -- --simulate=3000
+
+# (Fase 5) tetto economico deterministico (nessun dado), knapsack sulle
+# 168h disponibili, legge data/azioni.json (nessuna dipendenza extra)
+python3 tools/balance_ceiling.py
+
 # (Fase 5+) simulazione bilanciamento, N run aggregate
 godot --headless --path . -- --simulate=10000
 ```
@@ -181,3 +189,61 @@ godot --headless --path . -- --simulate=10000
   rilevamento corretto del traguardo 100+100 sopra e sotto soglia.
   Verificato anche end-to-end nel loop testuale (`donare 5` dopo
   un'azione).
+- **Fase 5 (playtest e validazione bilanciamento)**: fatto, con un
+  **problema di bilanciamento reale trovato e NON corretto** (come da
+  istruzioni: segnalato, non toccato).
+  - `tools/balance_ceiling.py`: knapsack illimitato (le azioni sono
+    ripetibili nella stessa run: nessun vincolo "una tantum" esiste ancora)
+    sul budget di 168h, deterministico (nessun dado), per calcolare il vero
+    tetto economico raggiungibile con le sole azioni core.
+  - `scripts/core/balance_simulator.gd` + `--simulate=N` in `scripts/main.gd`:
+    Monte Carlo con dado vero (riusa `GameState`/`DiceSystem`/
+    `ActionDatabase`, nessuna logica duplicata), tre politiche di scelta
+    (`greedy`, `greedy_no_free`, `random`), report aggregato (media/mediana/
+    min/max del punteggio, probabilità di soglie, probabilità vittoria
+    100+100, motivi di fine run).
+  - **TROVATO**: diverse azioni ad altissimo rendimento sono pensate come
+    eventi narrativamente rari/unici ("Lotteria clandestina...(jackpot
+    raro)", "Vendere anni futuri...(debito esistenziale)", "Rapina alla
+    Banca della Sabbia Centrale (IL GRANDE COLPO)") ma nel foglio Excel e
+    nel prototipo attuale NON esiste alcun vincolo che le limiti a una sola
+    volta per run — sono liberamente ripetibili come qualunque altra azione.
+    Inoltre un'azione ("Trovi un portafoglio...") ha costo Tempo-Figlia 0h
+    con effetto positivo: ripetibile un numero illimitato di volte senza
+    mai consumare il countdown, un vero e proprio infinite-money glitch.
+    **Impatto quantificato**: tetto deterministico (Python, ignora rischio)
+    = 643 anni spendendo tutte le 168h sulla sola lotteria, ben oltre i 100
+    anni che il design doc dichiara irraggiungibili con le sole azioni
+    core. Confermato con il dado vero: la politica "greedy_no_free" (spende
+    ottimamente le 168h reali su prestito/lotteria/grande colpo, dado
+    incluso, N=3000 run) ottiene una media di ~399 anni per il solo padre,
+    mediana 400, **100% delle run supera 200 anni** — mentre il design doc
+    intende i 200 anni come traguardo "molto molto molto difficile" persino
+    con l'intero sistema di tracce+sottotrame non ancora implementato.
+    La politica "greedy" (senza escludere il costo zero) sfrutta invece
+    l'azione a costo 0h all'infinito: 100% delle run raggiunge il tetto di
+    sicurezza di 1000 turni della simulazione senza mai esaurire
+    naturalmente il tempo.
+  - **Non è un errore nei valori economici** (quelli, riga per riga,
+    coincidono esattamente col foglio Excel, validato in Fase 1-2): è
+    l'assenza di un vincolo di ripetibilità/unicità per le azioni pensate
+    come eventi rari, che nel design doc esiste solo a livello di sistema
+    di tracce (Rango, prerequisiti — sezione 7, fuori scope per queste
+    fasi). Da decidere con l'autore: un flag "una tantum per run" su
+    alcune azioni del foglio Excel, o un limite di ripetizioni, o
+    considerarlo accettabile finché il sistema di tracce/prerequisiti non
+    arriva a introdurre naturalmente quella scarsità.
+  - **Confermato invece coerente col design doc**: la politica "random"
+    (nessuna ottimizzazione, N=3000) non supera mai 50 anni e nel 55% dei
+    casi il padre muore per Sabbia-Padre esaurita — coerente con l'idea che
+    un giocatore che non ottimizza rischi la sopravvivenza, e con la
+    scoperta del design doc che il lavoro onesto "quasi pareggia" (turno da
+    8h: costo 8h, effetto +5.97h, dato verificato identico al foglio Excel).
+  - **Nota sulla metrica vittoria_100_100 nel report Monte Carlo**: risulta
+    sempre 0% in questa fase perché il simulatore non effettua mai la
+    donazione (Fase 4) — la Sabbia-Padre accumulata resta sul padre, la
+    Sabbia-Figlia parte da 168h e non cresce mai. Non è un secondo problema
+    di bilanciamento: è solo un limite intenzionale del simulatore, che
+    misura "quanta sabbia si riesce a raccogliere in totale", non "come la
+    si ripartisce". Il numero corretto da guardare per il tetto economico
+    è `totale_anni` (padre+figlia), non `prob_vittoria_100_100`.
