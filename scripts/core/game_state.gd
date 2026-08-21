@@ -130,3 +130,56 @@ func end_reason_testo() -> String:
 			return "Donazione finale compiuta: la run termina qui."
 		_:
 			return ""
+
+
+## 1 anno = 8.760 ore (design doc 5.1, nota 9). Costante locale (non presa da
+## ActionDatabase) per mantenere GameState indipendente dall'autoload e
+## quindi utilizzabile anche fuori dall'albero della scena.
+const ORE_PER_ANNO := 8760.0
+const SOGLIA_VITTORIA_ANNI := 100.0
+
+
+## Donazione finale (design doc 4.3): volontaria, irreversibile, un'unica
+## volta nella run. Trasferisce ore da Sabbia-Padre a Tempo-Figlia — la
+## figlia può riceverla una sola volta in vita, non è accumulo progressivo.
+## Decisione di design (da confermare con l'autore, vedi CLAUDE.md): la
+## donazione è l'atto conclusivo della run e la termina immediatamente,
+## punteggio compreso; l'importo donato è scelto dal giocatore (fino al
+## massimo disponibile), non necessariamente tutta la Sabbia-Padre — coerente
+## con "quanta sabbia il protagonista ha raccolto per sé E/O per la figlia"
+## (4.4, "e/o" implica una possibile ripartizione).
+func dona(quantita_ore: float) -> Dictionary:
+	if donation_made:
+		return {"successo": false, "motivo": "La donazione è unica e già avvenuta: non si può ripetere."}
+	if is_over:
+		return {"successo": false, "motivo": "La run è già conclusa."}
+	if quantita_ore <= 0.0:
+		return {"successo": false, "motivo": "La quantità donata deve essere positiva."}
+	if quantita_ore > sabbia_padre_ore:
+		return {"successo": false, "motivo": "Non hai abbastanza Sabbia-Padre (disponibili %.1fh)." % sabbia_padre_ore}
+
+	sabbia_padre_ore -= quantita_ore
+	tempo_figlia_ore += quantita_ore
+	donation_made = true
+	donated_ore = quantita_ore
+
+	is_over = true
+	end_reason = EndReason.DONAZIONE_FINALE_SCELTA
+
+	return {"successo": true, "quantita_ore": quantita_ore, "punteggio": calcola_punteggio()}
+
+
+## Punteggio finale (design doc 4.4): somma degli anni di vita assicurati a
+## padre e figlia. Richiamabile in ogni momento (non solo a fine run) così
+## la UI può mostrare un punteggio "corrente" oltre a quello finale.
+func calcola_punteggio() -> Dictionary:
+	var padre_anni := sabbia_padre_ore / ORE_PER_ANNO
+	var figlia_anni := tempo_figlia_ore / ORE_PER_ANNO
+	return {
+		"padre_ore": sabbia_padre_ore,
+		"padre_anni": padre_anni,
+		"figlia_ore": tempo_figlia_ore,
+		"figlia_anni": figlia_anni,
+		"punteggio_totale_anni": padre_anni + figlia_anni,
+		"vittoria_100_100": padre_anni >= SOGLIA_VITTORIA_ANNI and figlia_anni >= SOGLIA_VITTORIA_ANNI,
+	}

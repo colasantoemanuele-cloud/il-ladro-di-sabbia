@@ -159,3 +159,25 @@ godot --headless --path . -- --simulate=10000
   esplicitamente; segnalato nel resoconto finale per una decisione
   dell'autore (in azioni.json ci sono righe con rischio 0% e due con
   rischio 100%, quest'ultime pensate come eventi "sempre attivi").
+- **Fase 4 (donazione, punteggio, vittoria)**: fatto.
+  `GameState.dona(quantita_ore)` trasferisce ore da Sabbia-Padre a
+  Tempo-Figlia: unica per run (`donation_made`), irreversibile, importo
+  scelto dal giocatore fino al massimo disponibile (non necessariamente
+  tutto). `GameState.calcola_punteggio()` restituisce anni di padre e
+  figlia, il totale, e `vittoria_100_100` (entrambi >= 100 anni).
+  **Decisione di design non esplicitata nel design doc (da confermare)**:
+  ho fatto in modo che la donazione concluda immediatamente la run
+  (`is_over = true`), invece di lasciare il padre libero di continuare ad
+  agire dopo aver donato. Motivazione: 4.3 descrive la donazione come "la
+  decisione più tesa della run", coerente con un climax conclusivo; ma il
+  design doc non lo dice esplicitamente, quindi è un'ipotesi mia, non un
+  fatto verificato nei tre documenti. Il comando `donare <ore>` è stato
+  aggiunto al loop testuale (`scripts/main.gd`) accanto alla lista di
+  azioni. La condizione 100+100 viene solo rilevata e segnalata a schermo
+  ("TRAGUARDO RAGGIUNTO"), senza sbloccare nulla, come richiesto.
+  **Verificato** con uno script di test diretto su `GameState` (bypassa il
+  dado, deterministico): donazione parziale corretta, rifiuto di una
+  seconda donazione, rifiuto di donare più di quanto disponibile,
+  rilevamento corretto del traguardo 100+100 sopra e sotto soglia.
+  Verificato anche end-to-end nel loop testuale (`donare 5` dopo
+  un'azione).

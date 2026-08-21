@@ -28,19 +28,34 @@ func _run_play_loop() -> void:
 		var azioni := ActionDatabase.get_all()
 		_stampa_azioni(azioni)
 		print("")
-		print("Scrivi il numero di un'azione, oppure 'esci' per interrompere la run.")
+		print("Scrivi il numero di un'azione, 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
 		print("> ")
 
 		var input := OS.read_string_from_stdin().strip_edges()
 
 		if input == "esci" or input == "quit":
 			print("")
-			print("Run interrotta manualmente. Stato finale:")
-			_stampa_stato(stato)
+			print("Run interrotta manualmente (nessuna donazione effettuata).")
+			_stampa_punteggio(stato)
 			return
 
+		if input.begins_with("donare"):
+			var parti := input.split(" ", false)
+			if parti.size() < 2 or not parti[1].is_valid_float():
+				print("Uso: 'donare <ore>', es. 'donare 50'.")
+				print("")
+				continue
+			var esito := stato.dona(float(parti[1]))
+			print("")
+			if not esito.successo:
+				print("Donazione rifiutata: %s" % esito.motivo)
+				print("")
+				continue
+			print("Hai donato %.1fh di Sabbia-Padre alla figlia. La donazione è irreversibile." % esito.quantita_ore)
+			break
+
 		if not input.is_valid_int():
-			print("Input non valido: '%s'. Scrivi un numero o 'esci'." % input)
+			print("Input non valido: '%s'. Scrivi un numero, 'donare <ore>' o 'esci'." % input)
 			print("")
 			continue
 
@@ -73,6 +88,20 @@ func _run_play_loop() -> void:
 	_stampa_stato(stato)
 	print("")
 	print(stato.end_reason_testo())
+	_stampa_punteggio(stato)
+
+
+func _stampa_punteggio(stato: GameState) -> void:
+	var p := stato.calcola_punteggio()
+	print("")
+	print("=== PUNTEGGIO FINALE ===")
+	print("Padre:  %.1fh (~%.2f anni)" % [p.padre_ore, p.padre_anni])
+	print("Figlia: %.1fh (~%.2f anni)" % [p.figlia_ore, p.figlia_anni])
+	print("Totale: ~%.2f anni" % p.punteggio_totale_anni)
+	if p.vittoria_100_100:
+		print("")
+		print("*** TRAGUARDO RAGGIUNTO: 100+100 anni per entrambi! ***")
+		print("(le modalità di gioco aggiuntive che questo sblocca non sono ancora implementate)")
 
 
 func _stampa_stato(stato: GameState) -> void:
