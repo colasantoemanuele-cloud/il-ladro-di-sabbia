@@ -31,8 +31,13 @@ static func calcola_cd(rischio_pct: float) -> int:
 	return 1 + roundi(rischio_pct * 20.0)
 
 
-static func tira_d20() -> int:
-	return randi_range(1, 20)
+## `rng` opzionale (Fase 8): se fornito, i tiri usano quel generatore seedato
+## (rende la run riproducibile dal suo seed — vedi GameState.seed_run) invece
+## del generatore globale del motore. Il generatore globale resta il default
+## per compatibilità con gli usi esistenti (es. gli script di verifica
+## statistica della Fase 3, che non hanno bisogno di riproducibilità).
+static func tira_d20(rng: RandomNumberGenerator = null) -> int:
+	return rng.randi_range(1, 20) if rng != null else randi_range(1, 20)
 
 
 ## Risolve un'azione con Rischio% `rischio_pct`, un'eventuale
@@ -50,7 +55,7 @@ static func tira_d20() -> int:
 ## riuscita reale di ~95%/~5% invece di 100%/0%, contraddicendo l'intento
 ## di queste due soglie (azioni neutre sempre valide / eventi automatici
 ## imposti). Per tutti i rischi intermedi (1%-99%) resta il sistema pieno.
-static func risolvi(rischio_pct: float, modo: RollMode = RollMode.NORMALE, modificatore: int = 0) -> RollResult:
+static func risolvi(rischio_pct: float, modo: RollMode = RollMode.NORMALE, modificatore: int = 0, rng: RandomNumberGenerator = null) -> RollResult:
 	if rischio_pct <= 0.0 or rischio_pct >= 1.0:
 		var estremo := RollResult.new()
 		estremo.senza_tiro = true
@@ -59,12 +64,12 @@ static func risolvi(rischio_pct: float, modo: RollMode = RollMode.NORMALE, modif
 		estremo.successo = rischio_pct <= 0.0
 		return estremo
 
-	var d1 := tira_d20()
+	var d1 := tira_d20(rng)
 	var dadi: Array[int] = [d1]
 	var naturale := d1
 
 	if modo != RollMode.NORMALE:
-		var d2 := tira_d20()
+		var d2 := tira_d20(rng)
 		dadi.append(d2)
 		naturale = max(d1, d2) if modo == RollMode.VANTAGGIO else min(d1, d2)
 

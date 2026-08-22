@@ -14,11 +14,14 @@ var profilo: PlayerProfile
 
 var lbl_tempo_figlia: Label
 var lbl_sabbia_padre: Label
+var lbl_seed: Label
 var lbl_risorse: Label
 var lbl_messaggio: RichTextLabel
 
 var donazione_input: LineEdit
 var donazione_button: Button
+
+var spostamento_button: Button
 
 var azioni_vbox: VBoxContainer
 var bottoni_azione: Dictionary = {}  # nome azione -> Button
@@ -60,11 +63,25 @@ func _costruisci_ui() -> void:
 	status_bar.add_child(lbl_tempo_figlia)
 	lbl_sabbia_padre = Label.new()
 	status_bar.add_child(lbl_sabbia_padre)
+	lbl_seed = Label.new()
+	status_bar.add_child(lbl_seed)
 
 	# --- Pannello risorse, sempre visibile (Fase 6: tutte fisse a 0) ---
 	lbl_risorse = Label.new()
 	lbl_risorse.autowrap_mode = TextServer.AUTOWRAP_WORD
 	root.add_child(lbl_risorse)
+
+	root.add_child(HSeparator.new())
+
+	# --- Spostamento: evento con esito incerto indipendente (Fase 8) ---
+	var spostamento_bar := HBoxContainer.new()
+	spostamento_bar.add_theme_constant_override("separation", 8)
+	root.add_child(spostamento_bar)
+
+	spostamento_button = Button.new()
+	spostamento_button.text = "Spostati in città (durata variabile, rischio indipendente di incidente)"
+	spostamento_button.pressed.connect(_on_spostamento_pressed)
+	spostamento_bar.add_child(spostamento_button)
 
 	root.add_child(HSeparator.new())
 
@@ -178,6 +195,31 @@ func _descrivi_risultato(azione: ActionData, risultato: Dictionary) -> String:
 	]
 
 
+## Evento con esito incerto indipendente (design doc 12.1, vedi
+## scripts/core/spostamento.gd): non è una delle 60 azioni core, non ha
+## Rischio%/CD né la varianza ±15%/±20% di ActionVariance — è un meccanismo
+## a parte, con la propria durata variabile e la propria probabilità di
+## incidente.
+func _on_spostamento_pressed() -> void:
+	if stato.is_over:
+		return
+
+	var risultato := stato.applica_spostamento()
+	var esito: Spostamento.Esito = risultato.spostamento
+
+	if esito.incidente:
+		lbl_messaggio.text = "[b]Spostamento in città — INCIDENTE![/b]\nDurata base %.1fh + ritardo %.1fh = %.1fh totali." % [
+			esito.durata_base_ore, esito.ritardo_extra_ore, esito.durata_totale_ore
+		]
+	else:
+		lbl_messaggio.text = "[b]Spostamento in città[/b]\nNessun imprevisto. Durata: %.1fh." % esito.durata_totale_ore
+
+	_aggiorna_stato_ui()
+
+	if stato.is_over:
+		_fine_partita()
+
+
 func _on_dona_pressed() -> void:
 	if stato.is_over:
 		return
@@ -200,6 +242,7 @@ func _aggiorna_stato_ui() -> void:
 	var anni_padre := stato.sabbia_padre_ore / GameState.ORE_PER_ANNO
 	lbl_tempo_figlia.text = "Tempo-Figlia: %.1fh (~%.1f giorni)" % [stato.tempo_figlia_ore, giorni_figlia]
 	lbl_sabbia_padre.text = "Sabbia-Padre: %.1fh (~%.4f anni)" % [stato.sabbia_padre_ore, anni_padre]
+	lbl_seed.text = "Seed: %d" % stato.seed_run
 	lbl_risorse.text = "Attenzione Polizia: %.0f  |  Rivalità Criminale: %.0f  |  Fama Pubblica: %.0f  |  Karma: %.0f  |  Fede: %.0f" % [
 		stato.attenzione_polizia, stato.rivalita_criminale, stato.fama_pubblica, stato.karma, stato.fede
 	]
@@ -210,6 +253,7 @@ func _fine_partita() -> void:
 		bottone.disabled = true
 	donazione_button.disabled = true
 	donazione_input.editable = false
+	spostamento_button.disabled = true
 
 	var p := stato.calcola_punteggio()
 	var testo := "[b]%s[/b]\n\n[b]PUNTEGGIO FINALE[/b]\nPadre: %.1fh (~%.2f anni)\nFiglia: %.1fh (~%.2f anni)\nTotale: ~%.2f anni" % [

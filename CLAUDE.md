@@ -99,6 +99,16 @@ narrativi: fasi successive, non ancora iniziate.
     vanificando il vincolo. `GameState.applica_azione_con_dado()` rifiuta
     (senza consumare turno/tempo) un tentativo su un'azione unica già
     usata; `GameState.azione_disponibile(azione)` fa il controllo.
+  - **Varianza roguelite (Fase 8, design doc 12.1)**: ogni run ha un seed
+    (`GameState.seed_run`, loggato/visibile in UI e loop testuale) che
+    guida un `RandomNumberGenerator` seedato dedicato — stesso seed =
+    stessa identica sequenza di tiri di dado E di varianza sui costi/
+    guadagni (riproducibile in debug con `--seed=N`). Costo e guadagno di
+    ogni azione variano moltiplicativamente ±15%/±20% (`ActionVariance`,
+    stessi range già usati nella validazione Monte Carlo del foglio
+    Excel — non ne ho inventati di nuovi), applicati SOLO da
+    `applica_azione_con_dado()`: `applica_azione_deterministica()` (Fase
+    2, validazione esatta contro l'Excel) resta invariata, senza varianza.
 
 ## Comandi utili
 
@@ -124,6 +134,11 @@ godot --headless --path . -- --test-ui
 # (Fase 2, legacy) loop testuale giocabile da terminale — tenuto per
 # verifiche headless rapide, la UI (Fase 6) è ora il modo principale di giocare
 godot --headless --path . -- --play
+
+# (Fase 8) riprodurre una run specifica in debug: --seed=N funziona sia con
+# --play sia con la UI (nessun argomento = UI, quindi "-- --seed=N" da solo)
+godot --headless --path . -- --play --seed=12345
+godot --path . -- --seed=12345
 
 # (Fase 5) simulazione Monte Carlo di bilanciamento, N run per ciascuna
 # delle 3 politiche (greedy / greedy_no_free / random)
@@ -367,3 +382,60 @@ godot --headless --path . -- --test-save-read
      riscritto. PASS.
   Rilanciate anche le verifiche di regressione di `--play`, `--simulate=N`
   e `--test-ui` (parte UI): nessuna rottura.
+- **Fase 8 (varianza roguelite, core)**: fatto. Design doc 12.1.
+  - `GameState.seed_run` + `_rng` (`RandomNumberGenerator` seedato,
+    `GameState.new(seed_iniziale := -1)`): ogni run ha un seed proprio
+    (casuale se non specificato), loggato/visibile ("Seed: N" in UI, riga
+    dedicata in `--play`). `main.gd` accetta `--seed=N` (con `--play` o in
+    UI) per forzare un seed specifico e riprodurre una run in debug.
+  - `scripts/core/action_variance.gd` (`ActionVariance`): varianza
+    moltiplicativa uniforme ±15% sul costo, ±20% sul guadagno di ogni
+    azione (stessi range della validazione Monte Carlo del foglio Excel,
+    design doc 12.7 — non inventati). Applicata in
+    `GameState.applica_azione_con_dado()` prima di sottrarre/sommare a
+    Tempo-Figlia/Sabbia-Padre; `DiceSystem.risolvi()` e
+    `ActionVariance.*` pescano dallo stesso `_rng` seedato, quindi stesso
+    seed → stessa sequenza esatta di tiri E di varianza.
+    `applica_azione_deterministica()` (Fase 2, validazione esatta contro
+    l'Excel) NON è stata toccata: resta senza varianza.
+  - `scripts/core/spostamento.gd` (`Spostamento`): l'evento con esito
+    incerto aggiuntivo richiesto dalla Fase 8 (design doc 12.1, esempio
+    esplicito "uno spostamento... durata variabile... probabilità
+    indipendente di incidente"). Durata base 1-4h, 10% di probabilità di
+    incidente indipendente (non legata a Rischio%/d20 né a
+    ActionVariance), che aggiunge 2-8h di ritardo extra. **Numeri
+    placeholder miei**, non presenti nel foglio Excel (nessuna delle 60
+    azioni core è uno "spostamento") — da tarare con l'autore quando si
+    deciderà come integrare eventi di questo tipo nel loop principale.
+    Esposto come `GameState.applica_spostamento()`, comando `spostati` nel
+    loop testuale, bottone dedicato nella UI.
+  - **Verificato**: riproducibilità esatta a parità di seed (stessa
+    sequenza di costo/effetto/tiro su 10 azioni, due `GameState` con lo
+    stesso seed), seed diverso → valori diversi; varianza entro i range
+    dichiarati (±15%/±20%) su 5000 campioni, media non spostata
+    sistematicamente (scarto <2% dal valore nominale); tasso di incidente
+    di `Spostamento` osservato su 20000 campioni coerente con il 10%
+    dichiarato; riproducibilità end-to-end via CLI (`--play --seed=777`
+    due volte, stesso identico output). Rilanciate `--test-ui`,
+    `--test-save-write/read`: nessuna rottura (un'asserzione in
+    `--test-ui` aggiornata per accettare il range di varianza invece di
+    un costo fisso, atteso — non è una regressione).
+  - **Richiesta esplicita dell'autore verificata**: `tools/balance_ceiling.py`
+    (non tocca la varianza in-game, opera solo sui dati statici) resta
+    invariato a **42.23 anni**. `--simulate=3000` con la varianza attiva:
+    politica `greedy` media **17.76 anni** (era 17.77 prima della Fase 8,
+    sostanzialmente identica), mediana 13.80, massimo osservato 46.64
+    (contro 42.22 prima — leggermente più alto per via della varianza
+    positiva su una run fortunata, non anomalo). Nessuno spostamento
+    sistematico del valore atteso: la varianza rende diversa ogni run,
+    non cambia il tetto economico.
+  - **Effetto collaterale minore osservato, non un problema di
+    bilanciamento**: con la varianza attiva, la politica `random` (mai
+    pensata per rappresentare un giocatore reale) ora raggiunge il tetto
+    di sicurezza di 1000 turni nel 23,9% delle run (prima 0%), perché
+    occasionalmente sceglie ripetutamente le poche azioni a costo
+    nominale 0h (rimaste 6, tutte a effetto negativo/neutro dopo la
+    correzione della Fase 5) senza mai esaurire naturalmente Tempo-Figlia
+    o Sabbia-Padre. Non inflaziona il punteggio (media 2.17 anni, in linea
+    con il ~2.83 di prima): è solo una politica di test che "gira a
+    vuoto" più a lungo, non un nuovo modo di accumulare sabbia.

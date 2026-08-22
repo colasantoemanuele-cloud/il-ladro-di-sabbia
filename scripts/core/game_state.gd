@@ -35,6 +35,21 @@ var end_reason: int = EndReason.NONE
 var turno: int = 0
 var storico: Array[Dictionary] = []
 
+## Seed della run (design doc 12.1: "Ogni run usa un proprio seed"),
+## loggato/visibile (UI e loop testuale lo mostrano) per poter riprodurre
+## una run specifica in debug: rilanciando con lo stesso seed (vedi
+## `GameState.new(seed_iniziale)` e il flag --seed= in main.gd) si ottiene
+## esattamente la stessa sequenza di tiri di dado e di varianza sui costi/
+## guadagni, perché entrambi pescano dallo stesso generatore seedato.
+var seed_run: int
+var _rng: RandomNumberGenerator
+
+
+func _init(seed_iniziale: int = -1) -> void:
+	seed_run = seed_iniziale if seed_iniziale >= 0 else randi()
+	_rng = RandomNumberGenerator.new()
+	_rng.seed = seed_run
+
 ## Nomi delle azioni "Unica per run" già tentate in questa run (colonna
 ## Excel aggiunta dopo il playtest della Fase 5: 17 azioni rappresentano un
 ## bersaglio/accordo/evento singolo — es. IL GRANDE COLPO, la lotteria
@@ -94,10 +109,13 @@ func _is_azione_illegale(azione: ActionData) -> bool:
 
 
 ## Applica un'azione risolvendola con un tiro di dado d20 (Fase 3, design doc
-## 4.6), al posto dell'applicazione diretta e deterministica di
-## applica_azione_deterministica(). Il tempo si spende sempre (anche in caso
-## di fallimento); l'effetto in Sabbia-Padre si applica solo in caso di
-## successo.
+## 4.6) e con varianza roguelite su costo/guadagno (Fase 8, design doc 12.1:
+## ±15%/±20%, vedi ActionVariance), al posto dell'applicazione diretta e
+## deterministica di applica_azione_deterministica(). Il tempo (variato) si
+## spende sempre, anche in caso di fallimento; l'effetto in Sabbia-Padre
+## (variato) si applica solo in caso di successo. Dado e varianza pescano
+## entrambi dal generatore seedato della run (`_rng`), quindi rilanciare con
+## lo stesso seed_run riproduce esattamente la stessa sequenza.
 ##
 ## `modo` e `modificatore` sono gli aggangi per Vantaggio/Svantaggio e
 ## Bonus/Malus: nessuna fonte (oggetti, ranghi di traccia, soglie di
@@ -113,16 +131,17 @@ func applica_azione_con_dado(
 		return {"rifiutata": true, "motivo": "Azione unica per run: già tentata in questa run."}
 
 	turno += 1
-	tempo_figlia_ore -= azione.costo_tempo_figlia_ore
+	var costo := ActionVariance.costo_variato(azione, _rng)
+	tempo_figlia_ore -= costo
 	if azione.unica_per_run:
 		azioni_uniche_usate[azione.nome] = true
 
-	var roll := DiceSystem.risolvi(azione.rischio_pct, modo, modificatore)
+	var roll := DiceSystem.risolvi(azione.rischio_pct, modo, modificatore, _rng)
 
 	var risultato := {
 		"turno": turno,
 		"azione": azione.nome,
-		"costo_tempo_figlia_ore": azione.costo_tempo_figlia_ore,
+		"costo_tempo_figlia_ore": costo,
 		"roll": roll,
 		"successo": roll.successo,
 		"effetto_sabbia_padre_ore": 0.0,
@@ -130,8 +149,9 @@ func applica_azione_con_dado(
 	}
 
 	if roll.successo:
-		sabbia_padre_ore += azione.effetto_sabbia_padre_ore
-		risultato.effetto_sabbia_padre_ore = azione.effetto_sabbia_padre_ore
+		var effetto := ActionVariance.effetto_variato(azione, _rng)
+		sabbia_padre_ore += effetto
+		risultato.effetto_sabbia_padre_ore = effetto
 	elif _is_azione_illegale(azione):
 		risultato.conseguenza_risorsa = "rivalita_criminale_o_attenzione_polizia (fallimento%s)" % (
 			"_critico" if roll.fallimento_critico else ""
@@ -139,6 +159,31 @@ func applica_azione_con_dado(
 
 	risultato["tempo_figlia_ore"] = tempo_figlia_ore
 	risultato["sabbia_padre_ore"] = sabbia_padre_ore
+	storico.append(risultato)
+
+	_controlla_fine_partita()
+	return risultato
+
+
+## Evento con esito incerto aggiuntivo (Fase 8, design doc 12.1, vedi
+## Spostamento): non è legata a nessuna delle 60 azioni core, quindi non
+## interagisce con "Unica per run" né con ActionVariance. Il tempo si spende
+## sempre; non ha alcun effetto diretto su Sabbia-Padre (solo tempo perso in
+## caso di incidente).
+func applica_spostamento() -> Dictionary:
+	turno += 1
+	var esito := Spostamento.esegui(_rng)
+	tempo_figlia_ore -= esito.durata_totale_ore
+
+	var risultato := {
+		"turno": turno,
+		"azione": "Spostamento in città",
+		"spostamento": esito,
+		"costo_tempo_figlia_ore": esito.durata_totale_ore,
+		"effetto_sabbia_padre_ore": 0.0,
+		"tempo_figlia_ore": tempo_figlia_ore,
+		"sabbia_padre_ore": sabbia_padre_ore,
+	}
 	storico.append(risultato)
 
 	_controlla_fine_partita()

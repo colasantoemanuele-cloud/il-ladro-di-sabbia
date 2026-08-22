@@ -16,10 +16,14 @@ extends Control
 ##   --test-save-read     -> Fase 7: rilancio SEPARATO che ricarica quel
 ##                          profilo da disco e verifica che coincida (simula
 ##                          "riapri il gioco" — usare dopo --test-save-write)
+##   --seed=N             -> Fase 8: forza il seed della run (con --play o
+##                          in UI) per riprodurre una run specifica in debug
+##                          invece di uno casuale
 ##
 ## Esempi:
 ##   godot --path .                          (gioco con la UI)
 ##   godot --headless --path . -- --play
+##   godot --headless --path . -- --play --seed=12345
 ##   godot --headless --path . -- --simulate=5000
 ##   godot --headless --path . -- --test-ui
 ##   godot --headless --path . -- --test-save-write
@@ -28,32 +32,37 @@ extends Control
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	var simulate_arg := ""
+	var seed_arg := -1
+	var altri_args: Array[String] = []
 	for a in args:
 		if a.begins_with("--simulate="):
 			simulate_arg = a
-			break
+		elif a.begins_with("--seed="):
+			seed_arg = int(a.split("=")[1])
+		else:
+			altri_args.append(a)
 
 	if not simulate_arg.is_empty():
 		var n := int(simulate_arg.split("=")[1])
 		_run_simulation(n)
 		get_tree().quit()
-	elif args.has("--play"):
-		_run_play_loop()
+	elif altri_args.has("--play"):
+		_run_play_loop(seed_arg)
 		get_tree().quit()
-	elif args.has("--test-ui"):
+	elif altri_args.has("--test-ui"):
 		_run_test_ui()
 		get_tree().quit()
-	elif args.has("--test-save-write"):
+	elif altri_args.has("--test-save-write"):
 		_run_test_save_write()
 		get_tree().quit()
-	elif args.has("--test-save-read"):
+	elif altri_args.has("--test-save-read"):
 		_run_test_save_read()
 		get_tree().quit()
-	elif args.is_empty():
-		_run_ui()
+	elif altri_args.is_empty():
+		_run_ui(seed_arg)
 		# niente quit(): la UI resta aperta e interattiva finché l'utente non chiude la finestra
 	else:
-		print("Argomento non riconosciuto: %s" % ", ".join(args))
+		print("Argomento non riconosciuto: %s" % ", ".join(altri_args))
 		get_tree().quit()
 
 
@@ -107,8 +116,12 @@ func _run_test_ui() -> void:
 	var tempo_prima := stato.tempo_figlia_ore
 	bottone.pressed.emit()
 	assert(stato.turno == 1)
-	assert(stato.tempo_figlia_ore == tempo_prima - 8.0)
-	print("OK: pressione bottone applica l'azione su GameState.")
+	# Fase 8: il costo ora ha varianza ±15% (ActionVariance), non è più
+	# esattamente 8.0h — verifichiamo che sia nel range atteso.
+	var costo_applicato := tempo_prima - stato.tempo_figlia_ore
+	assert(costo_applicato >= 8.0 * 0.85 - 0.01 and costo_applicato <= 8.0 * 1.15 + 0.01,
+		"costo fuori range varianza: %.3f" % costo_applicato)
+	print("OK: pressione bottone applica l'azione su GameState (costo variato: %.2fh)." % costo_applicato)
 
 	var azione_unica_nome := "Lotteria clandestina della sabbia (jackpot raro)"
 	var bottone_unico: Button = ui.bottoni_azione[azione_unica_nome]
@@ -117,6 +130,11 @@ func _run_test_ui() -> void:
 	assert(bottone_unico.disabled)
 	assert("GIÀ USATA" in bottone_unico.text)
 	print("OK: azione unica disabilitata nella UI dopo un tentativo.")
+
+	var tempo_prima_spostamento := stato.tempo_figlia_ore
+	ui.spostamento_button.pressed.emit()
+	assert(stato.tempo_figlia_ore < tempo_prima_spostamento)
+	print("OK: bottone Spostamento consuma Tempo-Figlia tramite la UI.")
 
 	ui.donazione_input.text = "5"
 	ui.donazione_button.pressed.emit()
@@ -150,11 +168,11 @@ func _run_test_ui() -> void:
 	print("TUTTI I TEST UI OK")
 
 
-func _run_ui() -> void:
+func _run_ui(seed_arg: int = -1) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ui := GameUI.new()
 	add_child(ui)
-	ui.avvia(GameState.new(), PlayerProfile.load())
+	ui.avvia(GameState.new(seed_arg), PlayerProfile.load())
 
 
 func _run_simulation(n: int) -> void:
@@ -184,20 +202,22 @@ func _stampa_report_batch(s: Dictionary) -> void:
 	print("Motivi di fine run (0=nessuno/cap, 1=figlia morta, 2=padre morto, 3=donazione): %s" % s.end_reasons)
 
 
-func _run_play_loop() -> void:
+func _run_play_loop(seed_arg: int = -1) -> void:
 	print("=== IL LADRO DI SABBIA — prototipo testuale ===")
 	print("La figlia ha 168 ore di vita, tu (il padre) ne hai 24.")
 	print("Scegli azioni per raccogliere sabbia prima che uno dei due countdown arrivi a zero.")
 	print("")
 
-	var stato := GameState.new()
+	var stato := GameState.new(seed_arg)
+	print("Seed di questa run: %d (rilancia con --play --seed=%d per riprodurla)" % [stato.seed_run, stato.seed_run])
+	print("")
 
 	while not stato.is_over:
 		_stampa_stato(stato)
 		var azioni := ActionDatabase.get_all()
 		_stampa_azioni(azioni, stato)
 		print("")
-		print("Scrivi il numero di un'azione, 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
+		print("Scrivi il numero di un'azione, 'spostati' per un evento di spostamento (durata variabile, rischio indipendente di incidente), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
 		print("> ")
 
 		var input := OS.read_string_from_stdin().strip_edges()
@@ -207,6 +227,20 @@ func _run_play_loop() -> void:
 			print("Run interrotta manualmente (nessuna donazione effettuata).")
 			_stampa_punteggio(stato)
 			return
+
+		if input == "spostati":
+			var r := stato.applica_spostamento()
+			var esito: Spostamento.Esito = r.spostamento
+			print("")
+			print("-> Spostamento in città")
+			if esito.incidente:
+				print("   INCIDENTE! Durata base %.1fh + ritardo %.1fh = %.1fh totali." % [
+					esito.durata_base_ore, esito.ritardo_extra_ore, esito.durata_totale_ore
+				])
+			else:
+				print("   Nessun imprevisto. Durata: %.1fh." % esito.durata_totale_ore)
+			print("")
+			continue
 
 		if input.begins_with("donare"):
 			var parti := input.split(" ", false)
