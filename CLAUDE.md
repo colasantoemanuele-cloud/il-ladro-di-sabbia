@@ -19,9 +19,12 @@ Dettaglio narrativo ed economico completo: `Il_ladro_di_sabbia_design_doc.docx`
 `ladro_di_sabbia_bilanciamento.xlsx`.
 
 **Scope attuale**: loop core (60 azioni, doppio countdown, dado d20,
-donazione, punteggio, varianza roguelite) + le 7 tracce normali (Fase 9a) +
-le 10 sottotrame endgame (Fase 9b). Sinergie tra tracce (Fase 9c), Eterni,
-Stregatto, contenuti narrativi: fasi successive, non ancora iniziate.
+donazione, punteggio, varianza roguelite) + le 7 tracce normali + le 10
+sottotrame endgame + le sinergie tra tracce (Blocco Fase 9, completo:
+9a+9b+9c). Le 5 risorse con effetti reali (Fase 10), Eterni, Stregatto,
+contenuti narrativi: fasi successive, non ancora iniziate. **Ambiguità
+aperta da confermare con l'autore prima di considerare il tetto economico
+definitivo**: la formula del cash-in di sinergia — vedi "Fase 9c" più sotto.
 
 ## Convenzioni di codice
 
@@ -141,6 +144,9 @@ godot --path .
 # (Fase 6) auto-test headless della UI: simula pressioni di bottoni senza
 # display reale (utile da terminale/CI dove non si può vedere la finestra)
 godot --headless --path . -- --test-ui
+
+# (Fase 9c) auto-test headless del sistema di sinergie tra tracce
+godot --headless --path . -- --test-sinergie
 
 # (Fase 2, legacy) loop testuale giocabile da terminale — tenuto per
 # verifiche headless rapide, la UI (Fase 6) è ora il modo principale di giocare
@@ -601,3 +607,104 @@ godot --headless --path . -- --test-save-read
     tetto combinato di riferimento del foglio Excel con tracce E
     sinergie è ~207-208 anni — le sinergie (Fase 9c) restano il pezzo
     mancante per avvicinarsi a quel numero.
+- **Fase 9c (sinergie tra tracce)**: fatto. Chiude il Blocco Fase 9
+  (tracce + sottotrame + sinergie).
+  - `GameState`: `tracce_a_rango_2()`, `combo_tracce()` (limitata alle 4
+    di maggior valore se >4 tracce qualificano — guardia difensiva, il
+    design doc 7.4 nota che 5+ è comunque irraggiungibile entro 168h),
+    `cash_in_disponibile()`, `applica_cash_in()`. **Solo le 7 tracce
+    normali contano per il conteggio N** — le sottotrame (Fase 9b) sono
+    escluse esplicitamente (verificato con un test dedicato), come
+    richiesto.
+  - **Il cash-in riusa `azioni_uniche_usate`** (chiave fissa `"cashin"`):
+    una tantum per l'intera run, non per combo — nessuna logica nuova.
+  - **Fallimento del cash-in**: fa perdere TUTTI i ranghi della combo,
+    riusando esattamente lo stesso meccanismo del fallimento di rango
+    (Fase 9a/9b): ogni riga (Rango 1 e Rango 2) delle tracce coinvolte
+    viene marcata "usata" in `azioni_uniche_usate` E `tracce_raggiunte`
+    viene azzerato per quelle tracce — come richiesto, nessuna logica
+    nuova.
+  - **Rischio del cash-in — mio placeholder, non specificato dal design
+    doc**: 15%, back-calcolato dal 16,8% di probabilità sull'intera
+    catena che il design doc 7.4 riporta per la tripletta storica
+    (prodotto delle probabilità dei 6 climb ≈19,3%, 16,8%/19,3%≈87% di
+    successo per il cash-in da solo ⇒ rischio ≈13%, arrotondato a 15%).
+    Da confermare con l'autore.
+  - **Malus** (`MALUS_COMBINAZIONI`, `malus_attivi()`): rileva le 3
+    combinazioni del design doc 7.3 (Religiosa+Occulto,
+    Bancaria+Criminale, Politica+Occulto — nomi di traccia dedotti dal
+    testo narrativo informale del design doc, non colonne Excel, da
+    confermare). **Come richiesto**, solo la CONDIZIONE è rilevata e
+    segnalata (UI/loop testuale mostrano "Tensione tematica attiva");
+    l'aggancio reale alle risorse (che si sommerebbero invece di restare
+    separate) è marcato con un commento esplicito in `malus_attivi()` —
+    resta un placeholder per la Fase 10, quando Karma/Attenzione
+    Polizia/Rivalità Criminale avranno effetti reali.
+  - UI: nuova barra "Sinergie" (stato combo + bottone cash-in) tra
+    Spostamento e Donazione; notifica di tensione tematica nel messaggio
+    dopo un successo di traccia. Loop testuale: sezione `[SINERGIA]` +
+    comando `cashin`. `BalanceSimulator`: `SynergyCandidate` (classe
+    interna, costruita al volo ad ogni turno solo quando disponibile,
+    dato che costo/effetto dipendono dallo stato corrente — non è dato
+    statico come Action/Track/SubplotData).
+  - **Trovato durante la Fase 9c**: nessuna delle politiche euristiche
+    (`greedy`/`greedy_no_free`/`random`) tenta MAI il cash-in
+    spontaneamente (0,00% su 3000 run ciascuna). Non è un bug: `greedy`
+    massimizza il valore atteso per ora spesa AD OGNI SINGOLO TURNO, e
+    investire in un Rango 1 di traccia (bassa efficienza isolata, serve
+    solo da gradino) perde sempre contro le tante azioni/sottotrame a
+    maggior resa immediata — esattamente la dinamica "biglietto della
+    lotteria" che il design doc 7.4 già descriveva (valore atteso della
+    tripletta più basso della strategia prudente). Per misurare la
+    probabilità reale della sinergia ho aggiunto
+    `BalanceSimulator.simula_tripletta_storica()`, una sequenza
+    SCRIPTATA (non euristica) che riproduce esattamente la tripletta
+    storica Azzardo+Bancaria+Religiosa, stampata come sezione separata
+    da `--simulate=N`.
+  - **Verificato**: 8 casi in `--test-sinergie` (nessuna combo con <2
+    tracce, combo rilevata a 2 tracce, cash-in riuscito applica
+    base×moltiplicatore, cash-in fallito azzera TUTTI i ranghi della
+    combo e blocca le righe, cash-in una tantum, sottotrame escluse dal
+    conteggio, malus rilevato, combo limitata a 4 con 5+ tracce
+    qualificate) + verifica end-to-end in UI (`--test-ui` esteso).
+    Nessuna regressione.
+  - **Richiesta esplicita dell'autore verificata — tetto finale del
+    sistema completo e probabilità reale della sinergia**:
+    `tools/balance_ceiling.py` esteso con enumerazione ESAUSTIVA delle
+    91 combinazioni possibili di 2/3/4 tracce su 7 (knapsack: budget
+    riservato alla combo + cash-in, ottimizzazione del budget residuo su
+    azioni/tracce-non-coinvolte/sottotrame). Combo ottima trovata: la
+    STESSA tripletta storica (Azzardo+Bancaria+Religiosa), che usa da
+    sola il 100% delle 168h — conferma indipendente che il foglio Excel
+    aveva già trovato l'ottimo globale. Monte Carlo (sequenza scriptata,
+    N=3000): probabilità di successo dell'INTERA catena (6 climb +
+    cash-in) = **15,37%** — sorprendentemente vicina al 16,8%
+    deterministico storico (non all'8,4% Monte Carlo storico: la
+    varianza sui costi ±15% sembra avere un impatto minore
+    sull'overshoot del budget in questa implementazione rispetto alla
+    validazione originale — non ho investigato ulteriormente il perché
+    esatto, riportato così com'è per istruzione esplicita di non forzare
+    la coincidenza).
+  - **⚠️ AMBIGUITÀ IMPORTANTE DA RISOLVERE CON L'AUTORE — non risolta
+    unilateralmente**: il design doc 7.3 dice che il cash-in "frutta la
+    somma dei valori base delle N tracce moltiplicata per" il fattore,
+    ma non chiarisce se "valori base" = Rango1+Rango2 sommati
+    (interpretazione A, quella implementata sia in
+    `GameState.applica_cash_in()` sia nel knapsack: i ranghi si
+    incassano normalmente E IN PIÙ il cash-in dà quella somma ×
+    moltiplicatore) oppure solo il Rango2 (interpretazione B, senza
+    sommare anche i ranghi già incassati). Le due letture divergono
+    enormemente: per la tripletta storica, A dà **293,43 anni**
+    (**2.570.470,5 ore**), B dà **206,86 anni** (**1.812.080,8 ore**).
+    **Il riferimento storico del documento "Elementi mancanti" (~206,9
+    anni per questa stessa tripletta) combacia quasi esattamente con
+    l'interpretazione B**, non con la A — probabile che l'autore
+    intendesse quella, ma il codice attuale implementa la A. Tetto del
+    sistema completo (azioni+tracce+sottotrame+sinergie) col codice
+    attuale (interpretazione A): **293,43 anni** per un solo personaggio
+    (ben sopra sia i 100 anni sia il riferimento storico ~207-208 anni,
+    che però non includeva le sottotrame nello stesso calcolo — non è un
+    confronto pulito). Se l'autore conferma l'interpretazione B, sia
+    `GameState.applica_cash_in()` sia `tools/balance_ceiling.py`
+    andranno corretti di conseguenza — NON ho corretto nulla
+    unilateralmente, come da istruzioni.

@@ -19,6 +19,9 @@ extends Control
 ##   --seed=N             -> Fase 8: forza il seed della run (con --play o
 ##                          in UI) per riprodurre una run specifica in debug
 ##                          invece di uno casuale
+##   --test-sinergie      -> Fase 9c: auto-test headless del sistema di
+##                          sinergie tra tracce (cash-in, malus, esclusione
+##                          delle sottotrame dal conteggio)
 ##
 ## Esempi:
 ##   godot --path .                          (gioco con la UI)
@@ -28,6 +31,7 @@ extends Control
 ##   godot --headless --path . -- --test-ui
 ##   godot --headless --path . -- --test-save-write
 ##   godot --headless --path . -- --test-save-read
+##   godot --headless --path . -- --test-sinergie
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -57,6 +61,9 @@ func _ready() -> void:
 		get_tree().quit()
 	elif altri_args.has("--test-save-read"):
 		_run_test_save_read()
+		get_tree().quit()
+	elif altri_args.has("--test-sinergie"):
+		_run_test_sinergie()
 		get_tree().quit()
 	elif altri_args.is_empty():
 		_run_ui(seed_arg)
@@ -182,6 +189,23 @@ func _run_test_ui() -> void:
 		"il bottone della sottotrama deve riflettere l'esito del prerequisito dopo la pressione del bottone azione")
 	print("OK: la UI rivaluta la sottotrama con prerequisito dopo l'azione richiesta (esito: %s)." % ("successo" if riattivato_con_successo else "fallimento"))
 
+	# Fase 9c: il bottone cash-in deve abilitarsi quando 2+ tracce sono a
+	# Rango 2, e la pressione deve applicare stato.applica_cash_in().
+	var ui3 := GameUI.new()
+	add_child(ui3)
+	var stato3 := GameState.new()
+	ui3.avvia(stato3)
+	assert(ui3.cashin_button.disabled)
+	stato3.tracce_raggiunte["Lavoro"] = 2
+	stato3.tracce_raggiunte["Criminale"] = 2
+	ui3._aggiorna_sinergia_ui()
+	assert(not ui3.cashin_button.disabled, "il cash-in deve abilitarsi con 2 tracce a Rango 2")
+	var turno_prima := stato3.turno
+	ui3.cashin_button.pressed.emit()
+	assert(stato3.turno == turno_prima + 1, "la pressione del bottone deve applicare il cash-in su GameState")
+	assert(ui3.cashin_button.disabled, "il cash-in è una tantum, deve disabilitarsi dopo il tentativo")
+	print("OK: bottone cash-in si abilita con 2 tracce a Rango 2 e applica il tentativo su GameState.")
+
 	ui.donazione_input.text = "5"
 	ui.donazione_button.pressed.emit()
 	assert(stato.is_over)
@@ -214,6 +238,97 @@ func _run_test_ui() -> void:
 	print("TUTTI I TEST UI OK")
 
 
+func _run_test_sinergie() -> void:
+	print("=== Fase 9c: auto-test headless delle sinergie tra tracce ===")
+
+	var s1 := GameState.new(1)
+	assert(s1.combo_dimensione() == 0)
+	assert(not s1.cash_in_disponibile())
+	s1.tracce_raggiunte["Lavoro"] = 2
+	assert(s1.combo_dimensione() == 1)
+	assert(not s1.cash_in_disponibile())
+	print("OK: nessuna sinergia con < 2 tracce a Rango 2.")
+
+	var s2 := GameState.new(2)
+	s2.tracce_raggiunte["Lavoro"] = 2
+	s2.tracce_raggiunte["Criminale"] = 2
+	assert(s2.combo_dimensione() == 2)
+	assert(s2.cash_in_disponibile())
+	var combo: Array = s2.combo_tracce()
+	assert(combo.size() == 2 and "Lavoro" in combo and "Criminale" in combo)
+	print("OK: sinergia coppia (2 tracce) rilevata correttamente.")
+
+	# Il rischio del cash-in e' una costante fissa (CASH_IN_RISCHIO_PCT):
+	# proviamo piu' seed finche' non troviamo un successo e un fallimento,
+	# per verificare entrambi i rami deterministicamente.
+	var trovato_successo := false
+	var trovato_fallimento := false
+	for tentativo_seed in range(3, 300):
+		if trovato_successo and trovato_fallimento:
+			break
+		var s := GameState.new(tentativo_seed)
+		s.tracce_raggiunte["Lavoro"] = 2
+		s.tracce_raggiunte["Criminale"] = 2
+		var valore_atteso: float = s.valore_base_traccia("Lavoro") + s.valore_base_traccia("Criminale")
+		var sabbia_prima := s.sabbia_padre_ore
+		var r := s.applica_cash_in()
+
+		if r.successo and not trovato_successo:
+			assert(r.effetto_sabbia_padre_ore > 0)
+			assert(s.sabbia_padre_ore > sabbia_prima + valore_atteso,
+				"il cash-in riuscito deve rendere più della semplice somma base (moltiplicatore x2)")
+			assert(r.moltiplicatore == 2.0)
+			trovato_successo = true
+			print("OK: cash-in riuscito applica somma_base x2 (con varianza) alla Sabbia-Padre.")
+
+		elif not r.successo and not trovato_fallimento:
+			assert(s.tracce_raggiunte.get("Lavoro", 0) == 0,
+				"il fallimento del cash-in deve azzerare il progresso di TUTTE le tracce della combo")
+			assert(s.tracce_raggiunte.get("Criminale", 0) == 0)
+			var lavoro1 := TrackDatabase.get_riga("Lavoro", 1)
+			var lavoro2 := TrackDatabase.get_riga("Lavoro", 2)
+			assert(not s.traccia_disponibile(lavoro1),
+				"dopo il fallimento del cash-in le righe delle tracce coinvolte devono essere bloccate")
+			assert(not s.traccia_disponibile(lavoro2))
+			trovato_fallimento = true
+			print("OK: cash-in fallito azzera il progresso e blocca TUTTE le righe delle tracce della combo.")
+
+	assert(trovato_successo, "nessun successo di cash-in trovato in 300 tentativi")
+	assert(trovato_fallimento, "nessun fallimento di cash-in trovato in 300 tentativi")
+
+	var s5 := GameState.new(2)
+	s5.tracce_raggiunte["Lavoro"] = 2
+	s5.tracce_raggiunte["Criminale"] = 2
+	s5.applica_cash_in()
+	assert(not s5.cash_in_disponibile())
+	var r5b := s5.applica_cash_in()
+	assert(r5b.has("rifiutata"))
+	print("OK: il cash-in è una tantum per run.")
+
+	var s6 := GameState.new(6)
+	s6.azioni_uniche_usate["sottotrama:Il tesoro del vecchio boss"] = true
+	assert(s6.combo_dimensione() == 0, "le sottotrame non devono mai contribuire al conteggio N della sinergia")
+	print("OK: le sottotrame non contano per il conteggio della sinergia.")
+
+	var s7 := GameState.new(7)
+	assert(s7.malus_attivi().is_empty())
+	s7.tracce_raggiunte["Religiosa (indulgenze)"] = 2
+	s7.tracce_raggiunte["Occulto (setta satanica)"] = 2
+	var malus: Array = s7.malus_attivi()
+	assert(malus.size() == 1)
+	assert(malus[0][0] == "Religiosa (indulgenze)" and malus[0][1] == "Occulto (setta satanica)")
+	print("OK: combinazione malus Religiosa+Occulto rilevata correttamente.")
+
+	var s8 := GameState.new(8)
+	for nome in ["Lavoro", "Criminale", "Politica", "Azzardo", "Bancaria"]:
+		s8.tracce_raggiunte[nome] = 2
+	assert(s8.tracce_a_rango_2().size() == 5)
+	assert(s8.combo_dimensione() == 4, "la combo deve limitarsi a 4 anche con 5 tracce qualificate")
+	print("OK: con 5+ tracce a Rango 2 la combo si limita alle 4 di maggior valore.")
+
+	print("TUTTI I TEST SINERGIE OK")
+
+
 func _run_ui(seed_arg: int = -1) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ui := GameUI.new()
@@ -228,6 +343,15 @@ func _run_simulation(n: int) -> void:
 		var stats := BalanceSimulator.esegui_batch(n, politica)
 		_stampa_report_batch(stats)
 		print("")
+
+	print("--- Sequenza scriptata: tripletta storica (Azzardo+Bancaria+Religiosa, %d run) ---" % n)
+	print("Nessuna politica euristica sceglie mai spontaneamente questa strategia (valore atteso più basso della strategia prudente, design doc 7.4) — sequenza forzata per misurarne la probabilità reale col dado.")
+	var tripletta := BalanceSimulator.simula_tripletta_storica(n)
+	print("Probabilità di successo dell'INTERA catena (6 climb + cash-in): %.2f%%" % (tripletta.prob_successo_catena * 100.0))
+	print("Punteggio medio totale (padre+figlia) quando la catena riesce: %.2f anni" % tripletta.punteggio_medio_se_successo)
+	print("Punteggio medio totale su TUTTI i tentativi (riusciti e falliti): %.2f anni" % tripletta.punteggio_medio_totale)
+	print("Riferimento storico design doc: 16,8%% deterministico -> 8,4%% con varianza Monte Carlo (sezione 7.4/12.7).")
+	print("")
 
 
 func _stampa_report_batch(s: Dictionary) -> void:
@@ -246,6 +370,9 @@ func _stampa_report_batch(s: Dictionary) -> void:
 			s.prob_cap_turni_raggiunto * 100.0, BalanceSimulator.MAX_TURNI
 		])
 	print("Motivi di fine run (0=nessuno/cap, 1=figlia morta, 2=padre morto, 3=donazione): %s" % s.end_reasons)
+	print("Cash-in sinergia tentato in %.2f%% delle run; tra queste, successo nel %.2f%% dei casi." % [
+		s.prob_cashin_tentato * 100.0, s.prob_cashin_riuscito_se_tentato * 100.0
+	])
 
 
 func _run_play_loop(seed_arg: int = -1) -> void:
@@ -267,8 +394,9 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 		_stampa_azioni(azioni, stato)
 		_stampa_tracce(tracce, stato, azioni.size())
 		_stampa_sottotrame(sottotrame, stato, azioni.size() + tracce.size())
+		_stampa_sinergia(stato)
 		print("")
-		print("Scrivi il numero di un'azione, riga di traccia o sottotrama, 'spostati' per un evento di spostamento (durata variabile, rischio indipendente di incidente), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
+		print("Scrivi il numero di un'azione, riga di traccia o sottotrama, 'spostati' per un evento di spostamento, 'cashin' per la sinergia (se disponibile), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
 		print("> ")
 
 		var input := OS.read_string_from_stdin().strip_edges()
@@ -290,6 +418,21 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 				])
 			else:
 				print("   Nessun imprevisto. Durata: %.1fh." % esito.durata_totale_ore)
+			print("")
+			continue
+
+		if input == "cashin":
+			var r := stato.applica_cash_in()
+			print("")
+			if r.has("rifiutata"):
+				print("Cash-in non disponibile: %s" % r.motivo)
+				print("")
+				continue
+			print("-> %s" % r.azione)
+			print("   Esito: %s | Costo Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
+				"SUCCESSO" if r.successo else "FALLIMENTO (tutti i ranghi della combo sono persi)",
+				r.costo_tempo_figlia_ore, r.effetto_sabbia_padre_ore
+			])
 			print("")
 			continue
 
@@ -474,3 +617,23 @@ func _stampa_sottotrame(sottotrame: Array[SubplotData], stato: GameState, offset
 		print("  %2d) %-45s costo=%5.1fh  effetto=%+10.1fh  rischio=%3d%%%s" % [
 			offset + i + 1, s.nome, s.costo_tempo_figlia_ore, s.effetto_sabbia_padre_ore, roundi(s.rischio_pct * 100), etichetta
 		])
+
+
+func _stampa_sinergia(stato: GameState) -> void:
+	var combo: Array = stato.combo_tracce()
+	if combo.is_empty():
+		return
+	print("[SINERGIA]")
+	if stato.cash_in_disponibile():
+		var moltiplicatore: float = GameState.SINERGIA_MOLTIPLICATORI.get(combo.size(), GameState.SINERGIA_MOLTIPLICATORI[4])
+		print("  Combo attiva su %d tracce (%s) — 'cashin' disponibile, moltiplicatore x%.0f, rischio %d%%." % [
+			combo.size(), ", ".join(combo), moltiplicatore, roundi(GameState.CASH_IN_RISCHIO_PCT * 100)
+		])
+	else:
+		print("  Cash-in già tentato in questa run.")
+	var malus: Array = stato.malus_attivi()
+	if not malus.is_empty():
+		var parti: Array[String] = []
+		for coppia in malus:
+			parti.append("%s + %s" % [coppia[0], coppia[1]])
+		print("  Tensione tematica attiva: %s" % ", ".join(parti))

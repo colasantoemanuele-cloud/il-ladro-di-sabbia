@@ -34,27 +34,60 @@ extends RefCounted
 const MAX_TURNI := 1000
 
 
-## `candidati` è un Array misto di ActionData e TrackData (nessuna
-## interfaccia comune in GDScript, ma stessi nomi di campo — vedi
+## Candidato "virtuale" per il cash-in di sinergia (Fase 9c): a differenza
+## di ActionData/TrackData/SubplotData non viene da un database statico,
+## perché costo/effetto/rischio dipendono dallo stato di gioco corrente
+## (quali tracce sono a Rango 2 in questo momento). Costruito al volo, un
+## turno alla volta, solo quando `stato.cash_in_disponibile()`.
+class SynergyCandidate:
+	extends RefCounted
+	var costo_tempo_figlia_ore: float = GameState.CASH_IN_COSTO_ORE
+	var rischio_pct: float = GameState.CASH_IN_RISCHIO_PCT
+	var effetto_sabbia_padre_ore: float
+
+
+static func _candidato_sinergia(stato: GameState) -> SynergyCandidate:
+	var combo: Array = stato.combo_tracce()
+	var moltiplicatore: float = GameState.SINERGIA_MOLTIPLICATORI.get(combo.size(), GameState.SINERGIA_MOLTIPLICATORI[4])
+	var valore_base := 0.0
+	for nome in combo:
+		valore_base += stato.valore_base_traccia(nome)
+	var c := SynergyCandidate.new()
+	c.effetto_sabbia_padre_ore = valore_base * moltiplicatore
+	return c
+
+
+## `candidati` è un Array misto di ActionData, TrackData e SubplotData
+## (nessuna interfaccia comune in GDScript, ma stessi nomi di campo — vedi
 ## TrackData). Il tipo di ciascun elemento decide sia il controllo di
-## disponibilità sia il metodo di GameState da chiamare.
+## disponibilità sia il metodo di GameState da chiamare. Il cash-in di
+## sinergia (SynergyCandidate) viene aggiunto al volo ad ogni turno, solo
+## quando disponibile — non fa parte di `candidati` perché non è dati
+## statici.
 static func simula_run(candidati: Array, politica: String) -> Dictionary:
 	var stato := GameState.new()
 	var cap_raggiunto := false
+	var cashin_tentato := false
+	var cashin_riuscito := false
 
 	while not stato.is_over:
 		if stato.turno >= MAX_TURNI:
 			cap_raggiunto = true
 			break
 
+		var pool := candidati
+		if stato.cash_in_disponibile():
+			pool = candidati.duplicate()
+			pool.append(_candidato_sinergia(stato))
+
 		var candidato
 		match politica:
 			"greedy":
-				candidato = _scegli_greedy(candidati, stato, false)
+				candidato = _scegli_greedy(pool, stato, false)
 			"greedy_no_free":
-				candidato = _scegli_greedy(candidati, stato, true)
+				candidato = _scegli_greedy(pool, stato, true)
 			_:
-				candidato = _scegli_random(candidati, stato)
+				candidato = _scegli_random(pool, stato)
 		if candidato == null:
 			break  # nessun candidato affrontabile o utile rimasto
 
@@ -62,6 +95,10 @@ static func simula_run(candidati: Array, politica: String) -> Dictionary:
 			stato.applica_traccia(candidato)
 		elif candidato is SubplotData:
 			stato.applica_sottotrama(candidato)
+		elif candidato is SynergyCandidate:
+			var r := stato.applica_cash_in()
+			cashin_tentato = true
+			cashin_riuscito = r.get("successo", false)
 		else:
 			stato.applica_azione_con_dado(candidato)
 
@@ -74,6 +111,8 @@ static func simula_run(candidati: Array, politica: String) -> Dictionary:
 		"figlia_anni": punteggio.figlia_anni,
 		"totale_anni": punteggio.punteggio_totale_anni,
 		"vittoria_100_100": punteggio.vittoria_100_100,
+		"cashin_tentato": cashin_tentato,
+		"cashin_riuscito": cashin_riuscito,
 	}
 
 
@@ -82,6 +121,8 @@ static func _disponibile(candidato, stato: GameState) -> bool:
 		return stato.traccia_disponibile(candidato)
 	if candidato is SubplotData:
 		return stato.sottotrama_disponibile(candidato)
+	if candidato is SynergyCandidate:
+		return true  # aggiunto al pool solo quando già disponibile
 	return stato.azione_disponibile(candidato)
 
 
@@ -130,6 +171,8 @@ static func esegui_batch(n_run: int, politica: String) -> Dictionary:
 	var cap_raggiunto_count := 0
 	var end_reasons := {}
 	var turni_totali := 0
+	var cashin_tentati := 0
+	var cashin_riusciti := 0
 
 	for i in n_run:
 		var r := simula_run(candidati, politica)
@@ -140,6 +183,10 @@ static func esegui_batch(n_run: int, politica: String) -> Dictionary:
 			vittorie += 1
 		if r.cap_turni_raggiunto:
 			cap_raggiunto_count += 1
+		if r.cashin_tentato:
+			cashin_tentati += 1
+			if r.cashin_riuscito:
+				cashin_riusciti += 1
 		turni_totali += r.turni
 		var reason_key := str(r.end_reason)
 		end_reasons[reason_key] = end_reasons.get(reason_key, 0) + 1
@@ -160,6 +207,61 @@ static func esegui_batch(n_run: int, politica: String) -> Dictionary:
 		"prob_cap_turni_raggiunto": float(cap_raggiunto_count) / n_run,
 		"end_reasons": end_reasons,
 		"turni_medi": float(turni_totali) / n_run,
+		"prob_cashin_tentato": float(cashin_tentati) / n_run,
+		"prob_cashin_riuscito_se_tentato": (float(cashin_riusciti) / cashin_tentati) if cashin_tentati > 0 else 0.0,
+	}
+
+
+## Sequenza SCRIPTATA (non una politica euristica) che riproduce esattamente
+## la "tripletta storica" del design doc 7.4 — Azzardo + Bancaria +
+## Religiosa, entrambi i ranghi, poi il cash-in — per misurare col dado vero
+## la probabilità di successo dell'INTERA catena, sullo stesso metodo con
+## cui il design doc ha validato quel 16,8% deterministico / 8,4% Monte
+## Carlo (sezione 7.4/12.7). Serve perché nessuna delle politiche euristiche
+## (greedy/random) sceglie mai spontaneamente questa strategia: il design
+## doc stesso nota che ha un valore atteso PIÙ BASSO della strategia
+## prudente ("un vero biglietto della lotteria"), quindi un ottimizzatore
+## miope come "greedy" non la trova mai da solo — bisogna forzarla per
+## poterla misurare.
+static func simula_tripletta_storica(n_run: int) -> Dictionary:
+	var tracce_target := ["Azzardo", "Bancaria", "Religiosa (indulgenze)"]
+	var successi_catena := 0
+	var punteggi_totali: Array[float] = []
+	var punteggi_se_riuscita: Array[float] = []
+
+	for i in n_run:
+		var stato := GameState.new()
+		var riuscita := true
+
+		for nome in tracce_target:
+			for rango in [1, 2]:
+				if not riuscita or stato.is_over:
+					riuscita = false
+					break
+				var riga := TrackDatabase.get_riga(nome, rango)
+				var r := stato.applica_traccia(riga)
+				if r.has("rifiutata") or not r.successo:
+					riuscita = false
+
+		if riuscita and not stato.is_over:
+			var r_cash := stato.applica_cash_in()
+			riuscita = r_cash.get("successo", false)
+		else:
+			riuscita = false
+
+		if riuscita:
+			successi_catena += 1
+
+		var p := stato.calcola_punteggio()
+		punteggi_totali.append(p.punteggio_totale_anni)
+		if riuscita:
+			punteggi_se_riuscita.append(p.punteggio_totale_anni)
+
+	return {
+		"n_run": n_run,
+		"prob_successo_catena": float(successi_catena) / n_run,
+		"punteggio_medio_se_successo": _media(punteggi_se_riuscita),
+		"punteggio_medio_totale": _media(punteggi_totali),
 	}
 
 

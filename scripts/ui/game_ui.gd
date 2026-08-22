@@ -23,6 +23,9 @@ var donazione_button: Button
 
 var spostamento_button: Button
 
+var lbl_sinergia: Label
+var cashin_button: Button
+
 var azioni_vbox: VBoxContainer
 var bottoni_azione: Dictionary = {}  # nome azione -> Button
 
@@ -46,6 +49,7 @@ func avvia(stato_iniziale: GameState, profilo_iniziale: PlayerProfile = null) ->
 	_popola_tracce()
 	_popola_sottotrame()
 	_aggiorna_stato_ui()
+	_aggiorna_sinergia_ui()
 
 
 func _costruisci_ui() -> void:
@@ -89,6 +93,22 @@ func _costruisci_ui() -> void:
 	spostamento_button.text = "Spostati in città (durata variabile, rischio indipendente di incidente)"
 	spostamento_button.pressed.connect(_on_spostamento_pressed)
 	spostamento_bar.add_child(spostamento_button)
+
+	root.add_child(HSeparator.new())
+
+	# --- Sinergie tra tracce (Fase 9c) ---
+	lbl_sinergia = Label.new()
+	lbl_sinergia.autowrap_mode = TextServer.AUTOWRAP_WORD
+	root.add_child(lbl_sinergia)
+
+	var sinergia_bar := HBoxContainer.new()
+	sinergia_bar.add_theme_constant_override("separation", 8)
+	root.add_child(sinergia_bar)
+
+	cashin_button = Button.new()
+	cashin_button.text = "Cash-in sinergia"
+	cashin_button.pressed.connect(_on_cashin_pressed)
+	sinergia_bar.add_child(cashin_button)
 
 	root.add_child(HSeparator.new())
 
@@ -225,11 +245,22 @@ func _on_traccia_pressed(riga: TrackData) -> void:
 		return
 
 	lbl_messaggio.text = _descrivi_risultato_traccia(riga, risultato)
+	var malus_nuovi: Array = stato.malus_attivi()
+	if not malus_nuovi.is_empty():
+		lbl_messaggio.text += "\n\n[b]Tensione tematica attiva:[/b] %s" % _descrivi_malus(malus_nuovi)
 	_aggiorna_bottoni_traccia()
+	_aggiorna_sinergia_ui()
 	_aggiorna_stato_ui()
 
 	if stato.is_over:
 		_fine_partita()
+
+
+func _descrivi_malus(malus: Array) -> String:
+	var parti: Array[String] = []
+	for coppia in malus:
+		parti.append("%s + %s" % [coppia[0], coppia[1]])
+	return ", ".join(parti)
 
 
 func _descrivi_risultato_traccia(riga: TrackData, risultato: Dictionary) -> String:
@@ -422,6 +453,46 @@ func _on_spostamento_pressed() -> void:
 		_fine_partita()
 
 
+## Fase 9c, design doc 7.3: sinergie tra tracce. Solo le 7 tracce normali
+## contano per il conteggio N — le sottotrame (Fase 9b) sono escluse
+## esplicitamente. Il cash-in è una tantum per run (stesso meccanismo delle
+## azioni "Unica per run"): un fallimento fa perdere TUTTI i ranghi delle
+## tracce coinvolte nella combo.
+func _aggiorna_sinergia_ui() -> void:
+	var combo: Array = stato.combo_tracce()
+	if combo.is_empty():
+		lbl_sinergia.text = "Sinergie: nessuna combo attiva (serve Rango 2 in almeno 2 tracce diverse)."
+	else:
+		var moltiplicatore: float = GameState.SINERGIA_MOLTIPLICATORI.get(combo.size(), GameState.SINERGIA_MOLTIPLICATORI[4])
+		lbl_sinergia.text = "Sinergie: combo attiva su %d tracce (%s) — cash-in disponibile, moltiplicatore x%.0f." % [
+			combo.size(), ", ".join(combo), moltiplicatore
+		]
+	cashin_button.disabled = not stato.cash_in_disponibile()
+
+
+func _on_cashin_pressed() -> void:
+	if stato.is_over:
+		return
+
+	var risultato := stato.applica_cash_in()
+
+	if risultato.has("rifiutata"):
+		lbl_messaggio.text = "[b]Cash-in non disponibile:[/b] %s" % risultato.motivo
+		return
+
+	var esito := "SUCCESSO" if risultato.successo else "FALLIMENTO — tutti i ranghi della combo sono persi"
+	lbl_messaggio.text = "[b]%s[/b]\n%s\nCosto Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
+		risultato.azione, esito, risultato.costo_tempo_figlia_ore, risultato.effetto_sabbia_padre_ore
+	]
+
+	_aggiorna_bottoni_traccia()
+	_aggiorna_sinergia_ui()
+	_aggiorna_stato_ui()
+
+	if stato.is_over:
+		_fine_partita()
+
+
 func _on_dona_pressed() -> void:
 	if stato.is_over:
 		return
@@ -460,6 +531,7 @@ func _fine_partita() -> void:
 	donazione_button.disabled = true
 	donazione_input.editable = false
 	spostamento_button.disabled = true
+	cashin_button.disabled = true
 
 	var p := stato.calcola_punteggio()
 	var testo := "[b]%s[/b]\n\n[b]PUNTEGGIO FINALE[/b]\nPadre: %.1fh (~%.2f anni)\nFiglia: %.1fh (~%.2f anni)\nTotale: ~%.2f anni" % [

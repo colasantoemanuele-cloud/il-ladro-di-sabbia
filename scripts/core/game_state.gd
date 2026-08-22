@@ -276,6 +276,154 @@ func applica_traccia(
 	return risultato
 
 
+## Fase 9c, design doc 7.3: raggiungere Rango 2 in N tracce NORMALI diverse
+## (2, 3 o 4 — le sottotrame NON contano mai per questo conteggio, decisione
+## esplicita dell'autore) nella stessa run sblocca un'azione di "cash-in".
+const CASH_IN_COSTO_ORE := 8.0
+
+## Rischio del cash-in: NON specificato né dal foglio Excel né dal design
+## doc (la sezione 7.3 descrive solo il moltiplicatore, non un Rischio%
+## per l'azione di cash-in in sé). Valore back-calcolato dal 16,8% di
+## probabilità sull'intera catena che il design doc 7.4 riporta per la
+## tripletta storica Azzardo+Bancaria+Religiosa: il prodotto delle
+## probabilità di successo dei 6 tentativi di rango di quella tripletta
+## (con i Rischio% attuali del foglio Endgame) è ~19,3%; 16,8% / 19,3% ≈
+## 87% di successo per il solo cash-in, cioè un rischio di ~13%,
+## arrotondato qui a 15%. Placeholder mio, da confermare con l'autore.
+const CASH_IN_RISCHIO_PCT := 0.15
+
+const SINERGIA_MOLTIPLICATORI := {2: 2.0, 3: 4.0, 4: 8.0}
+
+## Le 3 combinazioni "malus" del design doc 7.3 (nomi di traccia, non di
+## rango — il malus scatta quando ENTRAMBE le tracce della coppia sono a
+## Rango 2): "Capo di culto tollerato" + "Capo di setta satanica" ->
+## Religiosa+Occulto; "Direttore di banca" + "Boss riconosciuto" ->
+## Bancaria+Criminale; "Burattinaio politico" + "Capo di setta occulta" ->
+## Politica+Occulto. Nomi di traccia interpretati dal testo narrativo del
+## design doc (non sono colonne Excel), da confermare con l'autore.
+const MALUS_COMBINAZIONI := [
+	["Religiosa (indulgenze)", "Occulto (setta satanica)"],
+	["Bancaria", "Criminale"],
+	["Politica", "Occulto (setta satanica)"],
+]
+
+
+## Nomi delle tracce normali attualmente a Rango 2 in questa run. Solo le
+## tracce normali contano per la sinergia: le sottotrame non entrano mai
+## in questo conteggio, per esplicita decisione dell'autore.
+func tracce_a_rango_2() -> Array:
+	var out := []
+	for nome in tracce_raggiunte:
+		if tracce_raggiunte[nome] >= 2:
+			out.append(nome)
+	return out
+
+
+func valore_base_traccia(nome: String) -> float:
+	var r1 := TrackDatabase.get_riga(nome, 1)
+	var r2 := TrackDatabase.get_riga(nome, 2)
+	return (r1.effetto_sabbia_padre_ore if r1 != null else 0.0) + (r2.effetto_sabbia_padre_ore if r2 != null else 0.0)
+
+
+## Tracce che verrebbero effettivamente incluse in un cash-in tentato ora:
+## tutte quelle a Rango 2 se sono <= 4, altrimenti le 4 di maggior valore
+## base (il design doc 7.4 nota che una quadrupletta è già di fatto
+## irraggiungibile entro 168 ore, quindi 5+ è solo una guardia difensiva,
+## non un caso atteso in pratica).
+func combo_tracce() -> Array:
+	var candidate := tracce_a_rango_2()
+	if candidate.size() <= 4:
+		return candidate
+	candidate.sort_custom(func(a, b): return valore_base_traccia(a) > valore_base_traccia(b))
+	return candidate.slice(0, 4)
+
+
+func combo_dimensione() -> int:
+	return combo_tracce().size()
+
+
+func cash_in_disponibile() -> bool:
+	return not azioni_uniche_usate.has("cashin") and combo_dimensione() >= 2
+
+
+## Rileva le combinazioni "malus" del design doc 7.3 attualmente attive
+## (entrambe le tracce della coppia a Rango 2 in questa run). Le risorse
+## coinvolte (Karma / Attenzione Polizia / Rivalità Criminale) sono ancora
+## placeholder fissi a 0 (Fase 6): qui si rileva SOLO la condizione
+## narrativa — l'aggancio che le somma davvero per finta arriverà in Fase
+## 10, quando quelle risorse avranno un effetto reale sul gioco.
+func malus_attivi() -> Array:
+	var attivi := []
+	for coppia in MALUS_COMBINAZIONI:
+		if tracce_raggiunte.get(coppia[0], 0) >= 2 and tracce_raggiunte.get(coppia[1], 0) >= 2:
+			attivi.append(coppia)
+	return attivi
+
+
+## Applica il tentativo di cash-in della sinergia (design doc 7.3). Costo
+## (8h) e guadagno (somma dei valori base della combo x moltiplicatore)
+## hanno la stessa varianza ±15%/±20% di azioni/tracce/sottotrame, stesso
+## _rng seedato. Un fallimento fa perdere TUTTI i ranghi coinvolti nella
+## combo ("si perdono TUTTI i ranghi coinvolti nella combo, non solo
+## uno") — riusa esattamente lo stesso meccanismo di azioni_uniche_usate
+## già scritto per il fallimento di rango (Fase 9a/9b, non logica nuova):
+## ogni riga (Rango 1 e Rango 2) delle tracce coinvolte viene marcata
+## "usata" (bloccata per sempre) e il progresso azzerato.
+func applica_cash_in(
+	modo: DiceSystem.RollMode = DiceSystem.RollMode.NORMALE,
+	modificatore: int = 0
+) -> Dictionary:
+	if not cash_in_disponibile():
+		return {
+			"rifiutata": true,
+			"motivo": "servono almeno 2 tracce diverse a Rango 2, oppure il cash-in è già stato tentato in questa run.",
+		}
+
+	var combo := combo_tracce()
+	var n := combo.size()
+	var moltiplicatore: float = SINERGIA_MOLTIPLICATORI.get(n, SINERGIA_MOLTIPLICATORI[4])
+	var valore_base := 0.0
+	for nome in combo:
+		valore_base += valore_base_traccia(nome)
+
+	turno += 1
+	var costo := ActionVariance.costo_variato(CASH_IN_COSTO_ORE, _rng)
+	tempo_figlia_ore -= costo
+	azioni_uniche_usate["cashin"] = true
+
+	var roll := DiceSystem.risolvi(CASH_IN_RISCHIO_PCT, modo, modificatore, _rng)
+
+	var risultato := {
+		"turno": turno,
+		"azione": "Cash-in sinergia (%d tracce: %s)" % [n, ", ".join(combo)],
+		"combo": combo,
+		"moltiplicatore": moltiplicatore,
+		"costo_tempo_figlia_ore": costo,
+		"roll": roll,
+		"successo": roll.successo,
+		"effetto_sabbia_padre_ore": 0.0,
+	}
+
+	if roll.successo:
+		var effetto := ActionVariance.effetto_variato(valore_base * moltiplicatore, _rng)
+		sabbia_padre_ore += effetto
+		risultato.effetto_sabbia_padre_ore = effetto
+	else:
+		for nome in combo:
+			for rango in [1, 2]:
+				var riga_persa := TrackDatabase.get_riga(nome, rango)
+				if riga_persa != null:
+					azioni_uniche_usate[_chiave_traccia(riga_persa)] = true
+			tracce_raggiunte[nome] = 0
+
+	risultato["tempo_figlia_ore"] = tempo_figlia_ore
+	risultato["sabbia_padre_ore"] = sabbia_padre_ore
+	storico.append(risultato)
+
+	_controlla_fine_partita()
+	return risultato
+
+
 func _chiave_sottotrama(sub: SubplotData) -> String:
 	return "sottotrama:%s" % sub.nome
 
