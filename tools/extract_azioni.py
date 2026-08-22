@@ -48,7 +48,8 @@ def main() -> None:
             "effetto_sabbia_padre_anni": row[5].value,
             "rischio_pct": row[6].value,
             "moralita": row[7].value,
-            "fonte_nota": row[8].value,
+            "unica_per_run": row[8].value == "VERO",
+            "fonte_nota": row[9].value,
         })
 
     output = {
@@ -66,12 +67,14 @@ def main() -> None:
         json.dump(output, f, ensure_ascii=False, indent=2)
 
     print(f"Scritte {len(actions)} azioni in {JSON_PATH}")
-    if len(actions) != 61:
+    if len(actions) != 60:
         print(
-            f"ATTENZIONE: il design doc parla di 61 azioni core, "
+            f"ATTENZIONE: attese 60 azioni core (numero confermato dall'autore), "
             f"ma il foglio Excel ne contiene {len(actions)}.",
             file=sys.stderr,
         )
+    n_uniche = sum(1 for a in actions if a["unica_per_run"])
+    print(f"Di cui marcate 'Unica per run': {n_uniche}")
 
 
 if __name__ == "__main__":

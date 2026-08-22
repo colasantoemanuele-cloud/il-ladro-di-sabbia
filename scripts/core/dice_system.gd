@@ -14,11 +14,14 @@ class RollResult:
 	var modificatore: int = 0
 	var totale: int = 0        ## naturale + modificatore
 	var cd: int = 0
-	var successo_critico: bool = false  ## naturale == 20
-	var fallimento_critico: bool = false  ## naturale == 1
+	var successo_critico: bool = false  ## naturale == 20 (mai vero se senza_tiro)
+	var fallimento_critico: bool = false  ## naturale == 1 (mai vero se senza_tiro)
 	var successo: bool = false
+	var senza_tiro: bool = false  ## Rischio 0%/100%: nessun dado tirato, vedi risolvi()
 
 	func _to_string() -> String:
+		if senza_tiro:
+			return "nessun tiro (rischio estremo) -> %s" % ("successo automatico" if successo else "fallimento automatico")
 		var esito := "CRITICO" if successo_critico else ("FALLIMENTO CRITICO" if fallimento_critico else ("successo" if successo else "fallimento"))
 		return "dadi=%s naturale=%d totale=%d CD=%d -> %s" % [dadi, naturale, totale, cd, esito]
 
@@ -38,7 +41,24 @@ static func tira_d20() -> int:
 ## sommato al dado DOPO aver scelto Vantaggio/Svantaggio.
 ## Naturale 20 = successo automatico, naturale 1 = fallimento automatico:
 ## entrambi ignorano CD e modificatori, come da design doc 4.6.
+##
+## Casi estremi (design doc 4.6, corretti dopo il playtest della Fase 5):
+## Rischio 0% e Rischio 100% NON passano dal tiro di dado, regola dei
+## critici inclusa — sono rispettivamente un successo e un fallimento
+## automatici. Senza questa eccezione, la regola dei critici (naturale 1/20
+## sempre decisivo) applicata anche a questi estremi produceva un tasso di
+## riuscita reale di ~95%/~5% invece di 100%/0%, contraddicendo l'intento
+## di queste due soglie (azioni neutre sempre valide / eventi automatici
+## imposti). Per tutti i rischi intermedi (1%-99%) resta il sistema pieno.
 static func risolvi(rischio_pct: float, modo: RollMode = RollMode.NORMALE, modificatore: int = 0) -> RollResult:
+	if rischio_pct <= 0.0 or rischio_pct >= 1.0:
+		var estremo := RollResult.new()
+		estremo.senza_tiro = true
+		estremo.cd = calcola_cd(rischio_pct)
+		estremo.modificatore = modificatore
+		estremo.successo = rischio_pct <= 0.0
+		return estremo
+
 	var d1 := tira_d20()
 	var dadi: Array[int] = [d1]
 	var naturale := d1

@@ -11,6 +11,7 @@ var effetto_sabbia_padre_ore: float
 var effetto_sabbia_padre_anni: float
 var rischio_pct: float
 var moralita: String
+var unica_per_run: bool
 var fonte_nota: String
 
 
@@ -24,6 +25,7 @@ static func from_dict(d: Dictionary) -> ActionData:
 	a.effetto_sabbia_padre_anni = _num_or(d.get("effetto_sabbia_padre_anni"), 0.0)
 	a.rischio_pct = _num_or(d.get("rischio_pct"), 0.0)
 	a.moralita = _str_or(d.get("moralita"), "")
+	a.unica_per_run = bool(d.get("unica_per_run", false))
 	a.fonte_nota = _str_or(d.get("fonte_nota"), "")
 	return a
 

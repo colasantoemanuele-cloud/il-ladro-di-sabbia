@@ -42,11 +42,11 @@ static func simula_run(azioni: Array[ActionData], politica: String) -> Dictionar
 		var azione: ActionData
 		match politica:
 			"greedy":
-				azione = _scegli_greedy(azioni, stato.tempo_figlia_ore, false)
+				azione = _scegli_greedy(azioni, stato, false)
 			"greedy_no_free":
-				azione = _scegli_greedy(azioni, stato.tempo_figlia_ore, true)
+				azione = _scegli_greedy(azioni, stato, true)
 			_:
-				azione = _scegli_random(azioni, stato.tempo_figlia_ore)
+				azione = _scegli_random(azioni, stato)
 		if azione == null:
 			break  # nessuna azione affrontabile o utile rimasta
 
@@ -64,11 +64,13 @@ static func simula_run(azioni: Array[ActionData], politica: String) -> Dictionar
 	}
 
 
-static func _scegli_greedy(azioni: Array[ActionData], tempo_disponibile: float, escludi_costo_zero: bool) -> ActionData:
+static func _scegli_greedy(azioni: Array[ActionData], stato: GameState, escludi_costo_zero: bool) -> ActionData:
 	var migliore: ActionData = null
 	var miglior_efficienza := -INF
 	for a in azioni:
-		if a.costo_tempo_figlia_ore > tempo_disponibile:
+		if a.costo_tempo_figlia_ore > stato.tempo_figlia_ore:
+			continue
+		if not stato.azione_disponibile(a):
 			continue
 		if escludi_costo_zero and a.costo_tempo_figlia_ore == 0.0:
 			continue
@@ -82,10 +84,10 @@ static func _scegli_greedy(azioni: Array[ActionData], tempo_disponibile: float, 
 	return migliore
 
 
-static func _scegli_random(azioni: Array[ActionData], tempo_disponibile: float) -> ActionData:
+static func _scegli_random(azioni: Array[ActionData], stato: GameState) -> ActionData:
 	var affrontabili: Array[ActionData] = []
 	for a in azioni:
-		if a.costo_tempo_figlia_ore <= tempo_disponibile:
+		if a.costo_tempo_figlia_ore <= stato.tempo_figlia_ore and stato.azione_disponibile(a):
 			affrontabili.append(a)
 	if affrontabili.is_empty():
 		return null

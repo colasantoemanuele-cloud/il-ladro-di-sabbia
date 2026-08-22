@@ -21,6 +21,20 @@ var end_reason: int = EndReason.NONE
 var turno: int = 0
 var storico: Array[Dictionary] = []
 
+## Nomi delle azioni "Unica per run" già tentate in questa run (colonna
+## Excel aggiunta dopo il playtest della Fase 5: 17 azioni rappresentano un
+## bersaglio/accordo/evento singolo — es. IL GRANDE COLPO, la lotteria
+## jackpot — e non sono ripetibili nella stessa run). Marcata al primo
+## TENTATIVO, non solo al successo: altrimenti fallire il tiro permetterebbe
+## di ritentare all'infinito fino a un successo, vanificando il vincolo.
+var azioni_uniche_usate: Dictionary = {}
+
+
+## True se l'azione può ancora essere scelta in questa run: sempre vero per
+## le azioni ripetibili, falso per un'azione "Unica per run" già tentata.
+func azione_disponibile(azione: ActionData) -> bool:
+	return not (azione.unica_per_run and azioni_uniche_usate.has(azione.nome))
+
 
 ## Applica costo/effetto di un'azione in modo deterministico (nessun tiro di
 ## dado): la Fase 2 rispecchia deliberatamente il foglio "Simulatore Run"
@@ -28,9 +42,14 @@ var storico: Array[Dictionary] = []
 ## riferimento, non simulato con dadi in questo prototipo"). Il dado arriva
 ## in Fase 3 (vedi action_resolver.gd), senza toccare questo metodo.
 func applica_azione_deterministica(azione: ActionData) -> Dictionary:
+	if not azione_disponibile(azione):
+		return {"rifiutata": true, "motivo": "Azione unica per run: già tentata in questa run."}
+
 	turno += 1
 	tempo_figlia_ore -= azione.costo_tempo_figlia_ore
 	sabbia_padre_ore += azione.effetto_sabbia_padre_ore
+	if azione.unica_per_run:
+		azioni_uniche_usate[azione.nome] = true
 
 	var risultato := {
 		"turno": turno,
@@ -76,8 +95,13 @@ func applica_azione_con_dado(
 	modo: DiceSystem.RollMode = DiceSystem.RollMode.NORMALE,
 	modificatore: int = 0
 ) -> Dictionary:
+	if not azione_disponibile(azione):
+		return {"rifiutata": true, "motivo": "Azione unica per run: già tentata in questa run."}
+
 	turno += 1
 	tempo_figlia_ore -= azione.costo_tempo_figlia_ore
+	if azione.unica_per_run:
+		azioni_uniche_usate[azione.nome] = true
 
 	var roll := DiceSystem.risolvi(azione.rischio_pct, modo, modificatore)
 

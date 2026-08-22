@@ -18,8 +18,8 @@ Dettaglio narrativo ed economico completo: `Il_ladro_di_sabbia_design_doc.docx`
 `Il_ladro_di_sabbia_elementi_mancanti.docx`, numeri in
 `ladro_di_sabbia_bilanciamento.xlsx`.
 
-**Scope attuale**: solo il loop core (61/60 azioni, doppio countdown, dado
-d20, donazione, punteggio). Tracce, sottotrame, Eterni, Stregatto, contenuti
+**Scope attuale**: solo il loop core (60 azioni, doppio countdown, dado d20,
+donazione, punteggio). Tracce, sottotrame, Eterni, Stregatto, contenuti
 narrativi: fasi successive, non ancora iniziate.
 
 ## Convenzioni di codice
@@ -48,13 +48,13 @@ narrativi: fasi successive, non ancora iniziate.
   `tools/extract_azioni.py` (richiede `openpyxl`) ogni volta che l'Excel
   cambia. Caricato dall'autoload `ActionDatabase`
   (`scripts/data/action_database.gd`) in `Array[ActionData]`
-  (`scripts/data/action_data.gd`).
-- **⚠️ Discrepanza dati**: il design doc parla di "61 azioni core", ma il
-  foglio Excel "Azioni" ne contiene realmente **60** (righe 6-65; la riga 67
-  è solo una nota istruttiva per aggiungere azioni future, non un'azione).
-  `tools/extract_azioni.py` segnala questo scarto automaticamente ogni volta
-  che viene rilanciato. Non ho aggiunto un'azione fittizia per arrivare a 61:
-  va chiarito con l'autore se manca davvero una riga nel foglio.
+  (`scripts/data/action_data.gd`). Include il campo `unica_per_run` (colonna
+  Excel "Unica per run", aggiunta dopo il playtest della Fase 5): 17 azioni
+  su 60 rappresentano un bersaglio/accordo/evento singolo e non sono
+  ripetibili nella stessa run — vedi `GameState.azione_disponibile()`.
+- **60 azioni core, confermato** (non 61): l'etichetta "61" nei documenti
+  era un refuso, corretto dall'autore in design doc ed Excel. Nessuna azione
+  mancante.
 - **Architettura di salvataggio a due livelli** (da design doc 4.7, non
   ancora implementata nel codice — solo pianificata):
   - *Stato di Run*: effimero, solo in memoria, nessun salvataggio a metà
@@ -75,8 +75,23 @@ narrativi: fasi successive, non ancora iniziate.
     naturale 1 = fallimento automatico (ignora CD e modificatori) — il
     controllo critico guarda il valore *naturale* del dado tenuto, mai il
     totale con modificatori.
+  - **Casi estremi (Rischio 0% e 100%)**: NON passano dal tiro di dado,
+    regola dei critici inclusa. Rischio 0% = successo automatico sempre;
+    Rischio 100% = evento automatico sempre. Eccezione esplicita nel
+    design doc 4.6, aggiunta dopo il playtest della Fase 5 (senza di essa,
+    la regola dei critici applicata anche a questi estremi dava un tasso
+    reale di ~95%/~5% invece di 100%/0%). Per tutti i rischi intermedi
+    (1%-99%) resta il sistema pieno coi critici. `DiceSystem.RollResult`
+    espone `senza_tiro: bool` per questo caso.
   - Fallimento: nessun rimborso del tempo speso, nessun effetto in
     Sabbia-Padre. Fallimento critico: conseguenza aggravata.
+  - **Unica per run**: 17 azioni (colonna Excel `Unica per run`) possono
+    essere tentate una sola volta a run, successo o fallimento non importa
+    — marcata "usata" al primo tentativo, non al successo, altrimenti un
+    fallimento permetterebbe di ritentare all'infinito fino a un successo,
+    vanificando il vincolo. `GameState.applica_azione_con_dado()` rifiuta
+    (senza consumare turno/tempo) un tentativo su un'azione unica già
+    usata; `GameState.azione_disponibile(azione)` fa il controllo.
 
 ## Comandi utili
 
@@ -102,19 +117,17 @@ godot --headless --path . -- --simulate=3000
 # (Fase 5) tetto economico deterministico (nessun dado), knapsack sulle
 # 168h disponibili, legge data/azioni.json (nessuna dipendenza extra)
 python3 tools/balance_ceiling.py
-
-# (Fase 5+) simulazione bilanciamento, N run aggregate
-godot --headless --path . -- --simulate=10000
 ```
 
 ## Stato di avanzamento
 
 - **Fase 1 (dati puri)**: fatto. `data/azioni.json` generato da
   `tools/extract_azioni.py`, caricato da `ActionDatabase` in
-  `Array[ActionData]`. Verificato in headless: 60 azioni, 17 categorie,
-  nessun errore di parsing (corretto un bug su celle Excel vuote/null in
-  `fonte_nota` che JSON.parse_string restituisce come `null` esplicito, non
-  come chiave mancante — `Dictionary.get(key, default)` non copre quel caso).
+  `Array[ActionData]`. Verificato in headless: 60 azioni (confermato,
+  l'"61" nei documenti era un refuso), 17 categorie, nessun errore di
+  parsing (corretto un bug su celle Excel vuote/null in `fonte_nota` che
+  JSON.parse_string restituisce come `null` esplicito, non come chiave
+  mancante — `Dictionary.get(key, default)` non copre quel caso).
 - **Fase 2 (loop testuale giocabile)**: fatto. `scripts/core/game_state.gd`
   (`class_name GameState`) tiene i due countdown e applica costo/effetto
   **deterministicamente** (nessun tiro di dado ancora — rispecchia
@@ -154,32 +167,25 @@ godot --headless --path . -- --simulate=10000
   **Verificato statisticamente** (200k tiri per valore di rischio, script
   ad-hoc non incluso nel repo): il tasso di successo osservato coincide
   con `1 - Rischio%` per ogni CD compreso tra 2 e 20 (rischio 10%-90%),
-  Vantaggio/Svantaggio si comportano nella direzione attesa. **Trovato un
-  disallineamento reale alle due code**: a Rischio 0% (CD 1) il tasso di
-  successo osservato è ~95%, non 100%, perché la regola "naturale 1 =
-  fallimento automatico" si applica sempre, anche quando la CD sarebbe
-  banalmente superata; simmetricamente a Rischio 100% (CD 21) il successo
-  osservato è ~5%, non 0%, per la regola opposta sul naturale 20. Questo
-  contraddice la frase del design doc 4.6 "la probabilità di riuscita
-  risultante è identica al Rischio% già calibrato" — vera per rischi
-  intermedi, falsa ai due estremi. Ho implementato le regole esattamente
-  come scritte (nessuna eccezione ai critici), perché è quanto richiesto
-  esplicitamente; segnalato nel resoconto finale per una decisione
-  dell'autore (in azioni.json ci sono righe con rischio 0% e due con
-  rischio 100%, quest'ultime pensate come eventi "sempre attivi").
+  Vantaggio/Svantaggio si comportano nella direzione attesa.
+  **Correzione post-Fase-5 (confermata dall'autore)**: alle due code
+  (Rischio 0% e 100%) la regola dei critici dava un tasso reale di
+  ~95%/~5% invece di 100%/0%. L'autore ha aggiornato il design doc 4.6 per
+  escludere esplicitamente questi due estremi dal tiro di dado (successo/
+  evento automatico, nessuna regola dei critici). Corretto in
+  `DiceSystem.risolvi()`: per `rischio_pct <= 0.0` o `>= 1.0` non si tira
+  alcun dado (`RollResult.senza_tiro = true`). Riverificato
+  statisticamente: rischio 0% → 100.0% di successo esatto, rischio 100% →
+  0.0% esatto (in precedenza ~95%/~5%).
 - **Fase 4 (donazione, punteggio, vittoria)**: fatto.
   `GameState.dona(quantita_ore)` trasferisce ore da Sabbia-Padre a
   Tempo-Figlia: unica per run (`donation_made`), irreversibile, importo
   scelto dal giocatore fino al massimo disponibile (non necessariamente
   tutto). `GameState.calcola_punteggio()` restituisce anni di padre e
   figlia, il totale, e `vittoria_100_100` (entrambi >= 100 anni).
-  **Decisione di design non esplicitata nel design doc (da confermare)**:
-  ho fatto in modo che la donazione concluda immediatamente la run
-  (`is_over = true`), invece di lasciare il padre libero di continuare ad
-  agire dopo aver donato. Motivazione: 4.3 descrive la donazione come "la
-  decisione più tesa della run", coerente con un climax conclusivo; ma il
-  design doc non lo dice esplicitamente, quindi è un'ipotesi mia, non un
-  fatto verificato nei tre documenti. Il comando `donare <ore>` è stato
+  **Decisione confermata dall'autore**: la donazione conclude immediatamente
+  la run (`is_over = true`), il padre non può continuare ad agire dopo aver
+  donato. Il comando `donare <ore>` è stato
   aggiunto al loop testuale (`scripts/main.gd`) accanto alla lista di
   azioni. La condizione 100+100 viene solo rilevata e segnalata a schermo
   ("TRAGUARDO RAGGIUNTO"), senza sbloccare nulla, come richiesto.
@@ -189,61 +195,63 @@ godot --headless --path . -- --simulate=10000
   rilevamento corretto del traguardo 100+100 sopra e sotto soglia.
   Verificato anche end-to-end nel loop testuale (`donare 5` dopo
   un'azione).
-- **Fase 5 (playtest e validazione bilanciamento)**: fatto, con un
-  **problema di bilanciamento reale trovato e NON corretto** (come da
-  istruzioni: segnalato, non toccato).
-  - `tools/balance_ceiling.py`: knapsack illimitato (le azioni sono
-    ripetibili nella stessa run: nessun vincolo "una tantum" esiste ancora)
-    sul budget di 168h, deterministico (nessun dado), per calcolare il vero
-    tetto economico raggiungibile con le sole azioni core.
+- **Fase 5 (playtest e validazione bilanciamento)**: fatto in due passate.
+  - `tools/balance_ceiling.py`: knapsack deterministico (nessun dado) sul
+    budget di 168h, per calcolare il vero tetto economico raggiungibile con
+    le sole azioni core.
   - `scripts/core/balance_simulator.gd` + `--simulate=N` in `scripts/main.gd`:
     Monte Carlo con dado vero (riusa `GameState`/`DiceSystem`/
     `ActionDatabase`, nessuna logica duplicata), tre politiche di scelta
     (`greedy`, `greedy_no_free`, `random`), report aggregato (media/mediana/
     min/max del punteggio, probabilità di soglie, probabilità vittoria
     100+100, motivi di fine run).
-  - **TROVATO**: diverse azioni ad altissimo rendimento sono pensate come
-    eventi narrativamente rari/unici ("Lotteria clandestina...(jackpot
-    raro)", "Vendere anni futuri...(debito esistenziale)", "Rapina alla
-    Banca della Sabbia Centrale (IL GRANDE COLPO)") ma nel foglio Excel e
-    nel prototipo attuale NON esiste alcun vincolo che le limiti a una sola
-    volta per run — sono liberamente ripetibili come qualunque altra azione.
-    Inoltre un'azione ("Trovi un portafoglio...") ha costo Tempo-Figlia 0h
-    con effetto positivo: ripetibile un numero illimitato di volte senza
-    mai consumare il countdown, un vero e proprio infinite-money glitch.
-    **Impatto quantificato**: tetto deterministico (Python, ignora rischio)
-    = 643 anni spendendo tutte le 168h sulla sola lotteria, ben oltre i 100
-    anni che il design doc dichiara irraggiungibili con le sole azioni
-    core. Confermato con il dado vero: la politica "greedy_no_free" (spende
-    ottimamente le 168h reali su prestito/lotteria/grande colpo, dado
-    incluso, N=3000 run) ottiene una media di ~399 anni per il solo padre,
-    mediana 400, **100% delle run supera 200 anni** — mentre il design doc
-    intende i 200 anni come traguardo "molto molto molto difficile" persino
-    con l'intero sistema di tracce+sottotrame non ancora implementato.
-    La politica "greedy" (senza escludere il costo zero) sfrutta invece
-    l'azione a costo 0h all'infinito: 100% delle run raggiunge il tetto di
-    sicurezza di 1000 turni della simulazione senza mai esaurire
-    naturalmente il tempo.
-  - **Non è un errore nei valori economici** (quelli, riga per riga,
-    coincidono esattamente col foglio Excel, validato in Fase 1-2): è
-    l'assenza di un vincolo di ripetibilità/unicità per le azioni pensate
-    come eventi rari, che nel design doc esiste solo a livello di sistema
-    di tracce (Rango, prerequisiti — sezione 7, fuori scope per queste
-    fasi). Da decidere con l'autore: un flag "una tantum per run" su
-    alcune azioni del foglio Excel, o un limite di ripetizioni, o
-    considerarlo accettabile finché il sistema di tracce/prerequisiti non
-    arriva a introdurre naturalmente quella scarsità.
-  - **Confermato invece coerente col design doc**: la politica "random"
-    (nessuna ottimizzazione, N=3000) non supera mai 50 anni e nel 55% dei
-    casi il padre muore per Sabbia-Padre esaurita — coerente con l'idea che
-    un giocatore che non ottimizza rischi la sopravvivenza, e con la
-    scoperta del design doc che il lavoro onesto "quasi pareggia" (turno da
-    8h: costo 8h, effetto +5.97h, dato verificato identico al foglio Excel).
+  - **1ª passata — TROVATO (segnalato, non corretto)**: diverse azioni ad
+    altissimo rendimento pensate come eventi narrativamente rari/unici
+    (lotteria jackpot, prestito su anni futuri, IL GRANDE COLPO) erano
+    liberamente ripetibili nella stessa run; una di esse ("Trovi un
+    portafoglio...") aveva costo Tempo-Figlia 0h, quindi ripetibile
+    all'infinito. Tetto deterministico: 643 anni. Confermato col dado vero:
+    politica "greedy_no_free" su 3000 run, media ~399 anni, 100% delle run
+    sopra 200 anni.
+  - **Correzione applicata dall'autore**: aggiunta la colonna Excel "Unica
+    per run" (17 azioni marcate VERO), costo del portafoglio corretto da 0h
+    a 1h. `tools/extract_azioni.py` aggiornato per leggere la colonna
+    (`unica_per_run` in `ActionData`/`azioni.json`).
+    `GameState.azione_disponibile(azione)` +
+    `azioni_uniche_usate: Dictionary` impediscono di scegliere due volte
+    un'azione unica nella stessa run — marcata "usata" al primo TENTATIVO
+    (non al successo: altrimenti un fallimento permetterebbe ritentativi
+    infiniti fino al successo, vanificando il vincolo). Il rifiuto non
+    consuma turno né Tempo-Figlia. `scripts/main.gd` mostra `[unica]` /
+    `[GIÀ USATA]` accanto alle azioni marcate nel loop testuale.
+    `tools/balance_ceiling.py` riscritto con un knapsack misto: 0/1 per le
+    azioni uniche, illimitato per le altre.
+  - **2ª passata — risultati dopo la correzione**:
+    - Tetto deterministico: **643 → 42.23 anni** (knapsack misto, 16 azioni
+      uniche su 40 candidate positive).
+    - Monte Carlo dado vero (N=3000, politica `greedy`): media **17.77
+      anni**, mediana 13.84, **massimo osservato 42.22** — combacia quasi
+      esattamente col tetto deterministico (42.23), buon segnale di
+      coerenza incrociata fra i due metodi. 0% delle run supera 50 anni,
+      100% termina per Tempo-Figlia esaurito (`figlia morta`) — nessuna
+      run muore più per Sabbia-Padre esaurita con questa politica.
+      `greedy_no_free` produce numeri praticamente identici a `greedy`
+      (atteso: senza più azioni a costo 0h le due politiche coincidono).
+    - Politica `random` (N=3000): media 2.83 anni, mediana 0.02, max 40.21
+      (una run fortunata su 3000, plausibile), 55.7% delle run muore per
+      Sabbia-Padre esaurita — invariato rispetto alla 1ª passata, coerente
+      col design doc (lavoro onesto "quasi pareggia": turno da 8h, costo
+      8h, effetto +5.97h).
+    - **Esito**: il tetto economico del solo loop core è ora ben al di
+      sotto sia dei 100 anni (soglia 100+100 dichiarata irraggiungibile con
+      le sole azioni core) sia del tetto di ~207 anni del sistema completo
+      con tracce+sottotrame (foglio Endgame) — ordine di grandezza
+      ragionevole, nessuna ulteriore anomalia rilevata.
   - **Nota sulla metrica vittoria_100_100 nel report Monte Carlo**: risulta
-    sempre 0% in questa fase perché il simulatore non effettua mai la
-    donazione (Fase 4) — la Sabbia-Padre accumulata resta sul padre, la
-    Sabbia-Figlia parte da 168h e non cresce mai. Non è un secondo problema
-    di bilanciamento: è solo un limite intenzionale del simulatore, che
-    misura "quanta sabbia si riesce a raccogliere in totale", non "come la
-    si ripartisce". Il numero corretto da guardare per il tetto economico
-    è `totale_anni` (padre+figlia), non `prob_vittoria_100_100`.
+    sempre 0% perché il simulatore non effettua mai la donazione (Fase 4)
+    — la Sabbia-Padre accumulata resta sul padre, la Sabbia-Figlia parte da
+    168h e non cresce mai. Non è un problema di bilanciamento: è un limite
+    intenzionale del simulatore, che misura "quanta sabbia si riesce a
+    raccogliere in totale", non "come la si ripartisce". Il numero
+    corretto da guardare per il tetto economico è `totale_anni`
+    (padre+figlia), non `prob_vittoria_100_100`.

@@ -15,6 +15,7 @@
       "effetto_sabbia_padre_anni": 0.000681866936348871,
       "rischio_pct": 0,
       "moralita": "Pulita",
+      "unica_per_run": false,
       "fonte_nota": "8h x 14,9€ mediano, netto -25% cuneo fiscale stimato"
     },
     {
@@ -26,6 +27,7 @@
       "effetto_sabbia_padre_anni": 0.00171615948024884,
       "rischio_pct": 0.05,
       "moralita": "Pulita (logorante)",
+      "unica_per_run": false,
       "fonte_nota": "16h x 14,9€ x1,25 maggiorazione, netto -25%"
     },
     {
@@ -37,6 +39,7 @@
       "effetto_sabbia_padre_anni": 0.00534767552327541,
       "rischio_pct": 0.2,
       "moralita": "Ambigua",
+      "unica_per_run": true,
       "fonte_nota": "Paga informale ~65% della mediana, non tassata (nessuna detrazione, ma nessuna tutela)"
     },
     {
@@ -48,6 +51,7 @@
       "effetto_sabbia_padre_anni": 0.00410652447059545,
       "rischio_pct": 0.15,
       "moralita": "Ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Competenze rare pagate ~150% mediana, in nero"
     },
     {
@@ -59,6 +63,7 @@
       "effetto_sabbia_padre_anni": 0.0102739726027397,
       "rischio_pct": 0.05,
       "moralita": "Pulita/ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Tariffa da consulente specializzato ~250% mediana, tassata"
     },
     {
@@ -70,6 +75,7 @@
       "effetto_sabbia_padre_anni": 5,
       "rischio_pct": 0,
       "moralita": "Estrema (debito esistenziale)",
+      "unica_per_run": true,
       "fonte_nota": "Prestito equivalente a 5 anni di sabbia, non un salario: e' un debito enorme da restituire, non un guadagno pulito"
     },
     {
@@ -81,6 +87,7 @@
       "effetto_sabbia_padre_anni": 0.0114921393766664,
       "rischio_pct": 0.35,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Stima compenso studi clinici rischiosi non regolamentati"
     },
     {
@@ -92,6 +99,7 @@
       "effetto_sabbia_padre_anni": 0.000153228525022218,
       "rischio_pct": 0.05,
       "moralita": "Pulita/neutra",
+      "unica_per_run": false,
       "fonte_nota": "Stima elemosina media giornaliera in una grande citta'"
     },
     {
@@ -103,6 +111,7 @@
       "effetto_sabbia_padre_anni": 7.66142625111091e-05,
       "rischio_pct": 0.05,
       "moralita": "Neutra",
+      "unica_per_run": false,
       "fonte_nota": "Stima valore oggetti riciclabili trovati"
     },
     {
@@ -114,6 +123,7 @@
       "effetto_sabbia_padre_anni": 0.000306457050044436,
       "rischio_pct": 0,
       "moralita": "Pulita",
+      "unica_per_run": false,
       "fonte_nota": "Stima incasso medio busking"
     },
     {
@@ -125,6 +135,7 @@
       "effetto_sabbia_padre_anni": 0.00153228525022218,
       "rischio_pct": 0,
       "moralita": "Ambigua (costo emotivo)",
+      "unica_per_run": true,
       "fonte_nota": "Prezzo medio oro usato"
     },
     {
@@ -136,6 +147,7 @@
       "effetto_sabbia_padre_anni": 0.000268149918788882,
       "rischio_pct": 0.1,
       "moralita": "Ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Stima"
     },
     {
@@ -147,6 +159,7 @@
       "effetto_sabbia_padre_anni": 0.000383071312555545,
       "rischio_pct": 0.05,
       "moralita": "Ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Piccolo prestito informale tra pari"
     },
     {
@@ -158,6 +171,7 @@
       "effetto_sabbia_padre_anni": -0.00612914100088873,
       "rischio_pct": 0,
       "moralita": "Neutra",
+      "unica_per_run": false,
       "fonte_nota": "Stima prezzo mercato nero arma corta usata"
     },
     {
@@ -169,6 +183,7 @@
       "effetto_sabbia_padre_anni": -0.00306457050044436,
       "rischio_pct": 0,
       "moralita": "Neutra",
+      "unica_per_run": false,
       "fonte_nota": "Stima mercato secondario"
     },
     {
@@ -180,6 +195,7 @@
       "effetto_sabbia_padre_anni": 0.00114921393766664,
       "rischio_pct": 0.15,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Il fence paga ~30% del valore di mercato della refurtiva"
     },
     {
@@ -191,6 +207,7 @@
       "effetto_sabbia_padre_anni": -0.0114921393766664,
       "rischio_pct": 0.05,
       "moralita": "Ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Stima servizi di intelligence criminale"
     },
     {
@@ -202,6 +219,7 @@
       "effetto_sabbia_padre_anni": 0.0383071312555545,
       "rischio_pct": 0.3,
       "moralita": "Estrema",
+      "unica_per_run": true,
       "fonte_nota": "Sostituisce la precedente 'ricettazione di sabbia' (incompatibile: la sabbia esiste solo dentro le persone, si cede solo con consenso anche estorto - non e' un bene fisico rivendibile a un fence). Qui il pagamento arriva direttamente da un rivale disposto a pagare per l'informazione."
     },
     {
@@ -213,6 +231,7 @@
       "effetto_sabbia_padre_anni": -0.0229842787533327,
       "rischio_pct": 0.1,
       "moralita": "Ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Stima documenti falsi professionali"
     },
     {
@@ -224,6 +243,7 @@
       "effetto_sabbia_padre_anni": -0.00766142625111091,
       "rischio_pct": 0,
       "moralita": "Neutra",
+      "unica_per_run": false,
       "fonte_nota": "Stima costo operazione"
     },
     {
@@ -235,18 +255,20 @@
       "effetto_sabbia_padre_anni": -0.0612914100088873,
       "rischio_pct": 0.15,
       "moralita": "Sporca",
+      "unica_per_run": true,
       "fonte_nota": "Stima intelligence criminale di alto livello"
     },
     {
       "nome": "Trovi un portafoglio, rintracci il proprietario e ti fai 'ricompensare' con le maniere forti",
       "categoria": "Evento",
-      "costo_tempo_figlia_ore": 0,
+      "costo_tempo_figlia_ore": 1,
       "valore_economico_eur": 80,
       "effetto_sabbia_padre_ore": 5.36912751677852,
       "effetto_sabbia_padre_anni": 0.000612914100088873,
       "rischio_pct": 0.15,
       "moralita": "Sporca",
-      "fonte_nota": "Corretto da 'ritrovamento impersonale' (la sabbia non si trova per terra): il portafoglio e' solo un indizio per risalire al proprietario, che cede sotto pressione"
+      "unica_per_run": false,
+      "fonte_nota": "Corretto da 'ritrovamento impersonale' (la sabbia non si trova per terra): il portafoglio e' solo un indizio per risalire al proprietario, che cede sotto pressione. Costo tempo corretto da 0h a 1h (trovato da un playtest automatico: a costo zero era ripetibile all'infinito senza mai consumare il countdown)"
     },
     {
       "nome": "Rintracci il proprietario di un portafoglio trovato e glielo restituisci",
@@ -257,6 +279,7 @@
       "effetto_sabbia_padre_anni": 0.000114921393766664,
       "rischio_pct": 0,
       "moralita": "Pulita",
+      "unica_per_run": false,
       "fonte_nota": "Il proprietario, rintracciato di persona, ti ricompensa spontaneamente per la restituzione"
     },
     {
@@ -268,6 +291,7 @@
       "effetto_sabbia_padre_anni": 0.0229842787533327,
       "rischio_pct": 0.25,
       "moralita": "Sporca",
+      "unica_per_run": true,
       "fonte_nota": "Stima"
     },
     {
@@ -279,6 +303,7 @@
       "effetto_sabbia_padre_anni": -0.000459685575066654,
       "rischio_pct": 1,
       "moralita": "Negativo",
+      "unica_per_run": false,
       "fonte_nota": "Corretto da 'scippo silenzioso' (nessuno puo' prendere sabbia senza una decisione, anche coatta, della vittima): qui e' una minaccia esplicita che ti costringe a cedere"
     },
     {
@@ -290,6 +315,7 @@
       "effetto_sabbia_padre_anni": 0.0306457050044436,
       "rischio_pct": 0.3,
       "moralita": "Sporca",
+      "unica_per_run": true,
       "fonte_nota": "Stima colpo di media entita'"
     },
     {
@@ -301,6 +327,7 @@
       "effetto_sabbia_padre_anni": -0.00383071312555545,
       "rischio_pct": 0.4,
       "moralita": "Pericoloso",
+      "unica_per_run": false,
       "fonte_nota": "Stima multa/confisca"
     },
     {
@@ -312,6 +339,7 @@
       "effetto_sabbia_padre_anni": 0.000191535656277773,
       "rischio_pct": 0,
       "moralita": "Pulita",
+      "unica_per_run": true,
       "fonte_nota": "Stima donazione tipica"
     },
     {
@@ -323,6 +351,7 @@
       "effetto_sabbia_padre_anni": -0.0153228525022218,
       "rischio_pct": 1,
       "moralita": "Negativo",
+      "unica_per_run": false,
       "fonte_nota": "Corretto da 'covo saccheggiato' (un nascondiglio fisico di sabbia non e' possibile, esiste solo dentro le persone): qui la perdita avviene perche' un associato di fiducia, sotto minaccia altrui, cede cio' che gli avevi affidato"
     },
     {
@@ -334,6 +363,7 @@
       "effetto_sabbia_padre_anni": 0.0229842787533327,
       "rischio_pct": 0.1,
       "moralita": "Ambigua (debito futuro)",
+      "unica_per_run": true,
       "fonte_nota": "Stima"
     },
     {
@@ -345,6 +375,7 @@
       "effetto_sabbia_padre_anni": 0.00114921393766664,
       "rischio_pct": 0.4,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Stima vincita media, alta varianza"
     },
     {
@@ -356,6 +387,7 @@
       "effetto_sabbia_padre_anni": -0.000459685575066654,
       "rischio_pct": 0.6,
       "moralita": "Ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Valore atteso negativo tipico delle slot"
     },
     {
@@ -367,6 +399,7 @@
       "effetto_sabbia_padre_anni": 0.00612914100088873,
       "rischio_pct": 0.45,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Stima"
     },
     {
@@ -378,6 +411,7 @@
       "effetto_sabbia_padre_anni": 0.0191535656277773,
       "rischio_pct": 0.5,
       "moralita": "Estrema",
+      "unica_per_run": false,
       "fonte_nota": "Stima montepremi"
     },
     {
@@ -389,6 +423,7 @@
       "effetto_sabbia_padre_anni": 0.114921393766664,
       "rischio_pct": 0.55,
       "moralita": "Estrema",
+      "unica_per_run": false,
       "fonte_nota": "Stima posta in gioco alta"
     },
     {
@@ -400,6 +435,7 @@
       "effetto_sabbia_padre_anni": 3.83071312555545,
       "rischio_pct": 0.9,
       "moralita": "Estrema",
+      "unica_per_run": true,
       "fonte_nota": "Ancorato a jackpot di lotterie locali importanti; 90% di rischio di non vincere nulla"
     },
     {
@@ -411,6 +447,7 @@
       "effetto_sabbia_padre_anni": 0.00114921393766664,
       "rischio_pct": 0.2,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Stima bottino medio di uno scippo"
     },
     {
@@ -422,6 +459,7 @@
       "effetto_sabbia_padre_anni": 0.0153228525022218,
       "rischio_pct": 0.35,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Stima bottino medio furto in abitazione"
     },
     {
@@ -433,6 +471,7 @@
       "effetto_sabbia_padre_anni": 0.0114921393766664,
       "rischio_pct": 0.4,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Dati FBI Bank Crime Statistics/UCR: media rapine commerciali/'da sportello' ~1.500-4.200€ equiv., non milioni"
     },
     {
@@ -444,6 +483,7 @@
       "effetto_sabbia_padre_anni": 0.191535656277773,
       "rischio_pct": 0.5,
       "moralita": "Estrema",
+      "unica_per_run": false,
       "fonte_nota": "Stima colpo elaborato riuscito (sopra la media di una rapina da sportello)"
     },
     {
@@ -455,6 +495,7 @@
       "effetto_sabbia_padre_anni": 22.9842787533327,
       "rischio_pct": 0.65,
       "moralita": "Estrema",
+      "unica_per_run": true,
       "fonte_nota": "Colpo eccezionale con crew e insider, ancorato ai rari colpi-record storici, NON alla rapina media da sportello (Dati FBI Bank Crime Statistics/UCR: quella media frutta solo 4.200-9.600$)"
     },
     {
@@ -466,6 +507,7 @@
       "effetto_sabbia_padre_anni": 0.00153228525022218,
       "rischio_pct": 0.3,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Stima"
     },
     {
@@ -477,6 +519,7 @@
       "effetto_sabbia_padre_anni": 7.66142625111091,
       "rischio_pct": 0.6,
       "moralita": "Estrema",
+      "unica_per_run": true,
       "fonte_nota": "Stima su dati Control Risks (riscatti globali): mediana globale riscatti ~27-29mila$, ma famiglie facoltose (non ultra-miliardarie) tipicamente oltre il milione"
     },
     {
@@ -488,6 +531,7 @@
       "effetto_sabbia_padre_anni": 0.0612914100088873,
       "rischio_pct": 0.45,
       "moralita": "Molto sporca",
+      "unica_per_run": true,
       "fonte_nota": "Stima colpo di medio livello organizzato"
     },
     {
@@ -499,6 +543,7 @@
       "effetto_sabbia_padre_anni": 1.53228525022218,
       "rischio_pct": 0.55,
       "moralita": "Estrema",
+      "unica_per_run": true,
       "fonte_nota": "Stima compenso per un bersaglio di alto profilo"
     },
     {
@@ -510,6 +555,7 @@
       "effetto_sabbia_padre_anni": 0.0229842787533327,
       "rischio_pct": 0.35,
       "moralita": "Sporca",
+      "unica_per_run": true,
       "fonte_nota": "Stima"
     },
     {
@@ -521,6 +567,7 @@
       "effetto_sabbia_padre_anni": 0,
       "rischio_pct": 0.25,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Strumentale, nessun guadagno diretto in questo prototipo"
     },
     {
@@ -532,6 +579,7 @@
       "effetto_sabbia_padre_anni": 0.00383071312555545,
       "rischio_pct": 0.25,
       "moralita": "Molto sporca",
+      "unica_per_run": false,
       "fonte_nota": "Stima pizzo mensile a una piccola attivita'"
     },
     {
@@ -543,6 +591,7 @@
       "effetto_sabbia_padre_anni": 0.383071312555545,
       "rischio_pct": 0.5,
       "moralita": "Estrema",
+      "unica_per_run": true,
       "fonte_nota": "Stima pagamento per materiale compromettente di alto livello"
     },
     {
@@ -554,6 +603,7 @@
       "effetto_sabbia_padre_anni": -6.12914100088873e-05,
       "rischio_pct": 0,
       "moralita": "Neutra (saltabile)",
+      "unica_per_run": false,
       "fonte_nota": "Pasto economico medio"
     },
     {
@@ -565,6 +615,7 @@
       "effetto_sabbia_padre_anni": -0.000153228525022218,
       "rischio_pct": 0,
       "moralita": "Neutra",
+      "unica_per_run": false,
       "fonte_nota": "Pieno parziale stimato"
     },
     {
@@ -576,6 +627,7 @@
       "effetto_sabbia_padre_anni": 0,
       "rischio_pct": 0,
       "moralita": "Neutra (saltabile)",
+      "unica_per_run": false,
       "fonte_nota": null
     },
     {
@@ -587,6 +639,7 @@
       "effetto_sabbia_padre_anni": 0.00766142625111091,
       "rischio_pct": 0.15,
       "moralita": "Ambigua (debito futuro)",
+      "unica_per_run": false,
       "fonte_nota": "Stima"
     },
     {
@@ -598,6 +651,7 @@
       "effetto_sabbia_padre_anni": -0.00383071312555545,
       "rischio_pct": 0,
       "moralita": "Ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Stima bustarella per evitare un arresto minore"
     },
     {
@@ -609,6 +663,7 @@
       "effetto_sabbia_padre_anni": -0.153228525022218,
       "rischio_pct": 0.05,
       "moralita": "Sporca",
+      "unica_per_run": false,
       "fonte_nota": "Corruzione di alto livello, importi molto piu' alti di un poliziotto"
     },
     {
@@ -620,6 +675,7 @@
       "effetto_sabbia_padre_anni": 0.766142625111091,
       "rischio_pct": 0.6,
       "moralita": "Estrema",
+      "unica_per_run": true,
       "fonte_nota": "Stima compenso per informazioni decisive contro l'organizzazione"
     },
     {
@@ -631,6 +687,7 @@
       "effetto_sabbia_padre_anni": -0.000383071312555545,
       "rischio_pct": 0,
       "moralita": "Pulita",
+      "unica_per_run": false,
       "fonte_nota": "Stima"
     },
     {
@@ -642,6 +699,7 @@
       "effetto_sabbia_padre_anni": 0,
       "rischio_pct": 0,
       "moralita": "Pulita",
+      "unica_per_run": false,
       "fonte_nota": null
     },
     {
@@ -653,6 +711,7 @@
       "effetto_sabbia_padre_anni": 0,
       "rischio_pct": 0.1,
       "moralita": "Ambigua (apre azioni di alto livello)",
+      "unica_per_run": false,
       "fonte_nota": "Nessun guadagno diretto, e' un prerequisito narrativo"
     },
     {
@@ -664,6 +723,7 @@
       "effetto_sabbia_padre_anni": -0.0383071312555545,
       "rischio_pct": 0,
       "moralita": "Ambigua",
+      "unica_per_run": false,
       "fonte_nota": "Stima importo debito"
     }
   ]

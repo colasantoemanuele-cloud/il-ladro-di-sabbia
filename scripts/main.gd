@@ -67,7 +67,7 @@ func _run_play_loop() -> void:
 	while not stato.is_over:
 		_stampa_stato(stato)
 		var azioni := ActionDatabase.get_all()
-		_stampa_azioni(azioni)
+		_stampa_azioni(azioni, stato)
 		print("")
 		print("Scrivi il numero di un'azione, 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
 		print("> ")
@@ -108,10 +108,17 @@ func _run_play_loop() -> void:
 			continue
 
 		var risultato := stato.applica_azione_con_dado(azione)
+		if risultato.has("rifiutata"):
+			print("")
+			print("Azione non disponibile: %s" % risultato.motivo)
+			print("")
+			continue
 		var roll: DiceSystem.RollResult = risultato.roll
 		print("")
 		print("-> %s (CD %d)" % [azione.nome, roll.cd])
-		if roll.dadi.size() == 1:
+		if roll.senza_tiro:
+			print("   Nessun tiro: rischio estremo (0% o 100%), esito automatico.")
+		elif roll.dadi.size() == 1:
 			print("   Tiro: %d (naturale %d) + mod %d = %d" % [roll.dadi[0], roll.naturale, roll.modificatore, roll.totale])
 		else:
 			print("   Tiro: %s -> tenuto %d + mod %d = %d" % [roll.dadi, roll.naturale, roll.modificatore, roll.totale])
@@ -155,13 +162,16 @@ func _stampa_stato(stato: GameState) -> void:
 	print("--------------------------------------------------")
 
 
-func _stampa_azioni(azioni: Array[ActionData]) -> void:
+func _stampa_azioni(azioni: Array[ActionData], stato: GameState) -> void:
 	var categoria_corrente := ""
 	for i in azioni.size():
 		var a := azioni[i]
 		if a.categoria != categoria_corrente:
 			categoria_corrente = a.categoria
 			print("[%s]" % categoria_corrente)
-		print("  %2d) %-55s costo=%5.1fh  effetto=%+8.1fh  rischio=%3d%%" % [
-			i + 1, a.nome, a.costo_tempo_figlia_ore, a.effetto_sabbia_padre_ore, roundi(a.rischio_pct * 100)
+		var etichetta_unica := ""
+		if a.unica_per_run:
+			etichetta_unica = " [GIÀ USATA]" if not stato.azione_disponibile(a) else " [unica]"
+		print("  %2d) %-55s costo=%5.1fh  effetto=%+8.1fh  rischio=%3d%%%s" % [
+			i + 1, a.nome, a.costo_tempo_figlia_ore, a.effetto_sabbia_padre_ore, roundi(a.rischio_pct * 100), etichetta_unica
 		])
