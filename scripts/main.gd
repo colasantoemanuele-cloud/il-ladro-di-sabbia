@@ -11,12 +11,19 @@ extends Control
 ##   --test-ui           -> Fase 6: auto-test headless della UI (simula
 ##                          pressioni di bottoni senza display reale, utile
 ##                          da CI/terminale dove non si può vedere la finestra)
+##   --test-save-write    -> Fase 7: scrive un Profilo Persistente di prova e
+##                          termina (simula "chiudi il gioco")
+##   --test-save-read     -> Fase 7: rilancio SEPARATO che ricarica quel
+##                          profilo da disco e verifica che coincida (simula
+##                          "riapri il gioco" — usare dopo --test-save-write)
 ##
 ## Esempi:
 ##   godot --path .                          (gioco con la UI)
 ##   godot --headless --path . -- --play
 ##   godot --headless --path . -- --simulate=5000
 ##   godot --headless --path . -- --test-ui
+##   godot --headless --path . -- --test-save-write
+##   godot --headless --path . -- --test-save-read
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -36,12 +43,53 @@ func _ready() -> void:
 	elif args.has("--test-ui"):
 		_run_test_ui()
 		get_tree().quit()
+	elif args.has("--test-save-write"):
+		_run_test_save_write()
+		get_tree().quit()
+	elif args.has("--test-save-read"):
+		_run_test_save_read()
+		get_tree().quit()
 	elif args.is_empty():
 		_run_ui()
 		# niente quit(): la UI resta aperta e interattiva finché l'utente non chiude la finestra
 	else:
 		print("Argomento non riconosciuto: %s" % ", ".join(args))
 		get_tree().quit()
+
+
+## Valori di prova condivisi tra --test-save-write e --test-save-read: due
+## invocazioni SEPARATE di Godot (due processi distinti), non lo stesso
+## oggetto in memoria — simula davvero "salva, chiudi il gioco, riapri".
+const _TEST_KARMA := 15.5
+const _TEST_CONTATTI := ["boss_traccia_criminale"]
+const _TEST_ACHIEVEMENT := ["primo_furto"]
+const _TEST_DIFFICOLTA := 2
+const _TEST_STATO_MONDO := "normale"
+
+
+func _run_test_save_write() -> void:
+	print("=== Fase 7: scrittura Profilo Persistente di prova ===")
+	var profilo := PlayerProfile.new()
+	profilo.karma = _TEST_KARMA
+	profilo.rete_contatti_sbloccati = _TEST_CONTATTI
+	profilo.achievement = _TEST_ACHIEVEMENT
+	profilo.livello_difficolta = _TEST_DIFFICOLTA
+	profilo.stato_mondo_senza_sabbia = _TEST_STATO_MONDO
+	var ok := profilo.save()
+	assert(ok)
+	print("OK: profilo scritto in %s" % ProjectSettings.globalize_path(PlayerProfile.DEFAULT_PATH))
+
+
+func _run_test_save_read() -> void:
+	print("=== Fase 7: rilettura Profilo Persistente (processo separato) ===")
+	var profilo := PlayerProfile.load()
+	assert(profilo.karma == _TEST_KARMA, "karma atteso %s, trovato %s" % [_TEST_KARMA, profilo.karma])
+	assert(profilo.rete_contatti_sbloccati == _TEST_CONTATTI)
+	assert(profilo.achievement == _TEST_ACHIEVEMENT)
+	assert(profilo.livello_difficolta == _TEST_DIFFICOLTA)
+	assert(profilo.stato_mondo_senza_sabbia == _TEST_STATO_MONDO)
+	print("OK: profilo ricaricato da un processo Godot separato, tutti i campi coincidono.")
+	print("TEST SALVATAGGIO OK")
 
 
 func _run_test_ui() -> void:
@@ -78,6 +126,27 @@ func _run_test_ui() -> void:
 	assert(bottone.disabled)
 	print("OK: donazione tramite UI termina la run e disabilita i controlli.")
 
+	# Fase 7: la UI deve caricare il karma dal Profilo Persistente all'avvio
+	# della run e riscriverlo su disco alla fine.
+	var profilo_prova := PlayerProfile.new()
+	profilo_prova.karma = 42.0
+	profilo_prova.save()
+
+	var profilo_ricaricato := PlayerProfile.load()
+	var ui2 := GameUI.new()
+	add_child(ui2)
+	var stato2 := GameState.new()
+	ui2.avvia(stato2, profilo_ricaricato)
+	assert(stato2.karma == 42.0, "GameState deve ereditare il karma dal profilo caricato")
+
+	ui2.donazione_input.text = "3"
+	ui2.donazione_button.pressed.emit()
+	assert(stato2.is_over)
+
+	var profilo_su_disco := PlayerProfile.load()
+	assert(profilo_su_disco.karma == 42.0, "il profilo salvato a fine run deve conservare il karma")
+	print("OK: la UI carica il karma dal Profilo Persistente e lo risalva a fine run.")
+
 	print("TUTTI I TEST UI OK")
 
 
@@ -85,7 +154,7 @@ func _run_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ui := GameUI.new()
 	add_child(ui)
-	ui.avvia(GameState.new())
+	ui.avvia(GameState.new(), PlayerProfile.load())
 
 
 func _run_simulation(n: int) -> void:

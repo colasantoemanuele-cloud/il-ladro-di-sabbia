@@ -55,14 +55,21 @@ narrativi: fasi successive, non ancora iniziate.
 - **60 azioni core, confermato** (non 61): l'etichetta "61" nei documenti
   era un refuso, corretto dall'autore in design doc ed Excel. Nessuna azione
   mancante.
-- **Architettura di salvataggio a due livelli** (da design doc 4.7, non
-  ancora implementata nel codice — solo pianificata):
-  - *Stato di Run*: effimero, solo in memoria, nessun salvataggio a metà
-    run (coerente con roguelite a run brevi).
-  - *Profilo Persistente*: file permanente (JSON o ConfigFile) tra le run:
+- **Architettura di salvataggio a due livelli** (design doc 4.7,
+  implementata dalla Fase 7):
+  - *Stato di Run* (`scripts/core/game_state.gd`, `class_name GameState`):
+    effimero, solo in memoria, nessun salvataggio a metà run (coerente con
+    roguelite a run brevi).
+  - *Profilo Persistente* (`scripts/core/player_profile.gd`,
+    `class_name PlayerProfile`): file JSON in `user://profilo_persistente.json`
+    (cartella dati utente del sistema operativo, FUORI dal repo). Campi:
     Karma, Rete di contatti sbloccati, achievement, livello di difficoltà,
-    stato del "mondo senza sabbia". Fuori scope per le fasi 1-5 (nessuna di
-    queste risorse esiste ancora nel loop core).
+    stato del "mondo senza sabbia" — tutti già presenti nella struttura ma
+    vuoti/a zero, perché i sistemi che li popoleranno (tracce, achievement,
+    difficoltà crescente, mondo senza sabbia) sono fuori scope per le fasi
+    1-7. Solo `karma` ha già un collegamento reale (letto/scritto da
+    `GameUI` a inizio/fine run), anche se nulla lo modifica ancora durante
+    il gioco.
 - **Formula del sistema d20** (design doc sezione 4.6, implementata in
   `scripts/core/dice_system.gd`):
   - `CD = 1 + round(Rischio% * 20)`
@@ -125,6 +132,15 @@ godot --headless --path . -- --simulate=3000
 # (Fase 5) tetto economico deterministico (nessun dado), knapsack sulle
 # 168h disponibili, legge data/azioni.json (nessuna dipendenza extra)
 python3 tools/balance_ceiling.py
+
+# (Fase 7) test di salvataggio "chiudi e riapri": due processi Godot
+# SEPARATI, il secondo deve rileggere esattamente cio' che ha scritto il primo
+godot --headless --path . -- --test-save-write
+godot --headless --path . -- --test-save-read
+
+# Il Profilo Persistente vive fuori dal repo, nella cartella dati utente di
+# Godot (percorso reale stampato da --test-save-write); su Linux tipicamente:
+#   ~/.local/share/godot/app_userdata/Il ladro di sabbia/profilo_persistente.json
 ```
 
 ## Stato di avanzamento
@@ -315,3 +331,39 @@ python3 tools/balance_ceiling.py
   (o in editor) questo problema non dovrebbe presentarsi, ma non ho potuto
   verificarlo direttamente in questa sessione — da tenere d'occhio la
   prima volta che l'autore apre il progetto sulla propria macchina.
+- **Fase 7 (sistema di salvataggio)**: fatto. `scripts/core/player_profile.gd`
+  (`class_name PlayerProfile`) implementa il Profilo Persistente (design doc
+  4.7): file JSON in `user://profilo_persistente.json` (cartella dati utente
+  di Godot, FUORI dal repo — path reale dipende dal sistema operativo, su
+  Linux tipicamente `~/.local/share/godot/app_userdata/<nome progetto>/`).
+  Campi già presenti ma vuoti/a zero, nessun sistema li popola ancora:
+  `karma` (float), `rete_contatti_sbloccati` (Array), `achievement` (Array),
+  `livello_difficolta` (int), `stato_mondo_senza_sabbia` (String, default
+  `"normale"`). `to_dict()`/`from_dict()`/`save()`/`load()` — `load()`
+  restituisce un profilo nuovo di default se il file non esiste ancora
+  (prima run in assoluto, non è un errore).
+  **Collegamento reale (unico già attivo)**: `GameUI.avvia(stato, profilo)`
+  inizializza `GameState.karma` dal profilo caricato all'avvio della run, e
+  lo riscrive su disco a fine run (`_fine_partita()`); `main.gd._run_ui()`
+  carica il profilo con `PlayerProfile.load()` prima di aprire la UI. Nulla
+  modifica ancora karma durante il gioco (nessun sistema di moralità/tracce
+  esiste), quindi in pratica il valore resta 0.0 finché quei sistemi non
+  verranno costruiti — ma l'intera tubatura di lettura/scrittura è reale e
+  verificata, non un placeholder. Il loop testuale legacy (`--play`) e il
+  simulatore di bilanciamento (`--simulate=N`) NON usano il profilo
+  (scelta di scope: sono modalità di test/debug, non "il gioco vero").
+  **Verificato in due modi**:
+  1. Round-trip vero tra processi: `--test-save-write` scrive un profilo di
+     prova (karma, rete contatti, achievement, difficoltà, stato mondo) e
+     termina; `--test-save-read`, lanciato come invocazione SEPARATA di
+     Godot (processo nuovo, nessuno stato condiviso in memoria — la vera
+     simulazione di "chiudi il gioco e riaprilo"), ricarica il file e
+     verifica che ogni campo coincida. PASS.
+  2. Wiring end-to-end nella UI reale (esteso `--test-ui`): scrive un
+     profilo con karma=42 su disco, lo ricarica, apre una GameUI con quel
+     profilo e verifica che `GameState.karma` parta da 42 (non da 0),
+     conclude la run con una donazione, poi ricarica il profilo da disco
+     una terza volta e verifica che il karma sia stato correttamente
+     riscritto. PASS.
+  Rilanciate anche le verifiche di regressione di `--play`, `--simulate=N`
+  e `--test-ui` (parte UI): nessuna rottura.

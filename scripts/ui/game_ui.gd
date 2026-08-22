@@ -10,6 +10,7 @@ extends Control
 ## legge lo stato e chiama i suoi metodi, non duplica alcuna regola.
 
 var stato: GameState
+var profilo: PlayerProfile
 
 var lbl_tempo_figlia: Label
 var lbl_sabbia_padre: Label
@@ -23,8 +24,14 @@ var azioni_vbox: VBoxContainer
 var bottoni_azione: Dictionary = {}  # nome azione -> Button
 
 
-func avvia(stato_iniziale: GameState) -> void:
+## `profilo_iniziale` e' opzionale: se omesso (es. --test-ui) la UI resta
+## utilizzabile senza il Profilo Persistente (Fase 7), semplicemente non
+## carica/salva karma tra le run.
+func avvia(stato_iniziale: GameState, profilo_iniziale: PlayerProfile = null) -> void:
 	stato = stato_iniziale
+	profilo = profilo_iniziale
+	if profilo != null:
+		stato.karma = profilo.karma
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_costruisci_ui()
 	_popola_azioni()
@@ -211,3 +218,7 @@ func _fine_partita() -> void:
 	if p.vittoria_100_100:
 		testo += "\n\n[b]*** TRAGUARDO RAGGIUNTO: 100+100 anni per entrambi! ***[/b]"
 	lbl_messaggio.text = testo
+
+	if profilo != null:
+		profilo.karma = stato.karma
+		profilo.save()
