@@ -18,9 +18,11 @@ Dettaglio narrativo ed economico completo: `Il_ladro_di_sabbia_design_doc.docx`
 `Il_ladro_di_sabbia_elementi_mancanti.docx`, numeri in
 `ladro_di_sabbia_bilanciamento.xlsx`.
 
-**Scope attuale**: solo il loop core (60 azioni, doppio countdown, dado d20,
-donazione, punteggio). Tracce, sottotrame, Eterni, Stregatto, contenuti
-narrativi: fasi successive, non ancora iniziate.
+**Scope attuale**: loop core (60 azioni, doppio countdown, dado d20,
+donazione, punteggio, varianza roguelite) + le 7 tracce normali (Fase 9a,
+solo tracce — niente sottotrame né sinergie ancora). Sottotrame (Fase 9b),
+sinergie (Fase 9c), Eterni, Stregatto, contenuti narrativi: fasi successive,
+non ancora iniziate.
 
 ## Convenzioni di codice
 
@@ -115,6 +117,10 @@ narrativi: fasi successive, non ancora iniziate.
 ```bash
 # Rigenerare data/azioni.json dall'Excel (dopo ogni modifica al foglio "Azioni")
 python3 tools/extract_azioni.py
+
+# (Fase 9a) rigenerare data/tracce.json dall'Excel (dopo ogni modifica al
+# foglio "Endgame", sezioni "LE 7 TRACCE NORMALI" e "LE 3 TRACCE BONUS")
+python3 tools/extract_tracce.py
 
 # Prima esecuzione su una macchina nuova / dopo aggiunta di nuove classi con
 # class_name: costruisce la cache delle classi globali (altrimenti gli
@@ -439,3 +445,69 @@ godot --headless --path . -- --test-save-read
     o Sabbia-Padre. Non inflaziona il punteggio (media 2.17 anni, in linea
     con il ~2.83 di prima): è solo una politica di test che "gira a
     vuoto" più a lungo, non un nuovo modo di accumulare sabbia.
+- **Fase 9a (le 10 tracce: 7 normali + 3 bonus)**: fatto. Solo tracce —
+  nessuna sottotrama (Fase 9b) né sinergia (Fase 9c) ancora.
+  - `tools/extract_tracce.py`: estrae il foglio Endgame (sezioni "LE 7
+    TRACCE NORMALI" e "LE 3 TRACCE BONUS") in `data/tracce.json`, stesso
+    pattern di `extract_azioni.py`. `scripts/data/track_data.gd`
+    (`TrackData`, una riga di rango) e `track_bonus_data.gd`
+    (`TrackBonusData`, solo nome+descrizione) caricati dall'autoload
+    `TrackDatabase` (`scripts/data/track_database.gd`).
+  - **Decisione confermata dall'autore**: le 7 tracce normali sono
+    completamente indipendenti l'una dall'altra — nessun aggancio
+    malavita/rete comune (il testo del foglio Excel "sblocco sempre via
+    malavita/rete di contatti" resta com'era nell'header della sezione,
+    ma NON è stato implementato come vincolo: l'unico prerequisito è
+    interno a ciascuna traccia). `GameState.tracce_raggiunte` (nome
+    traccia -> rango massimo raggiunto, mai decrementato) +
+    `GameState.traccia_disponibile(riga)`: il Rango 2 di una traccia
+    richiede solo il Rango 1 della STESSA traccia già raggiunto in questa
+    run, nessuna dipendenza incrociata tra tracce diverse.
+  - `GameState.applica_traccia(riga)`: stesso motore di risoluzione delle
+    60 azioni core (dado d20 Fase 3 + varianza ±15%/±20% Fase 8, stesso
+    `_rng` seedato della run). `ActionVariance` è stata rifattorizzata per
+    prendere valori grezzi (costo/effetto) invece di un'`ActionData`
+    intera, cosi da essere condivisa tra azioni e tracce senza duplicare
+    la logica di varianza.
+  - **Decisione mia, da confermare (non specificata nel design doc)**: un
+    fallimento al Rango 1 o 2 NON blocca la traccia — a differenza delle
+    azioni "Unica per run" (un bersaglio/evento singolo), la scalata di
+    rango è trattata come un percorso ritentabile, coerente con le altre
+    azioni ripetibili del gioco. Se l'autore preferisce che un fallimento
+    "bruci" il tentativo (come le azioni uniche), va segnalato per la
+    Fase 9b/9c.
+  - Le 3 tracce bonus (Eterni, Rete di scienziati criminali, Magica):
+    solo caricate come dati, esposte in UI come bottoni disabilitati con
+    testo "— contenuto narrativo non ancora scritto" (tooltip con la
+    descrizione dal foglio Excel), nessuna logica — come richiesto.
+  - UI (`scripts/ui/game_ui.gd`): nuova sezione "TRACCE" in fondo alla
+    lista scorrevole, un bottone per riga di rango (Rango 2 disabilitato
+    finché non si raggiunge il Rango 1 della stessa traccia; una volta
+    raggiunto un rango il suo bottone si disabilita e mostra
+    "[RAGGIUNTO]"). Loop testuale (`--play`): le 14 righe di traccia
+    continuano la numerazione delle 60 azioni (indici 61-74).
+  - **Verificato**: 14 righe/7 tracce caricate correttamente; Rango 2
+    rifiutato senza il Rango 1 della stessa traccia; tracce diverse
+    restano disponibili senza alcun prerequisito incrociato; successo al
+    Rango 1 sblocca il Rango 2 e blocca il Rango 1 stesso; un fallimento
+    al Rango 1 non blocca il tentativo successivo; costo/effetto delle
+    tracce rispettano il range di varianza ±15%/±20%. Verificato anche
+    end-to-end nella UI reale (`--test-ui` esteso: 14 bottoni traccia,
+    Rango 2 si sblocca dopo un successo al Rango 1) e nel loop testuale.
+    Nessuna regressione su `--test-ui` (resto), `--play`,
+    `--test-save-write/read`.
+  - **Richiesta esplicita dell'autore verificata — nuovo tetto
+    economico**: `tools/balance_ceiling.py` esteso con le 14 righe di
+    traccia trattate come 7 gruppi a scelta multipla (0, "solo Rango 1",
+    o "Rango 1+2" — mai il Rango 2 da solo) sullo stesso budget condiviso
+    di 168h. Tetto deterministico: **42.23 → 67.58 anni (+60,0%)**.
+    Confermato col dado vero: `--simulate=1000`, politica `greedy`, media
+    **32.70 anni** (era 17.76 senza tracce), massimo osservato 65.90-71.07
+    — vicino al tetto deterministico di 67.58, buon segnale di coerenza
+    incrociata. **Aumento coerente con l'attesa dell'autore** ("dovrebbe
+    salire ma senza sinergie il salto non dovrebbe essere enorme"): +60%
+    è un incremento sostanziale ma non sproporzionato, nessuna anomalia
+    da segnalare. Il tetto resta ben sotto sia i 100 anni (soglia
+    100+100) sia il tetto ~207 anni del sistema completo con sinergie
+    (foglio Endgame) — margine coerente col fatto che sinergie (Fase 9c)
+    e sottotrame (Fase 9b) non sono ancora incluse.

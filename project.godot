@@ -17,6 +17,7 @@ run/main_scene="res://scenes/Main.tscn"
 [autoload]
 
 ActionDatabase="*res://scripts/data/action_database.gd"
+TrackDatabase="*res://scripts/data/track_database.gd"
 
 [display]
 

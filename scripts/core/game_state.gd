@@ -131,7 +131,7 @@ func applica_azione_con_dado(
 		return {"rifiutata": true, "motivo": "Azione unica per run: già tentata in questa run."}
 
 	turno += 1
-	var costo := ActionVariance.costo_variato(azione, _rng)
+	var costo := ActionVariance.costo_variato(azione.costo_tempo_figlia_ore, _rng)
 	tempo_figlia_ore -= costo
 	if azione.unica_per_run:
 		azioni_uniche_usate[azione.nome] = true
@@ -149,7 +149,7 @@ func applica_azione_con_dado(
 	}
 
 	if roll.successo:
-		var effetto := ActionVariance.effetto_variato(azione, _rng)
+		var effetto := ActionVariance.effetto_variato(azione.effetto_sabbia_padre_ore, _rng)
 		sabbia_padre_ore += effetto
 		risultato.effetto_sabbia_padre_ore = effetto
 	elif _is_azione_illegale(azione):
@@ -184,6 +184,77 @@ func applica_spostamento() -> Dictionary:
 		"tempo_figlia_ore": tempo_figlia_ore,
 		"sabbia_padre_ore": sabbia_padre_ore,
 	}
+	storico.append(risultato)
+
+	_controlla_fine_partita()
+	return risultato
+
+
+## Rango massimo raggiunto in questa run per ciascuna traccia normale
+## (nome traccia -> rango, 0 = non ancora iniziata). Fase 9a, design doc
+## 7.1: "una volta raggiunto un rango resta sbloccato per il resto della
+## run" — mai decrementato. Le 7 tracce sono indipendenti l'una dall'altra
+## (nessun aggancio malavita comune, decisione confermata dall'autore): il
+## solo prerequisito è interno a ciascuna traccia (Rango 2 richiede il
+## Rango 1 della STESSA traccia, già raggiunto in questa run).
+var tracce_raggiunte: Dictionary = {}
+
+
+## True se questa riga (Rango 1 o Rango 2 di una traccia) può essere
+## tentata ora: il Rango 1 è sempre tentabile finché non è già stato
+## raggiunto; il Rango 2 richiede che il Rango 1 della stessa traccia sia
+## già stato raggiunto con successo in questa run.
+func traccia_disponibile(riga: TrackData) -> bool:
+	var progresso: int = tracce_raggiunte.get(riga.traccia, 0)
+	return progresso == riga.rango - 1
+
+
+## Applica il tentativo di salire di rango in una traccia (Fase 9a): stesso
+## motore di risoluzione delle 60 azioni core (dado d20 + varianza
+## ±15%/±20%, stesso _rng seedato della run — vedi ActionVariance), ma con
+## l'avanzamento di `tracce_raggiunte` al posto di `azioni_uniche_usate`.
+##
+## Decisione (da confermare con l'autore, non specificata nel design doc):
+## un fallimento NON blocca la traccia — a differenza delle azioni "Unica
+## per run" (che rappresentano un evento/bersaglio singolo), la scalata di
+## rango è trattata come un percorso di carriera ritentabile, coerente con
+## come funzionano le altre azioni ripetibili del gioco.
+func applica_traccia(
+	riga: TrackData,
+	modo: DiceSystem.RollMode = DiceSystem.RollMode.NORMALE,
+	modificatore: int = 0
+) -> Dictionary:
+	if not traccia_disponibile(riga):
+		return {
+			"rifiutata": true,
+			"motivo": "serve prima completare il Rango %d della stessa traccia, oppure è già stato raggiunto." % (riga.rango - 1),
+		}
+
+	turno += 1
+	var costo := ActionVariance.costo_variato(riga.costo_tempo_figlia_ore, _rng)
+	tempo_figlia_ore -= costo
+
+	var roll := DiceSystem.risolvi(riga.rischio_pct, modo, modificatore, _rng)
+
+	var risultato := {
+		"turno": turno,
+		"azione": "%s — Rango %d: %s" % [riga.traccia, riga.rango, riga.nome_rango],
+		"traccia": riga.traccia,
+		"rango": riga.rango,
+		"costo_tempo_figlia_ore": costo,
+		"roll": roll,
+		"successo": roll.successo,
+		"effetto_sabbia_padre_ore": 0.0,
+	}
+
+	if roll.successo:
+		var effetto := ActionVariance.effetto_variato(riga.effetto_sabbia_padre_ore, _rng)
+		sabbia_padre_ore += effetto
+		risultato.effetto_sabbia_padre_ore = effetto
+		tracce_raggiunte[riga.traccia] = riga.rango
+
+	risultato["tempo_figlia_ore"] = tempo_figlia_ore
+	risultato["sabbia_padre_ore"] = sabbia_padre_ore
 	storico.append(risultato)
 
 	_controlla_fine_partita()

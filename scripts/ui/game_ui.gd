@@ -26,6 +26,9 @@ var spostamento_button: Button
 var azioni_vbox: VBoxContainer
 var bottoni_azione: Dictionary = {}  # nome azione -> Button
 
+var bottoni_traccia: Dictionary = {}  # "traccia|rango" -> Button
+var righe_traccia: Dictionary = {}    # "traccia|rango" -> TrackData
+
 
 ## `profilo_iniziale` e' opzionale: se omesso (es. --test-ui) la UI resta
 ## utilizzabile senza il Profilo Persistente (Fase 7), semplicemente non
@@ -38,6 +41,7 @@ func avvia(stato_iniziale: GameState, profilo_iniziale: PlayerProfile = null) ->
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_costruisci_ui()
 	_popola_azioni()
+	_popola_tracce()
 	_aggiorna_stato_ui()
 
 
@@ -140,6 +144,104 @@ func _popola_azioni() -> void:
 		bottone.pressed.connect(_on_azione_pressed.bind(azione))
 		azioni_vbox.add_child(bottone)
 		bottoni_azione[azione.nome] = bottone
+
+
+## Fase 9a: le 7 tracce normali (Rango 1 + Rango 2, dipendenza solo interna
+## alla stessa traccia — nessun aggancio comune tra tracce diverse) e le 3
+## tracce bonus (solo dati + placeholder narrativo, nessuna logica: il
+## contenuto vero arriva quando l'autore avrà scritto i testi).
+func _popola_tracce() -> void:
+	var header_sezione := Label.new()
+	header_sezione.text = "═══ TRACCE ═══"
+	azioni_vbox.add_child(header_sezione)
+
+	for nome_traccia in TrackDatabase.get_nomi_tracce_normali():
+		var header := Label.new()
+		header.text = "— %s —" % nome_traccia
+		azioni_vbox.add_child(header)
+
+		for rango in [1, 2]:
+			var riga := TrackDatabase.get_riga(nome_traccia, rango)
+			if riga == null:
+				continue
+			var chiave := "%s|%d" % [nome_traccia, rango]
+			var bottone := Button.new()
+			bottone.text = _testo_bottone_traccia(riga)
+			bottone.pressed.connect(_on_traccia_pressed.bind(riga))
+			azioni_vbox.add_child(bottone)
+			bottoni_traccia[chiave] = bottone
+			righe_traccia[chiave] = riga
+
+	var header_bonus := Label.new()
+	header_bonus.text = "— Tracce bonus (narrative) —"
+	azioni_vbox.add_child(header_bonus)
+
+	for bonus: TrackBonusData in TrackDatabase.get_tracce_bonus():
+		var bottone := Button.new()
+		bottone.text = "%s — contenuto narrativo non ancora scritto" % bonus.traccia
+		bottone.disabled = true
+		bottone.tooltip_text = bonus.descrizione
+		azioni_vbox.add_child(bottone)
+
+	_aggiorna_bottoni_traccia()
+
+
+func _testo_bottone_traccia(riga: TrackData) -> String:
+	return "Rango %d — %s — costo %.0fh, effetto %+.1fh, rischio %d%%" % [
+		riga.rango, riga.nome_rango, riga.costo_tempo_figlia_ore, riga.effetto_sabbia_padre_ore, roundi(riga.rischio_pct * 100)
+	]
+
+
+## Riabilita/disabilita ogni bottone di traccia in base al progresso attuale:
+## va richiamato dopo OGNI tentativo di traccia (che sblocca o meno il
+## rango successivo), non solo per il proprio.
+func _aggiorna_bottoni_traccia() -> void:
+	for chiave in bottoni_traccia:
+		var riga: TrackData = righe_traccia[chiave]
+		var bottone: Button = bottoni_traccia[chiave]
+		var progresso: int = stato.tracce_raggiunte.get(riga.traccia, 0)
+		if progresso >= riga.rango:
+			bottone.disabled = true
+			bottone.text = _testo_bottone_traccia(riga) + " [RAGGIUNTO]"
+		else:
+			bottone.disabled = not stato.traccia_disponibile(riga)
+
+
+func _on_traccia_pressed(riga: TrackData) -> void:
+	if stato.is_over:
+		return
+
+	var risultato := stato.applica_traccia(riga)
+
+	if risultato.has("rifiutata"):
+		lbl_messaggio.text = "[b]Rango non disponibile:[/b] %s" % risultato.motivo
+		return
+
+	lbl_messaggio.text = _descrivi_risultato_traccia(riga, risultato)
+	_aggiorna_bottoni_traccia()
+	_aggiorna_stato_ui()
+
+	if stato.is_over:
+		_fine_partita()
+
+
+func _descrivi_risultato_traccia(riga: TrackData, risultato: Dictionary) -> String:
+	var roll: DiceSystem.RollResult = risultato.roll
+	var esito := "SUCCESSO" if risultato.successo else "FALLIMENTO"
+	if roll.successo_critico or roll.fallimento_critico:
+		esito += " CRITICO"
+
+	var riga_tiro: String
+	if roll.senza_tiro:
+		riga_tiro = "Nessun tiro (rischio estremo 0%/100%)."
+	elif roll.dadi.size() == 1:
+		riga_tiro = "Tiro: %d + mod %d = %d (CD %d)" % [roll.dadi[0], roll.modificatore, roll.totale, roll.cd]
+	else:
+		riga_tiro = "Tiro: %s -> tenuto %d + mod %d = %d (CD %d)" % [roll.dadi, roll.naturale, roll.modificatore, roll.totale, roll.cd]
+
+	return "[b]%s — Rango %d: %s[/b]\n%s -> %s\nCosto Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
+		riga.traccia, riga.rango, riga.nome_rango, riga_tiro, esito, risultato.costo_tempo_figlia_ore, risultato.effetto_sabbia_padre_ore
+	]
 
 
 func _testo_bottone(azione: ActionData) -> String:
@@ -250,6 +352,8 @@ func _aggiorna_stato_ui() -> void:
 
 func _fine_partita() -> void:
 	for bottone: Button in bottoni_azione.values():
+		bottone.disabled = true
+	for bottone: Button in bottoni_traccia.values():
 		bottone.disabled = true
 	donazione_button.disabled = true
 	donazione_input.editable = false

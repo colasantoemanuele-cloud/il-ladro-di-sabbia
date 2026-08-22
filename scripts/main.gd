@@ -136,6 +136,29 @@ func _run_test_ui() -> void:
 	assert(stato.tempo_figlia_ore < tempo_prima_spostamento)
 	print("OK: bottone Spostamento consuma Tempo-Figlia tramite la UI.")
 
+	# Fase 9a: le 14 righe di rango (7 tracce x 2) devono essere nella UI,
+	# con il Rango 2 inizialmente disabilitato finché non si raggiunge il
+	# Rango 1 della stessa traccia.
+	assert(ui.bottoni_traccia.size() == 14)
+	var bottone_lavoro1: Button = ui.bottoni_traccia["Lavoro|1"]
+	var bottone_lavoro2: Button = ui.bottoni_traccia["Lavoro|2"]
+	assert(not bottone_lavoro1.disabled)
+	assert(bottone_lavoro2.disabled, "Rango 2 deve partire disabilitato")
+	print("OK: 14 bottoni traccia creati, Rango 2 disabilitato finché non si raggiunge il Rango 1.")
+
+	# Tentiamo il Rango 1 di Lavoro finché non riesce (rischio 15%, pochi
+	# tentativi attesi) per verificare che il successo sblocchi il Rango 2
+	# nella UI reale.
+	var tentativi := 0
+	while stato.tracce_raggiunte.get("Lavoro", 0) < 1 and tentativi < 200 and not stato.is_over:
+		bottone_lavoro1.pressed.emit()
+		tentativi += 1
+	assert(not stato.is_over, "la run non deve finire durante il test (rischio 15%%, atteso successo entro pochi tentativi)")
+	assert(stato.tracce_raggiunte.get("Lavoro", 0) == 1, "Rango 1 di Lavoro non raggiunto in %d tentativi" % tentativi)
+	assert(bottone_lavoro1.disabled, "Rango 1 raggiunto deve disabilitarsi")
+	assert(not bottone_lavoro2.disabled, "Rango 2 deve sbloccarsi nella UI dopo il successo al Rango 1")
+	print("OK: successo al Rango 1 sblocca il Rango 2 nella UI (in %d tentativi)." % tentativi)
+
 	ui.donazione_input.text = "5"
 	ui.donazione_button.pressed.emit()
 	assert(stato.is_over)
@@ -212,12 +235,15 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 	print("Seed di questa run: %d (rilancia con --play --seed=%d per riprodurla)" % [stato.seed_run, stato.seed_run])
 	print("")
 
+	var tracce := TrackDatabase.get_tracce_normali()
+
 	while not stato.is_over:
 		_stampa_stato(stato)
 		var azioni := ActionDatabase.get_all()
 		_stampa_azioni(azioni, stato)
+		_stampa_tracce(tracce, stato, azioni.size())
 		print("")
-		print("Scrivi il numero di un'azione, 'spostati' per un evento di spostamento (durata variabile, rischio indipendente di incidente), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
+		print("Scrivi il numero di un'azione o riga di traccia, 'spostati' per un evento di spostamento (durata variabile, rischio indipendente di incidente), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
 		print("> ")
 
 		var input := OS.read_string_from_stdin().strip_edges()
@@ -263,6 +289,32 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 			continue
 
 		var indice := int(input) - 1
+
+		if indice >= azioni.size():
+			var indice_traccia := indice - azioni.size()
+			if indice_traccia < 0 or indice_traccia >= tracce.size():
+				print("Numero fuori range: %s." % input)
+				print("")
+				continue
+			var riga: TrackData = tracce[indice_traccia]
+			var r := stato.applica_traccia(riga)
+			print("")
+			if r.has("rifiutata"):
+				print("Rango non disponibile: %s" % r.motivo)
+				print("")
+				continue
+			var roll_t: DiceSystem.RollResult = r.roll
+			print("-> %s — Rango %d: %s (CD %d)" % [riga.traccia, riga.rango, riga.nome_rango, roll_t.cd])
+			if roll_t.dadi.size() == 1:
+				print("   Tiro: %d + mod %d = %d" % [roll_t.dadi[0], roll_t.modificatore, roll_t.totale])
+			else:
+				print("   Tiro: %s -> tenuto %d + mod %d = %d" % [roll_t.dadi, roll_t.naturale, roll_t.modificatore, roll_t.totale])
+			print("   Esito: %s | Costo Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
+				"SUCCESSO" if r.successo else "FALLIMENTO", r.costo_tempo_figlia_ore, r.effetto_sabbia_padre_ore
+			])
+			print("")
+			continue
+
 		var azione := ActionDatabase.get_by_index(indice)
 		if azione == null:
 			print("Numero fuori range: %s." % input)
@@ -336,4 +388,23 @@ func _stampa_azioni(azioni: Array[ActionData], stato: GameState) -> void:
 			etichetta_unica = " [GIÀ USATA]" if not stato.azione_disponibile(a) else " [unica]"
 		print("  %2d) %-55s costo=%5.1fh  effetto=%+8.1fh  rischio=%3d%%%s" % [
 			i + 1, a.nome, a.costo_tempo_figlia_ore, a.effetto_sabbia_padre_ore, roundi(a.rischio_pct * 100), etichetta_unica
+		])
+
+
+func _stampa_tracce(tracce: Array[TrackData], stato: GameState, offset: int) -> void:
+	print("[TRACCE]")
+	var traccia_corrente := ""
+	for i in tracce.size():
+		var t := tracce[i]
+		if t.traccia != traccia_corrente:
+			traccia_corrente = t.traccia
+			print("  -- %s --" % traccia_corrente)
+		var progresso: int = stato.tracce_raggiunte.get(t.traccia, 0)
+		var etichetta := ""
+		if progresso >= t.rango:
+			etichetta = " [RAGGIUNTO]"
+		elif not stato.traccia_disponibile(t):
+			etichetta = " [richiede rango precedente]"
+		print("  %2d) %s Rango %d - %-40s costo=%5.1fh  effetto=%+9.1fh  rischio=%3d%%%s" % [
+			offset + i + 1, t.traccia, t.rango, t.nome_rango, t.costo_tempo_figlia_ore, t.effetto_sabbia_padre_ore, roundi(t.rischio_pct * 100), etichetta
 		])

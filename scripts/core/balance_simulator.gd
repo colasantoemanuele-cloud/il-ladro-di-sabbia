@@ -2,12 +2,15 @@ class_name BalanceSimulator
 extends RefCounted
 ## Fase 5: simula molte run del loop core per validare il bilanciamento,
 ## riusando esattamente GameState/DiceSystem/ActionDatabase (nessuna logica
-## di gioco duplicata tra "gioco vero" e simulatore, vedi CLAUDE.md).
+## di gioco duplicata tra "gioco vero" e simulatore, vedi CLAUDE.md). Dalla
+## Fase 9a considera anche le 14 righe di rango delle 7 tracce normali
+## (TrackDatabase), trattate come candidati alla pari delle 60 azioni core
+## grazie ai campi in comune di ActionData/TrackData (duck typing).
 ##
 ## Due politiche di scelta azione, nessuna delle due pensata per essere
 ## "l'IA del gioco": servono solo a generare distribuzioni di punteggio
 ## realistiche per il confronto col foglio Excel.
-##   - "greedy": ad ogni turno sceglie l'azione affrontabile col miglior
+##   - "greedy": ad ogni turno sceglie il candidato affrontabile col miglior
 ##     valore atteso per ora spesa (approssimazione: (1-rischio)*effetto/costo,
 ##     costo 0 trattato come "sempre preferita se a valore atteso positivo").
 ##     Rappresenta un giocatore razionale che ottimizza il rendimento — e per
@@ -19,9 +22,9 @@ extends RefCounted
 ##     ottimamente solo il budget scarso delle 168 ore — il corrispettivo
 ##     "con i dadi" del tetto deterministico calcolato da
 ##     tools/balance_ceiling.py.
-##   - "random": ad ogni turno sceglie un'azione affrontabile a caso, incluse
-##     quelle a valore atteso negativo. Rappresenta un giocatore che non
-##     ottimizza affatto — baseline di confronto.
+##   - "random": ad ogni turno sceglie un candidato affrontabile a caso,
+##     inclusi quelli a valore atteso negativo. Rappresenta un giocatore che
+##     non ottimizza affatto — baseline di confronto.
 ##
 ## MAX_TURNI è una valvola di sicurezza, non una regola di gioco: esistono
 ## azioni a costo 0h con effetto positivo (vedi tools/balance_ceiling.py),
@@ -30,7 +33,11 @@ extends RefCounted
 const MAX_TURNI := 1000
 
 
-static func simula_run(azioni: Array[ActionData], politica: String) -> Dictionary:
+## `candidati` è un Array misto di ActionData e TrackData (nessuna
+## interfaccia comune in GDScript, ma stessi nomi di campo — vedi
+## TrackData). Il tipo di ciascun elemento decide sia il controllo di
+## disponibilità sia il metodo di GameState da chiamare.
+static func simula_run(candidati: Array, politica: String) -> Dictionary:
 	var stato := GameState.new()
 	var cap_raggiunto := false
 
@@ -39,18 +46,21 @@ static func simula_run(azioni: Array[ActionData], politica: String) -> Dictionar
 			cap_raggiunto = true
 			break
 
-		var azione: ActionData
+		var candidato
 		match politica:
 			"greedy":
-				azione = _scegli_greedy(azioni, stato, false)
+				candidato = _scegli_greedy(candidati, stato, false)
 			"greedy_no_free":
-				azione = _scegli_greedy(azioni, stato, true)
+				candidato = _scegli_greedy(candidati, stato, true)
 			_:
-				azione = _scegli_random(azioni, stato)
-		if azione == null:
-			break  # nessuna azione affrontabile o utile rimasta
+				candidato = _scegli_random(candidati, stato)
+		if candidato == null:
+			break  # nessun candidato affrontabile o utile rimasto
 
-		stato.applica_azione_con_dado(azione)
+		if candidato is TrackData:
+			stato.applica_traccia(candidato)
+		else:
+			stato.applica_azione_con_dado(candidato)
 
 	var punteggio := stato.calcola_punteggio()
 	return {
@@ -64,31 +74,36 @@ static func simula_run(azioni: Array[ActionData], politica: String) -> Dictionar
 	}
 
 
-static func _scegli_greedy(azioni: Array[ActionData], stato: GameState, escludi_costo_zero: bool) -> ActionData:
-	var migliore: ActionData = null
+static func _disponibile(candidato, stato: GameState) -> bool:
+	return stato.traccia_disponibile(candidato) if candidato is TrackData else stato.azione_disponibile(candidato)
+
+
+static func _scegli_greedy(candidati: Array, stato: GameState, escludi_costo_zero: bool):
+	var migliore = null
 	var miglior_efficienza := -INF
-	for a in azioni:
-		if a.costo_tempo_figlia_ore > stato.tempo_figlia_ore:
+	for c in candidati:
+		var costo: float = c.costo_tempo_figlia_ore
+		if costo > stato.tempo_figlia_ore:
 			continue
-		if not stato.azione_disponibile(a):
+		if not _disponibile(c, stato):
 			continue
-		if escludi_costo_zero and a.costo_tempo_figlia_ore == 0.0:
+		if escludi_costo_zero and costo == 0.0:
 			continue
-		var valore_atteso := (1.0 - a.rischio_pct) * a.effetto_sabbia_padre_ore
+		var valore_atteso: float = (1.0 - float(c.rischio_pct)) * float(c.effetto_sabbia_padre_ore)
 		if valore_atteso <= 0.0:
 			continue
-		var efficienza := INF if a.costo_tempo_figlia_ore == 0.0 else valore_atteso / a.costo_tempo_figlia_ore
+		var efficienza: float = INF if costo == 0.0 else valore_atteso / costo
 		if efficienza > miglior_efficienza:
 			miglior_efficienza = efficienza
-			migliore = a
+			migliore = c
 	return migliore
 
 
-static func _scegli_random(azioni: Array[ActionData], stato: GameState) -> ActionData:
-	var affrontabili: Array[ActionData] = []
-	for a in azioni:
-		if a.costo_tempo_figlia_ore <= stato.tempo_figlia_ore and stato.azione_disponibile(a):
-			affrontabili.append(a)
+static func _scegli_random(candidati: Array, stato: GameState):
+	var affrontabili: Array = []
+	for c in candidati:
+		if c.costo_tempo_figlia_ore <= stato.tempo_figlia_ore and _disponibile(c, stato):
+			affrontabili.append(c)
 	if affrontabili.is_empty():
 		return null
 	return affrontabili[randi_range(0, affrontabili.size() - 1)]
@@ -96,7 +111,10 @@ static func _scegli_random(azioni: Array[ActionData], stato: GameState) -> Actio
 
 ## Esegue N run con la politica data e restituisce statistiche aggregate.
 static func esegui_batch(n_run: int, politica: String) -> Dictionary:
-	var azioni := ActionDatabase.get_all()
+	var candidati: Array = []
+	candidati.append_array(ActionDatabase.get_all())
+	candidati.append_array(TrackDatabase.get_tracce_normali())
+
 	var totali: Array[float] = []
 	var padri: Array[float] = []
 	var figlie: Array[float] = []
@@ -106,7 +124,7 @@ static func esegui_batch(n_run: int, politica: String) -> Dictionary:
 	var turni_totali := 0
 
 	for i in n_run:
-		var r := simula_run(azioni, politica)
+		var r := simula_run(candidati, politica)
 		totali.append(r.totale_anni)
 		padri.append(r.padre_anni)
 		figlie.append(r.figlia_anni)
