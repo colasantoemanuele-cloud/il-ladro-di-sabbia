@@ -1,15 +1,22 @@
-extends Node
+extends Control
 ## Entry point del gioco.
 ##
 ## Modalita' da riga di comando (dopo "--"):
-##   (nessun argomento) o --play    -> loop testuale giocabile da terminale
-##   --simulate=N                   -> Fase 5, batch di N run automatiche
-##                                      (politiche greedy + random), report
-##                                      statistico aggregato
+##   (nessun argomento)  -> Fase 6: interfaccia grafica minima (Control/
+##                          Label/Button), interattiva, non chiude da sola
+##   --play              -> Fase 2 legacy: loop testuale da terminale, utile
+##                          per verifiche headless senza display
+##   --simulate=N        -> Fase 5: batch di N run automatiche (politiche
+##                          greedy/greedy_no_free/random), report statistico
+##   --test-ui           -> Fase 6: auto-test headless della UI (simula
+##                          pressioni di bottoni senza display reale, utile
+##                          da CI/terminale dove non si può vedere la finestra)
 ##
 ## Esempi:
+##   godot --path .                          (gioco con la UI)
 ##   godot --headless --path . -- --play
 ##   godot --headless --path . -- --simulate=5000
+##   godot --headless --path . -- --test-ui
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -22,11 +29,63 @@ func _ready() -> void:
 	if not simulate_arg.is_empty():
 		var n := int(simulate_arg.split("=")[1])
 		_run_simulation(n)
-	elif args.has("--play") or args.is_empty():
+		get_tree().quit()
+	elif args.has("--play"):
 		_run_play_loop()
+		get_tree().quit()
+	elif args.has("--test-ui"):
+		_run_test_ui()
+		get_tree().quit()
+	elif args.is_empty():
+		_run_ui()
+		# niente quit(): la UI resta aperta e interattiva finché l'utente non chiude la finestra
 	else:
 		print("Argomento non riconosciuto: %s" % ", ".join(args))
-	get_tree().quit()
+		get_tree().quit()
+
+
+func _run_test_ui() -> void:
+	print("=== Fase 6: auto-test headless della UI ===")
+	var ui := GameUI.new()
+	add_child(ui)
+	var stato := GameState.new()
+	ui.avvia(stato)
+
+	assert(ui.bottoni_azione.size() == 60)
+	print("OK: %d bottoni azione creati." % ui.bottoni_azione.size())
+
+	var nome_azione := "Turno di lavoro onesto (8h, salario mediano)"
+	var bottone: Button = ui.bottoni_azione[nome_azione]
+	var tempo_prima := stato.tempo_figlia_ore
+	bottone.pressed.emit()
+	assert(stato.turno == 1)
+	assert(stato.tempo_figlia_ore == tempo_prima - 8.0)
+	print("OK: pressione bottone applica l'azione su GameState.")
+
+	var azione_unica_nome := "Lotteria clandestina della sabbia (jackpot raro)"
+	var bottone_unico: Button = ui.bottoni_azione[azione_unica_nome]
+	assert(not bottone_unico.disabled)
+	bottone_unico.pressed.emit()
+	assert(bottone_unico.disabled)
+	assert("GIÀ USATA" in bottone_unico.text)
+	print("OK: azione unica disabilitata nella UI dopo un tentativo.")
+
+	ui.donazione_input.text = "5"
+	ui.donazione_button.pressed.emit()
+	assert(stato.is_over)
+	assert(stato.donation_made)
+	assert(ui.donazione_button.disabled)
+	assert(bottone.disabled)
+	print("OK: donazione tramite UI termina la run e disabilita i controlli.")
+
+	print("TUTTI I TEST UI OK")
+
+
+func _run_ui() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	var ui := GameUI.new()
+	add_child(ui)
+	ui.avvia(GameState.new())
 
 
 func _run_simulation(n: int) -> void:

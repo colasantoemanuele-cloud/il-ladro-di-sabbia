@@ -1,0 +1,213 @@
+class_name GameUI
+extends Control
+## Fase 6: interfaccia Godot minima che sostituisce il loop testuale come
+## modo principale di giocare. Solo nodi Control/Label/Button di base,
+## nessun asset grafico. Non risolve l'affollamento schermo delle 60 azioni
+## (decisione presa: è un problema di arte finale, Fase 13) — la lista è
+## semplicemente scorrevole.
+##
+## Tutta la logica di gioco resta in GameState/DiceSystem: questo script
+## legge lo stato e chiama i suoi metodi, non duplica alcuna regola.
+
+var stato: GameState
+
+var lbl_tempo_figlia: Label
+var lbl_sabbia_padre: Label
+var lbl_risorse: Label
+var lbl_messaggio: RichTextLabel
+
+var donazione_input: LineEdit
+var donazione_button: Button
+
+var azioni_vbox: VBoxContainer
+var bottoni_azione: Dictionary = {}  # nome azione -> Button
+
+
+func avvia(stato_iniziale: GameState) -> void:
+	stato = stato_iniziale
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	_costruisci_ui()
+	_popola_azioni()
+	_aggiorna_stato_ui()
+
+
+func _costruisci_ui() -> void:
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	add_child(margin)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 8)
+	margin.add_child(root)
+
+	# --- Doppio countdown, sempre visibile ---
+	var status_bar := HBoxContainer.new()
+	status_bar.add_theme_constant_override("separation", 24)
+	root.add_child(status_bar)
+
+	lbl_tempo_figlia = Label.new()
+	status_bar.add_child(lbl_tempo_figlia)
+	lbl_sabbia_padre = Label.new()
+	status_bar.add_child(lbl_sabbia_padre)
+
+	# --- Pannello risorse, sempre visibile (Fase 6: tutte fisse a 0) ---
+	lbl_risorse = Label.new()
+	lbl_risorse.autowrap_mode = TextServer.AUTOWRAP_WORD
+	root.add_child(lbl_risorse)
+
+	root.add_child(HSeparator.new())
+
+	# --- Donazione finale ---
+	var dona_bar := HBoxContainer.new()
+	dona_bar.add_theme_constant_override("separation", 8)
+	root.add_child(dona_bar)
+
+	var dona_label := Label.new()
+	dona_label.text = "Dona alla figlia (ore, irreversibile):"
+	dona_bar.add_child(dona_label)
+
+	donazione_input = LineEdit.new()
+	donazione_input.custom_minimum_size = Vector2(80, 0)
+	donazione_input.placeholder_text = "ore"
+	dona_bar.add_child(donazione_input)
+
+	donazione_button = Button.new()
+	donazione_button.text = "Dona"
+	donazione_button.pressed.connect(_on_dona_pressed)
+	dona_bar.add_child(donazione_button)
+
+	root.add_child(HSeparator.new())
+
+	# --- Messaggio / esito ultima azione / fine partita ---
+	lbl_messaggio = RichTextLabel.new()
+	lbl_messaggio.custom_minimum_size = Vector2(0, 80)
+	lbl_messaggio.bbcode_enabled = true
+	lbl_messaggio.fit_content = true
+	lbl_messaggio.text = "Scegli un'azione dalla lista qui sotto."
+	root.add_child(lbl_messaggio)
+
+	root.add_child(HSeparator.new())
+
+	# --- Lista azioni, scorrevole ---
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(scroll)
+
+	azioni_vbox = VBoxContainer.new()
+	azioni_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(azioni_vbox)
+
+
+func _popola_azioni() -> void:
+	var categoria_corrente := ""
+	for azione: ActionData in ActionDatabase.get_all():
+		if azione.categoria != categoria_corrente:
+			categoria_corrente = azione.categoria
+			var header := Label.new()
+			header.text = "— %s —" % categoria_corrente
+			azioni_vbox.add_child(header)
+
+		var bottone := Button.new()
+		bottone.text = _testo_bottone(azione)
+		bottone.pressed.connect(_on_azione_pressed.bind(azione))
+		azioni_vbox.add_child(bottone)
+		bottoni_azione[azione.nome] = bottone
+
+
+func _testo_bottone(azione: ActionData) -> String:
+	var etichetta_unica := " [unica]" if azione.unica_per_run else ""
+	return "%s — costo %.0fh, effetto %+.1fh, rischio %d%%%s" % [
+		azione.nome, azione.costo_tempo_figlia_ore, azione.effetto_sabbia_padre_ore,
+		roundi(azione.rischio_pct * 100), etichetta_unica
+	]
+
+
+func _on_azione_pressed(azione: ActionData) -> void:
+	if stato.is_over:
+		return
+
+	var risultato := stato.applica_azione_con_dado(azione)
+
+	if risultato.has("rifiutata"):
+		lbl_messaggio.text = "[b]Azione non disponibile:[/b] %s" % risultato.motivo
+		return
+
+	lbl_messaggio.text = _descrivi_risultato(azione, risultato)
+
+	if azione.unica_per_run:
+		var bottone: Button = bottoni_azione.get(azione.nome)
+		if bottone:
+			bottone.disabled = true
+			bottone.text = _testo_bottone(azione) + " [GIÀ USATA]"
+
+	_aggiorna_stato_ui()
+
+	if stato.is_over:
+		_fine_partita()
+
+
+func _descrivi_risultato(azione: ActionData, risultato: Dictionary) -> String:
+	var roll: DiceSystem.RollResult = risultato.roll
+	var esito := "SUCCESSO" if risultato.successo else "FALLIMENTO"
+	if roll.successo_critico:
+		esito += " CRITICO"
+	elif roll.fallimento_critico:
+		esito += " CRITICO"
+
+	var riga_tiro: String
+	if roll.senza_tiro:
+		riga_tiro = "Nessun tiro (rischio estremo 0%/100%)."
+	elif roll.dadi.size() == 1:
+		riga_tiro = "Tiro: %d + mod %d = %d (CD %d)" % [roll.dadi[0], roll.modificatore, roll.totale, roll.cd]
+	else:
+		riga_tiro = "Tiro: %s -> tenuto %d + mod %d = %d (CD %d)" % [roll.dadi, roll.naturale, roll.modificatore, roll.totale, roll.cd]
+
+	return "[b]%s[/b]\n%s -> %s\nCosto Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
+		azione.nome, riga_tiro, esito, risultato.costo_tempo_figlia_ore, risultato.effetto_sabbia_padre_ore
+	]
+
+
+func _on_dona_pressed() -> void:
+	if stato.is_over:
+		return
+	if not donazione_input.text.is_valid_float():
+		lbl_messaggio.text = "[b]Donazione:[/b] inserisci un numero di ore valido."
+		return
+
+	var esito := stato.dona(float(donazione_input.text))
+	if not esito.successo:
+		lbl_messaggio.text = "[b]Donazione rifiutata:[/b] %s" % esito.motivo
+		return
+
+	lbl_messaggio.text = "[b]Hai donato %.1fh alla figlia. Donazione irreversibile.[/b]" % esito.quantita_ore
+	_aggiorna_stato_ui()
+	_fine_partita()
+
+
+func _aggiorna_stato_ui() -> void:
+	var giorni_figlia := stato.tempo_figlia_ore / 24.0
+	var anni_padre := stato.sabbia_padre_ore / GameState.ORE_PER_ANNO
+	lbl_tempo_figlia.text = "Tempo-Figlia: %.1fh (~%.1f giorni)" % [stato.tempo_figlia_ore, giorni_figlia]
+	lbl_sabbia_padre.text = "Sabbia-Padre: %.1fh (~%.4f anni)" % [stato.sabbia_padre_ore, anni_padre]
+	lbl_risorse.text = "Attenzione Polizia: %.0f  |  Rivalità Criminale: %.0f  |  Fama Pubblica: %.0f  |  Karma: %.0f  |  Fede: %.0f" % [
+		stato.attenzione_polizia, stato.rivalita_criminale, stato.fama_pubblica, stato.karma, stato.fede
+	]
+
+
+func _fine_partita() -> void:
+	for bottone: Button in bottoni_azione.values():
+		bottone.disabled = true
+	donazione_button.disabled = true
+	donazione_input.editable = false
+
+	var p := stato.calcola_punteggio()
+	var testo := "[b]%s[/b]\n\n[b]PUNTEGGIO FINALE[/b]\nPadre: %.1fh (~%.2f anni)\nFiglia: %.1fh (~%.2f anni)\nTotale: ~%.2f anni" % [
+		stato.end_reason_testo(), p.padre_ore, p.padre_anni, p.figlia_ore, p.figlia_anni, p.punteggio_totale_anni
+	]
+	if p.vittoria_100_100:
+		testo += "\n\n[b]*** TRAGUARDO RAGGIUNTO: 100+100 anni per entrambi! ***[/b]"
+	lbl_messaggio.text = testo

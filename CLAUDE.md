@@ -107,7 +107,15 @@ godot --headless --editor --quit
 # Lanciare il gioco in headless per testare senza aprire l'editor
 godot --headless --path .
 
-# (Fase 2+) loop testuale giocabile da terminale
+# (Fase 6) giocare con la UI grafica (richiede un display, es. X11/Wayland)
+godot --path .
+
+# (Fase 6) auto-test headless della UI: simula pressioni di bottoni senza
+# display reale (utile da terminale/CI dove non si può vedere la finestra)
+godot --headless --path . -- --test-ui
+
+# (Fase 2, legacy) loop testuale giocabile da terminale — tenuto per
+# verifiche headless rapide, la UI (Fase 6) è ora il modo principale di giocare
 godot --headless --path . -- --play
 
 # (Fase 5) simulazione Monte Carlo di bilanciamento, N run per ciascuna
@@ -255,3 +263,55 @@ python3 tools/balance_ceiling.py
     raccogliere in totale", non "come la si ripartisce". Il numero
     corretto da guardare per il tetto economico è `totale_anni`
     (padre+figlia), non `prob_vittoria_100_100`.
+- **Fase 6 (UI minima funzionale)**: fatto. `scripts/ui/game_ui.gd`
+  (`class_name GameUI`, `extends Control`) costruisce l'intera interfaccia a
+  codice (nessun `.tscn` con nodi disegnati a mano — più leggibile in vibe
+  coding di 60 bottoni generati dinamicamente): doppio countdown sempre
+  visibile, pannello con le 5 risorse (sempre a 0, nessun sistema le
+  aggiorna ancora — vedi `GameState`), barra di donazione (LineEdit +
+  Button), messaggio/esito (RichTextLabel), lista azioni scorrevole
+  (ScrollContainer + VBoxContainer) raggruppata per categoria con un
+  Button per azione. Azioni scelte cliccando, non più digitando. Le
+  azioni "Unica per run" si disabilitano e mostrano `[GIÀ USATA]` dopo il
+  primo tentativo, coerente con `GameState.azione_disponibile()`. Non
+  risolve l'affollamento delle 60 azioni (decisione presa: è un problema
+  di arte finale, Fase 13) — la lista è semplicemente scorrevole.
+  `scripts/main.gd`: `Main` ora `extends Control` (prima `Node`, serviva
+  per far propagare correttamente gli anchor "riempi tutto" ai figli); di
+  default (nessun argomento da riga di comando) apre la UI e NON chiama
+  `get_tree().quit()` (resta interattiva). Il loop testuale della Fase 2
+  resta disponibile dietro il flag esplicito `--play` (utile per verifiche
+  headless rapide senza display).
+  **Impostazioni progetto aggiunte** (`project.godot`, sezione
+  `[display]`): `window/size/viewport_width/height=1280x800`,
+  `window/stretch/mode=canvas_items` + `aspect=expand` (la UI si
+  ridimensiona con la finestra), `window/dpi/allow_hidpi=false` (evita
+  scaling automatico indesiderato — ragionevole anche in vista della
+  pixel art futura, che non vuole essere ri-scalata dal sistema).
+  **Verificato**: `godot --headless --path . -- --test-ui` (nuovo, aggiunto
+  apposta) istanzia la UI reale, verifica che vengano creati 60 bottoni,
+  simula la pressione di un bottone azione via `Button.pressed.emit()` e
+  controlla che `GameState` si aggiorni di conseguenza, verifica che un
+  bottone di un'azione unica si disabiliti dopo un tentativo, e verifica
+  che la donazione via UI termini la run e disabiliti tutti i controlli —
+  tutti PASS. Rilanciate anche le verifiche di regressione di `--play` e
+  `--simulate=N`: nessuna rottura.
+  **Verifica visiva**: ho effettivamente lanciato la UI con un display
+  reale disponibile in questa sessione (`DISPLAY=:1`, X11 via XWayland) e
+  catturato uno screenshot — tutti gli elementi richiesti sono presenti,
+  leggibili e disposti correttamente (doppio countdown, pannello risorse,
+  barra donazione, lista azioni scorrevole con separatori di categoria).
+  **Limite noto della verifica, non del progetto**: nell'ambiente sandbox
+  di questa sessione il compositor (Smithay/XWayland) forza la finestra
+  reale a una larghezza fissa (1896px, verificato non dipendere dalla
+  risoluzione richiesta) diversa da quella che Godot stesso riporta
+  internamente (`DisplayServer.window_get_size()` = 1280×800, coerente col
+  progetto) — la UI viene quindi visualizzata "letterboxed" (contenuto
+  corretto ma non riempie tutta la finestra) SOLO in questo screenshot.
+  Diagnosticato a fondo (viewport_rect, window_size, texture del
+  framebuffer, prova con `--resolution` esplicita): è un mismatch
+  compositor↔Godot specifico di questo ambiente virtuale, non riproducibile
+  né correggibile da impostazioni di progetto. Su un desktop Linux reale
+  (o in editor) questo problema non dovrebbe presentarsi, ma non ho potuto
+  verificarlo direttamente in questa sessione — da tenere d'occhio la
+  prima volta che l'autore apre il progetto sulla propria macchina.

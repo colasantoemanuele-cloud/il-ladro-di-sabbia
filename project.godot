@@ -18,6 +18,14 @@ run/main_scene="res://scenes/Main.tscn"
 
 ActionDatabase="*res://scripts/data/action_database.gd"
 
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=800
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/dpi/allow_hidpi=false
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

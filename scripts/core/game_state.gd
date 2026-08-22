@@ -15,6 +15,20 @@ var sabbia_padre_ore: float = SABBIA_PADRE_INIZIALE
 var donation_made: bool = false
 var donated_ore: float = 0.0
 
+## Le 5 risorse del design doc (sezione 7.2), esposte per la UI (Fase 6) ma
+## SENZA alcuna logica che le aggiorni ancora: nessun sistema di tracce,
+## eventi o conseguenze le tocca in questo prototipo — restano fisse a 0.0
+## finché quei sistemi (fuori scope per le fasi 1-7) non verranno
+## implementati. `karma` è l'unica pensata per persistere tra le run (design
+## doc 7.2): viene inizializzata dal Profilo Persistente all'avvio della run
+## (Fase 7, vedi scripts/core/player_profile.gd) invece di partire sempre da
+## zero come le altre 4, ma nulla la modifica ancora durante il gioco.
+var attenzione_polizia: float = 0.0
+var rivalita_criminale: float = 0.0
+var fama_pubblica: float = 0.0
+var karma: float = 0.0
+var fede: float = 0.0
+
 var is_over: bool = false
 var end_reason: int = EndReason.NONE
 
