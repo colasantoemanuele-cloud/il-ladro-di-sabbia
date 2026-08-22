@@ -1,0 +1,88 @@
+{
+  "_meta": {
+    "fonte": "ladro_di_sabbia_bilanciamento.xlsx, foglio Endgame, sezione 4 (LE 10 SOTTOTRAME); prerequisito di 'Il tesoro del vecchio boss' da design doc sezione 6.1, non dall'Excel",
+    "numero_sottotrame": 10
+  },
+  "sottotrame": [
+    {
+      "nome": "Il tesoro del vecchio boss",
+      "costo_tempo_figlia_ore": 48,
+      "effetto_sabbia_padre_ore": 124161.1,
+      "rischio_pct": 0.5,
+      "nota": "~1,85M€: stima per ordine di grandezza, risparmio criminale accumulato in anni da un boss deceduto. Sabbia affidata a una persona di fiducia, da rintracciare",
+      "prerequisito": "Riattivare un vecchio contatto della rete criminale"
+    },
+    {
+      "nome": "L'asta dei secoli",
+      "costo_tempo_figlia_ore": 40,
+      "effetto_sabbia_padre_ore": 157718.1,
+      "rischio_pct": 0.55,
+      "nota": "~2,35M€: stima su ordine di grandezza di aste di lusso/clandestine di altissimo profilo. Richiede documenti falsi di alta qualita' + un invito",
+      "prerequisito": null
+    },
+    {
+      "nome": "L'ultima donazione",
+      "costo_tempo_figlia_ore": 24,
+      "effetto_sabbia_padre_ore": 87248.3,
+      "rischio_pct": 0.3,
+      "nota": "~1,3M€: stima su patrimoni netti individuali di fascia alta in punto di morte. Sostituisce 'Il registro dei non reclamati'",
+      "prerequisito": null
+    },
+    {
+      "nome": "Il patto con l'usuraio della mezzanotte",
+      "costo_tempo_figlia_ore": 16,
+      "effetto_sabbia_padre_ore": 177852.3,
+      "rischio_pct": 0.2,
+      "nota": "~2,65M€: prestito equivalente, non un guadagno pulito - e' un debito enorme da restituire, non uno stipendio. Ribilanciato rispetto alla prima versione (era sproporzionato)",
+      "prerequisito": null
+    },
+    {
+      "nome": "La cripta della setta degli eterni",
+      "costo_tempo_figlia_ore": 72,
+      "effetto_sabbia_padre_ore": 265100.7,
+      "rischio_pct": 0.65,
+      "nota": "~3,95M€: ordine di grandezza di grandi patrimoni ecclesiastici/settari accumulati nei secoli, documentati storicamente in casi analoghi. Dopo questa azione il rischio sale per il resto della run",
+      "prerequisito": null
+    },
+    {
+      "nome": "Il grande torneo dei senza-tempo",
+      "costo_tempo_figlia_ore": 48,
+      "effetto_sabbia_padre_ore": 211409.4,
+      "rischio_pct": 0.55,
+      "nota": "~3,15M€: stima, montepremi aggregato di piu' round di scommesse estreme. Ritiro possibile in ogni momento",
+      "prerequisito": null
+    },
+    {
+      "nome": "Il crollo della casata [nome da assegnare]",
+      "costo_tempo_figlia_ore": 72,
+      "effetto_sabbia_padre_ore": 298657.7,
+      "rischio_pct": 0.6,
+      "nota": "~4,45M€: ordine di grandezza di grandi patrimoni familiari aristocratici europei storici documentati. A piu' fasi: prove, ricatto, colpo finale",
+      "prerequisito": null
+    },
+    {
+      "nome": "La fuga dal purgatorio dei debitori",
+      "costo_tempo_figlia_ore": 48,
+      "effetto_sabbia_padre_ore": 104026.8,
+      "rischio_pct": 0.45,
+      "nota": "~1,55M€: stima, debiti aggregati dei prigionieri liberati/derubati. Di piu' se non liberi gli altri prigionieri",
+      "prerequisito": null
+    },
+    {
+      "nome": "Il tavolo dei senza fondo",
+      "costo_tempo_figlia_ore": 24,
+      "effetto_sabbia_padre_ore": 191275.2,
+      "rischio_pct": 0.55,
+      "nota": "~2,85M€: stima, puntate aggregate di un tavolo clandestino ad altissimo livello. Accesso solo su garanzia di un boss",
+      "prerequisito": null
+    },
+    {
+      "nome": "La cassa di guerra della vecchia organizzazione",
+      "costo_tempo_figlia_ore": 48,
+      "effetto_sabbia_padre_ore": 157718.1,
+      "rischio_pct": 0.6,
+      "nota": "~2,35M€: stima, fondo di riserva collettivo di un'organizzazione criminale (contributi 'assicurativi' di piu' membri). Tradisce l'intera organizzazione, non un singolo bersaglio",
+      "prerequisito": null
+    }
+  ]
+}

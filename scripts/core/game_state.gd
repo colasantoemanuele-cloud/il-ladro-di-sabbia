@@ -50,12 +50,17 @@ func _init(seed_iniziale: int = -1) -> void:
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = seed_run
 
-## Nomi delle azioni "Unica per run" già tentate in questa run (colonna
-## Excel aggiunta dopo il playtest della Fase 5: 17 azioni rappresentano un
-## bersaglio/accordo/evento singolo — es. IL GRANDE COLPO, la lotteria
-## jackpot — e non sono ripetibili nella stessa run). Marcata al primo
-## TENTATIVO, non solo al successo: altrimenti fallire il tiro permetterebbe
-## di ritentare all'infinito fino a un successo, vanificando il vincolo.
+## Chiavi già "esaurite" in questa run — un TENTATIVO (riuscito o fallito)
+## le consuma per sempre, non solo il successo. Due usi:
+##  - azioni "Unica per run" (colonna Excel aggiunta dopo il playtest della
+##    Fase 5: 17 azioni rappresentano un bersaglio/accordo/evento singolo —
+##    es. IL GRANDE COLPO, la lotteria jackpot), chiave = azione.nome.
+##  - righe di traccia (Fase 9b, decisione confermata dall'autore: un
+##    fallimento blocca la riga esattamente come un'azione una tantum),
+##    chiave = "<traccia>|<rango>" (vedi _chiave_traccia).
+## Marcata al primo TENTATIVO, non solo al successo: altrimenti fallire il
+## tiro permetterebbe di ritentare all'infinito fino a un successo,
+## vanificando il vincolo.
 var azioni_uniche_usate: Dictionary = {}
 
 
@@ -200,39 +205,49 @@ func applica_spostamento() -> Dictionary:
 var tracce_raggiunte: Dictionary = {}
 
 
+func _chiave_traccia(riga: TrackData) -> String:
+	return "%s|%d" % [riga.traccia, riga.rango]
+
+
 ## True se questa riga (Rango 1 o Rango 2 di una traccia) può essere
-## tentata ora: il Rango 1 è sempre tentabile finché non è già stato
-## raggiunto; il Rango 2 richiede che il Rango 1 della stessa traccia sia
-## già stato raggiunto con successo in questa run.
+## tentata ora: serve che il Rango precedente della stessa traccia sia già
+## stato raggiunto (per il Rango 1 questo è automaticamente vero, essendo
+## 0 == 1-1) E che questa riga non sia già stata tentata in questa run —
+## riuscita o fallita, vedi applica_traccia().
 func traccia_disponibile(riga: TrackData) -> bool:
+	if azioni_uniche_usate.has(_chiave_traccia(riga)):
+		return false
 	var progresso: int = tracce_raggiunte.get(riga.traccia, 0)
 	return progresso == riga.rango - 1
 
 
-## Applica il tentativo di salire di rango in una traccia (Fase 9a): stesso
-## motore di risoluzione delle 60 azioni core (dado d20 + varianza
-## ±15%/±20%, stesso _rng seedato della run — vedi ActionVariance), ma con
-## l'avanzamento di `tracce_raggiunte` al posto di `azioni_uniche_usate`.
+## Applica il tentativo di salire di rango in una traccia: stesso motore di
+## risoluzione delle 60 azioni core (dado d20 Fase 3 + varianza ±15%/±20%
+## Fase 8, stesso _rng seedato della run — vedi ActionVariance).
 ##
-## Decisione (da confermare con l'autore, non specificata nel design doc):
-## un fallimento NON blocca la traccia — a differenza delle azioni "Unica
-## per run" (che rappresentano un evento/bersaglio singolo), la scalata di
-## rango è trattata come un percorso di carriera ritentabile, coerente con
-## come funzionano le altre azioni ripetibili del gioco.
+## Un TENTATIVO (riuscito o fallito) esaurisce quella riga per il resto
+## della run, riusando esattamente lo stesso meccanismo delle azioni "Unica
+## per run" (`azioni_uniche_usate`, decisione confermata dall'autore dopo
+## la Fase 9a): un fallimento sul Rango 1 rende l'intera traccia
+## inaccessibile per il resto della run (il Rango 2 non potrà mai
+## sbloccarsi, dato che richiede il Rango 1 completato con successo); un
+## fallimento sul Rango 2 lascia valido il Rango 1 già raggiunto ma
+## preclude il Rango 2.
 func applica_traccia(
 	riga: TrackData,
 	modo: DiceSystem.RollMode = DiceSystem.RollMode.NORMALE,
 	modificatore: int = 0
 ) -> Dictionary:
 	if not traccia_disponibile(riga):
-		return {
-			"rifiutata": true,
-			"motivo": "serve prima completare il Rango %d della stessa traccia, oppure è già stato raggiunto." % (riga.rango - 1),
-		}
+		var motivo := "già tentata in questa run (riuscita o fallita)."
+		if riga.rango > 1 and tracce_raggiunte.get(riga.traccia, 0) < riga.rango - 1:
+			motivo = "serve prima completare con successo il Rango %d della stessa traccia." % (riga.rango - 1)
+		return {"rifiutata": true, "motivo": motivo}
 
 	turno += 1
 	var costo := ActionVariance.costo_variato(riga.costo_tempo_figlia_ore, _rng)
 	tempo_figlia_ore -= costo
+	azioni_uniche_usate[_chiave_traccia(riga)] = true
 
 	var roll := DiceSystem.risolvi(riga.rischio_pct, modo, modificatore, _rng)
 
@@ -252,6 +267,80 @@ func applica_traccia(
 		sabbia_padre_ore += effetto
 		risultato.effetto_sabbia_padre_ore = effetto
 		tracce_raggiunte[riga.traccia] = riga.rango
+
+	risultato["tempo_figlia_ore"] = tempo_figlia_ore
+	risultato["sabbia_padre_ore"] = sabbia_padre_ore
+	storico.append(risultato)
+
+	_controlla_fine_partita()
+	return risultato
+
+
+func _chiave_sottotrama(sub: SubplotData) -> String:
+	return "sottotrama:%s" % sub.nome
+
+
+## True se un'ActionData con questo nome è stata applicata CON SUCCESSO
+## almeno una volta in questa run (scansiona `storico`). Usato solo per il
+## prerequisito di "Il tesoro del vecchio boss" (design doc 6.1) — non è la
+## regola generale delle tracce/azioni uniche, è specifico di questa
+## sottotrama.
+func azione_completata_con_successo(nome_azione: String) -> bool:
+	for r in storico:
+		if r.get("azione") == nome_azione and r.get("successo", false):
+			return true
+	return false
+
+
+## True se questa sottotrama può ancora essere tentata: non è già stata
+## tentata in questa run (riuscita o fallita — stesso meccanismo delle
+## azioni "Unica per run", vedi applica_sottotrama) e, se ha un
+## prerequisito, quello è già stato completato con successo.
+func sottotrama_disponibile(sub: SubplotData) -> bool:
+	if azioni_uniche_usate.has(_chiave_sottotrama(sub)):
+		return false
+	if sub.prerequisito != "" and not azione_completata_con_successo(sub.prerequisito):
+		return false
+	return true
+
+
+## Applica il tentativo di una sottotrama endgame (Fase 9b, design doc
+## sezione 6): ogni sottotrama è una singola azione una tantum, stesso
+## meccanismo delle azioni "Unica per run" del foglio Azioni (un tentativo,
+## riuscito o fallito, la esaurisce per questa run) e stesso motore di
+## risoluzione delle azioni core e delle tracce (dado d20 + varianza
+## ±15%/±20%, stesso _rng seedato della run).
+func applica_sottotrama(
+	sub: SubplotData,
+	modo: DiceSystem.RollMode = DiceSystem.RollMode.NORMALE,
+	modificatore: int = 0
+) -> Dictionary:
+	if not sottotrama_disponibile(sub):
+		var motivo := "già tentata in questa run (riuscita o fallita)."
+		if sub.prerequisito != "" and not azione_completata_con_successo(sub.prerequisito):
+			motivo = "richiede prima di completare con successo l'azione \"%s\" in questa run." % sub.prerequisito
+		return {"rifiutata": true, "motivo": motivo}
+
+	turno += 1
+	var costo := ActionVariance.costo_variato(sub.costo_tempo_figlia_ore, _rng)
+	tempo_figlia_ore -= costo
+	azioni_uniche_usate[_chiave_sottotrama(sub)] = true
+
+	var roll := DiceSystem.risolvi(sub.rischio_pct, modo, modificatore, _rng)
+
+	var risultato := {
+		"turno": turno,
+		"azione": sub.nome,
+		"costo_tempo_figlia_ore": costo,
+		"roll": roll,
+		"successo": roll.successo,
+		"effetto_sabbia_padre_ore": 0.0,
+	}
+
+	if roll.successo:
+		var effetto := ActionVariance.effetto_variato(sub.effetto_sabbia_padre_ore, _rng)
+		sabbia_padre_ore += effetto
+		risultato.effetto_sabbia_padre_ore = effetto
 
 	risultato["tempo_figlia_ore"] = tempo_figlia_ore
 	risultato["sabbia_padre_ore"] = sabbia_padre_ore

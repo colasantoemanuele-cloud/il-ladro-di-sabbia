@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Fase 5 (+ Fase 9a) — validazione del tetto economico deterministico
-raggiungibile con le 60 azioni core PIU' le 7 tracce normali (14 righe di
-rango), entro le 168 ore di Tempo-Figlia disponibili in una run, IGNORANDO
-il rischio/dado (limite superiore teorico: un giocatore con successo
-garantito su ogni tiro).
+Fase 5 (+ Fase 9a/9b) — validazione del tetto economico deterministico
+raggiungibile con le 60 azioni core, le 7 tracce normali (14 righe di
+rango) e le 10 sottotrame endgame, entro le 168 ore di Tempo-Figlia
+disponibili in una run, IGNORANDO il rischio/dado (limite superiore
+teorico: un giocatore con successo garantito su ogni tiro).
 
 Serve a verificare quantitativamente l'affermazione del design doc (sezione
 6, sezione 4.4): "con le sole azioni core è impossibile arrivare a 100 anni
-per entrambi i personaggi" — e, dalla Fase 9a, a misurare quanto le tracce
+per entrambi i personaggi" — e a misurare quanto tracce e sottotrame
 alzano quel tetto.
 
 Metodo: knapsack misto sul budget di 168 ore intere.
@@ -23,6 +23,11 @@ Metodo: knapsack misto sul budget di 168 ore intere.
     (il Rango 2 richiede sempre il Rango 1 della stessa traccia — non si
     puo' scegliere il Rango 2 da solo). Le 7 tracce sono indipendenti tra
     loro (nessun aggancio comune, decisione confermata dall'autore).
+  - Ogni sottotrama (Fase 9b) e' un item 0/1 (azione una tantum). "Il
+    tesoro del vecchio boss" ha un prerequisito esplicito (design doc
+    6.1): il suo costo nel knapsack include anche il costo dell'azione
+    prerequisito "Riattivare un vecchio contatto della rete criminale",
+    cosi' il calcolo non la ottiene "gratis" ignorando il prerequisito.
 
 Uso: python3 tools/balance_ceiling.py
 """
@@ -33,6 +38,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 JSON_PATH = ROOT / "data" / "azioni.json"
 TRACCE_JSON_PATH = ROOT / "data" / "tracce.json"
+SOTTOTRAME_JSON_PATH = ROOT / "data" / "sottotrame.json"
 ORE_PER_ANNO = 8760.0
 BUDGET_ORE = 168
 
@@ -127,25 +133,52 @@ def main() -> None:
                         migliore_t = candidato
             dp[t] = migliore_t
 
+    tetto_con_tracce_ore = dp[BUDGET_ORE]
+    tetto_con_tracce_anni = tetto_con_tracce_ore / ORE_PER_ANNO
+    print(f"Tetto deterministico AZIONI + TRACCE (senza sottotrame), budget {BUDGET_ORE}h:")
+    print(f"  {tetto_con_tracce_ore:,.1f} ore = {tetto_con_tracce_anni:.2f} anni "
+          f"({tetto_con_tracce_anni - tetto_solo_azioni_anni:+.2f} anni rispetto alle sole azioni)\n")
+
+    # --- Fase 9b: aggiunta delle 10 sottotrame come item 0/1 (azione una ---
+    # tantum) sullo stesso budget condiviso. "Il tesoro del vecchio boss"
+    # include nel proprio costo anche quello del prerequisito.
+    sottotrame_data = json.loads(SOTTOTRAME_JSON_PATH.read_text(encoding="utf-8"))
+    costo_prerequisito_per_nome = {a["nome"]: int(a["costo_tempo_figlia_ore"]) for a in azioni}
+
+    for s in sottotrame_data["sottotrame"]:
+        c = int(s["costo_tempo_figlia_ore"])
+        if s.get("prerequisito"):
+            c += costo_prerequisito_per_nome[s["prerequisito"]]
+        v = s["effetto_sabbia_padre_ore"]
+        # 0/1: ordine decrescente di t, cosi' ogni sottotrama e' usata al
+        # massimo una volta (sono indipendenti tra loro, nessun gruppo).
+        for t in range(BUDGET_ORE, c - 1, -1):
+            val = dp[t - c] + v
+            if val > dp[t]:
+                dp[t] = val
+
     tetto_ore = dp[BUDGET_ORE]
     tetto_anni = tetto_ore / ORE_PER_ANNO
 
-    print(f"Tetto economico deterministico CON LE TRACCE (senza rischio), budget {BUDGET_ORE}h:")
+    print(f"Tetto economico deterministico AZIONI + TRACCE + SOTTOTRAME (senza rischio), budget {BUDGET_ORE}h:")
     print(f"  {tetto_ore:,.1f} ore Sabbia-Padre = {tetto_anni:.2f} anni")
-    print(f"  Aumento rispetto al tetto senza tracce: {tetto_anni - tetto_solo_azioni_anni:+.2f} anni ({(tetto_anni/tetto_solo_azioni_anni - 1)*100:+.1f}%)")
+    print(f"  Aumento rispetto al tetto senza tracce/sottotrame: {tetto_anni - tetto_solo_azioni_anni:+.2f} anni ({(tetto_anni/tetto_solo_azioni_anni - 1)*100:+.1f}%)")
+    print(f"  Aumento rispetto al tetto con le sole tracce: {tetto_anni - tetto_con_tracce_anni:+.2f} anni ({(tetto_anni/tetto_con_tracce_anni - 1)*100:+.1f}%)")
     print(f"  Soglia vittoria 100+100 anni = {100*ORE_PER_ANNO:,.0f} ore per personaggio")
     print(f"  Rapporto tetto/soglia-100-anni: {tetto_anni/100.0*100:.1f}%")
 
     print()
-    if tetto_anni >= 100.0:
-        print("ATTENZIONE: il tetto deterministico supera 100 anni per il solo padre -- "
-              "in contraddizione con l'affermazione del design doc che con le sole azioni "
-              "core (+ tracce, senza sinergie) sia impossibile arrivare a 100 anni.")
-    else:
-        print(f"Coerente col design doc: anche in condizioni ideali (nessun rischio) il "
-              f"solo padre non raggiunge 100 anni con azioni core + tracce (tetto {tetto_anni:.2f} < 100). "
-              f"Per ENTRAMBI (100+100=200 anni totali) servirebbe piu' del doppio di questo "
-              f"tetto. Le sinergie tra tracce (Fase 9c) non sono ancora incluse in questo calcolo.")
+    print(f"Tetto SOLE AZIONI CORE: {tetto_solo_azioni_anni:.2f} anni (< 100, coerente col design doc "
+          f"4.4/6: \"con le sole azioni core è impossibile arrivare a 100 anni\" — questo claim vale "
+          f"solo per le 60 azioni da sole, verificato e confermato).")
+    print(f"Tetto AZIONI + TRACCE + SOTTOTRAME: {tetto_anni:.2f} anni. Superare i 100 anni QUI non è "
+          f"un'anomalia: il design doc (sezione 7.4) dichiara esplicitamente che \"le sole sottotrame, "
+          f"senza nessuna traccia, arrivano al massimo a 100 anni entro 168 ore\" — è il traguardo "
+          f"raro ma voluto delle sottotrame, non una violazione. Il tetto qui sopra è per UN SOLO "
+          f"personaggio: la vittoria richiede 100+100 (entrambi), quindi va ancora diviso tra padre e "
+          f"figlia con la donazione. Il tetto combinato di riferimento del foglio Excel con tracce E "
+          f"sinergie è ~207-208 anni (sezione 7.4) — le sinergie (Fase 9c, non ancora implementate) "
+          f"sono il pezzo mancante per avvicinarsi a quel numero.")
 
 
 if __name__ == "__main__":

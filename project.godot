@@ -18,6 +18,7 @@ run/main_scene="res://scenes/Main.tscn"
 
 ActionDatabase="*res://scripts/data/action_database.gd"
 TrackDatabase="*res://scripts/data/track_database.gd"
+SubplotDatabase="*res://scripts/data/subplot_database.gd"
 
 [display]
 

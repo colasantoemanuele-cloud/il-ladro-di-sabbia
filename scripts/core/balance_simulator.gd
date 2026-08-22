@@ -4,8 +4,9 @@ extends RefCounted
 ## riusando esattamente GameState/DiceSystem/ActionDatabase (nessuna logica
 ## di gioco duplicata tra "gioco vero" e simulatore, vedi CLAUDE.md). Dalla
 ## Fase 9a considera anche le 14 righe di rango delle 7 tracce normali
-## (TrackDatabase), trattate come candidati alla pari delle 60 azioni core
-## grazie ai campi in comune di ActionData/TrackData (duck typing).
+## (TrackDatabase) e dalla Fase 9b le 10 sottotrame (SubplotDatabase),
+## trattate come candidati alla pari delle 60 azioni core grazie ai campi
+## in comune di ActionData/TrackData/SubplotData (duck typing).
 ##
 ## Due politiche di scelta azione, nessuna delle due pensata per essere
 ## "l'IA del gioco": servono solo a generare distribuzioni di punteggio
@@ -59,6 +60,8 @@ static func simula_run(candidati: Array, politica: String) -> Dictionary:
 
 		if candidato is TrackData:
 			stato.applica_traccia(candidato)
+		elif candidato is SubplotData:
+			stato.applica_sottotrama(candidato)
 		else:
 			stato.applica_azione_con_dado(candidato)
 
@@ -75,7 +78,11 @@ static func simula_run(candidati: Array, politica: String) -> Dictionary:
 
 
 static func _disponibile(candidato, stato: GameState) -> bool:
-	return stato.traccia_disponibile(candidato) if candidato is TrackData else stato.azione_disponibile(candidato)
+	if candidato is TrackData:
+		return stato.traccia_disponibile(candidato)
+	if candidato is SubplotData:
+		return stato.sottotrama_disponibile(candidato)
+	return stato.azione_disponibile(candidato)
 
 
 static func _scegli_greedy(candidati: Array, stato: GameState, escludi_costo_zero: bool):
@@ -114,6 +121,7 @@ static func esegui_batch(n_run: int, politica: String) -> Dictionary:
 	var candidati: Array = []
 	candidati.append_array(ActionDatabase.get_all())
 	candidati.append_array(TrackDatabase.get_tracce_normali())
+	candidati.append_array(SubplotDatabase.get_all())
 
 	var totali: Array[float] = []
 	var padri: Array[float] = []

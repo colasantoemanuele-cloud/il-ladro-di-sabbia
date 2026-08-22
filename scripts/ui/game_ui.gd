@@ -29,6 +29,8 @@ var bottoni_azione: Dictionary = {}  # nome azione -> Button
 var bottoni_traccia: Dictionary = {}  # "traccia|rango" -> Button
 var righe_traccia: Dictionary = {}    # "traccia|rango" -> TrackData
 
+var bottoni_sottotrama: Dictionary = {}  # nome sottotrama -> Button
+
 
 ## `profilo_iniziale` e' opzionale: se omesso (es. --test-ui) la UI resta
 ## utilizzabile senza il Profilo Persistente (Fase 7), semplicemente non
@@ -42,6 +44,7 @@ func avvia(stato_iniziale: GameState, profilo_iniziale: PlayerProfile = null) ->
 	_costruisci_ui()
 	_popola_azioni()
 	_popola_tracce()
+	_popola_sottotrame()
 	_aggiorna_stato_ui()
 
 
@@ -200,9 +203,13 @@ func _aggiorna_bottoni_traccia() -> void:
 		var riga: TrackData = righe_traccia[chiave]
 		var bottone: Button = bottoni_traccia[chiave]
 		var progresso: int = stato.tracce_raggiunte.get(riga.traccia, 0)
+		var gia_tentata: bool = stato.azioni_uniche_usate.has(chiave)
 		if progresso >= riga.rango:
 			bottone.disabled = true
 			bottone.text = _testo_bottone_traccia(riga) + " [RAGGIUNTO]"
+		elif gia_tentata:
+			bottone.disabled = true
+			bottone.text = _testo_bottone_traccia(riga) + " [FALLITA — non più tentabile]"
 		else:
 			bottone.disabled = not stato.traccia_disponibile(riga)
 
@@ -244,6 +251,96 @@ func _descrivi_risultato_traccia(riga: TrackData, risultato: Dictionary) -> Stri
 	]
 
 
+## Fase 9b: le 10 sottotrame endgame, ciascuna un'azione una tantum (stesso
+## meccanismo delle azioni "Unica per run"). "Il tesoro del vecchio boss"
+## ha un prerequisito esplicito (design doc 6.1): richiede di aver già
+## completato con successo "Riattivare un vecchio contatto della rete
+## criminale" in questa run.
+func _popola_sottotrame() -> void:
+	var header_sezione := Label.new()
+	header_sezione.text = "═══ SOTTOTRAME ═══"
+	azioni_vbox.add_child(header_sezione)
+
+	for sub: SubplotData in SubplotDatabase.get_all():
+		var bottone := Button.new()
+		bottone.text = _testo_bottone_sottotrama(sub)
+		if sub.nota != "":
+			bottone.tooltip_text = sub.nota
+		bottone.pressed.connect(_on_sottotrama_pressed.bind(sub))
+		azioni_vbox.add_child(bottone)
+		bottoni_sottotrama[sub.nome] = bottone
+
+	_aggiorna_bottoni_sottotrama()
+
+
+func _testo_bottone_sottotrama(sub: SubplotData) -> String:
+	var etichetta_prereq := " [richiede: %s]" % sub.prerequisito if sub.prerequisito != "" else ""
+	return "%s — costo %.0fh, effetto %+.1fh, rischio %d%%%s" % [
+		sub.nome, sub.costo_tempo_figlia_ore, sub.effetto_sabbia_padre_ore, roundi(sub.rischio_pct * 100), etichetta_prereq
+	]
+
+
+func _aggiorna_bottoni_sottotrama() -> void:
+	for nome in bottoni_sottotrama:
+		var sub: SubplotData = null
+		for s: SubplotData in SubplotDatabase.get_all():
+			if s.nome == nome:
+				sub = s
+				break
+		var bottone: Button = bottoni_sottotrama[nome]
+		var gia_tentata: bool = stato.azioni_uniche_usate.has("sottotrama:%s" % nome)
+		if gia_tentata:
+			bottone.disabled = true
+			# Non possiamo distinguere qui "riuscita" da "fallita" senza rileggere
+			# lo storico: il messaggio dell'ultima azione mostra già l'esito.
+			if not "[RAGGIUNTA]" in bottone.text and not "[FALLITA" in bottone.text:
+				bottone.text = _testo_bottone_sottotrama(sub) + " [già tentata]"
+		else:
+			bottone.disabled = not stato.sottotrama_disponibile(sub)
+
+
+func _on_sottotrama_pressed(sub: SubplotData) -> void:
+	if stato.is_over:
+		return
+
+	var risultato := stato.applica_sottotrama(sub)
+
+	if risultato.has("rifiutata"):
+		lbl_messaggio.text = "[b]Sottotrama non disponibile:[/b] %s" % risultato.motivo
+		return
+
+	lbl_messaggio.text = _descrivi_risultato_sottotrama(sub, risultato)
+
+	var bottone: Button = bottoni_sottotrama.get(sub.nome)
+	if bottone:
+		bottone.disabled = true
+		bottone.text = _testo_bottone_sottotrama(sub) + (" [RAGGIUNTA]" if risultato.successo else " [FALLITA — non più tentabile]")
+
+	_aggiorna_stato_ui()
+
+	if stato.is_over:
+		_fine_partita()
+
+
+func _descrivi_risultato_sottotrama(sub: SubplotData, risultato: Dictionary) -> String:
+	var roll: DiceSystem.RollResult = risultato.roll
+	var esito := "SUCCESSO" if risultato.successo else "FALLIMENTO"
+	if roll.successo_critico or roll.fallimento_critico:
+		esito += " CRITICO"
+
+	var riga_tiro: String
+	if roll.senza_tiro:
+		riga_tiro = "Nessun tiro (rischio estremo 0%/100%)."
+	elif roll.dadi.size() == 1:
+		riga_tiro = "Tiro: %d + mod %d = %d (CD %d)" % [roll.dadi[0], roll.modificatore, roll.totale, roll.cd]
+	else:
+		riga_tiro = "Tiro: %s -> tenuto %d + mod %d = %d (CD %d)" % [roll.dadi, roll.naturale, roll.modificatore, roll.totale, roll.cd]
+
+	return "[b]%s[/b]\n%s -> %s\nCosto Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
+		sub.nome, riga_tiro, esito, risultato.costo_tempo_figlia_ore, risultato.effetto_sabbia_padre_ore
+	]
+
+
 func _testo_bottone(azione: ActionData) -> String:
 	var etichetta_unica := " [unica]" if azione.unica_per_run else ""
 	return "%s — costo %.0fh, effetto %+.1fh, rischio %d%%%s" % [
@@ -270,6 +367,9 @@ func _on_azione_pressed(azione: ActionData) -> void:
 			bottone.disabled = true
 			bottone.text = _testo_bottone(azione) + " [GIÀ USATA]"
 
+	# Un'azione core completata con successo può sbloccare il prerequisito
+	# di una sottotrama (es. "Il tesoro del vecchio boss" — design doc 6.1).
+	_aggiorna_bottoni_sottotrama()
 	_aggiorna_stato_ui()
 
 	if stato.is_over:
@@ -354,6 +454,8 @@ func _fine_partita() -> void:
 	for bottone: Button in bottoni_azione.values():
 		bottone.disabled = true
 	for bottone: Button in bottoni_traccia.values():
+		bottone.disabled = true
+	for bottone: Button in bottoni_sottotrama.values():
 		bottone.disabled = true
 	donazione_button.disabled = true
 	donazione_input.editable = false

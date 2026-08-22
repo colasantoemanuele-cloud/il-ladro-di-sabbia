@@ -19,10 +19,9 @@ Dettaglio narrativo ed economico completo: `Il_ladro_di_sabbia_design_doc.docx`
 `ladro_di_sabbia_bilanciamento.xlsx`.
 
 **Scope attuale**: loop core (60 azioni, doppio countdown, dado d20,
-donazione, punteggio, varianza roguelite) + le 7 tracce normali (Fase 9a,
-solo tracce — niente sottotrame né sinergie ancora). Sottotrame (Fase 9b),
-sinergie (Fase 9c), Eterni, Stregatto, contenuti narrativi: fasi successive,
-non ancora iniziate.
+donazione, punteggio, varianza roguelite) + le 7 tracce normali (Fase 9a) +
+le 10 sottotrame endgame (Fase 9b). Sinergie tra tracce (Fase 9c), Eterni,
+Stregatto, contenuti narrativi: fasi successive, non ancora iniziate.
 
 ## Convenzioni di codice
 
@@ -121,6 +120,12 @@ python3 tools/extract_azioni.py
 # (Fase 9a) rigenerare data/tracce.json dall'Excel (dopo ogni modifica al
 # foglio "Endgame", sezioni "LE 7 TRACCE NORMALI" e "LE 3 TRACCE BONUS")
 python3 tools/extract_tracce.py
+
+# (Fase 9b) rigenerare data/sottotrame.json dall'Excel (dopo ogni modifica
+# al foglio "Endgame", sezione "4. LE 10 SOTTOTRAME") — il prerequisito de
+# "Il tesoro del vecchio boss" è codificato a mano nello script, non
+# nell'Excel: controllarlo se le sottotrame con prerequisito cambiano
+python3 tools/extract_sottotrame.py
 
 # Prima esecuzione su una macchina nuova / dopo aggiunta di nuove classi con
 # class_name: costruisce la cache delle classi globali (altrimenti gli
@@ -469,13 +474,18 @@ godot --headless --path . -- --test-save-read
     prendere valori grezzi (costo/effetto) invece di un'`ActionData`
     intera, cosi da essere condivisa tra azioni e tracce senza duplicare
     la logica di varianza.
-  - **Decisione mia, da confermare (non specificata nel design doc)**: un
-    fallimento al Rango 1 o 2 NON blocca la traccia — a differenza delle
-    azioni "Unica per run" (un bersaglio/evento singolo), la scalata di
-    rango è trattata come un percorso ritentabile, coerente con le altre
-    azioni ripetibili del gioco. Se l'autore preferisce che un fallimento
-    "bruci" il tentativo (come le azioni uniche), va segnalato per la
-    Fase 9b/9c.
+  - **Regola confermata dall'autore dopo la Fase 9a**: un TENTATIVO
+    (riuscito o fallito) esaurisce quella riga di rango per il resto della
+    run — riusa esattamente lo stesso meccanismo delle azioni "Unica per
+    run" (`azioni_uniche_usate`, chiave `"<traccia>|<rango>"` invece del
+    nome azione), non logica nuova. Un fallimento sul Rango 1 rende
+    l'intera traccia inaccessibile per il resto della run (il Rango 2 non
+    potrà mai sbloccarsi, dato che richiede il Rango 1 completato con
+    successo — e il Rango 1 non è più ritentabile). Un fallimento sul
+    Rango 2 lascia valido il Rango 1 già raggiunto ma preclude il Rango 2.
+    `GameState.traccia_disponibile(riga)` controlla sia il prerequisito di
+    rango sia questo flag "già tentata"; UI e loop testuale mostrano
+    "[FALLITA — non più tentabile]" per distinguerlo da "[RAGGIUNTO]".
   - Le 3 tracce bonus (Eterni, Rete di scienziati criminali, Magica):
     solo caricate come dati, esposte in UI come bottoni disabilitati con
     testo "— contenuto narrativo non ancora scritto" (tooltip con la
@@ -511,3 +521,83 @@ godot --headless --path . -- --test-save-read
     100+100) sia il tetto ~207 anni del sistema completo con sinergie
     (foglio Endgame) — margine coerente col fatto che sinergie (Fase 9c)
     e sottotrame (Fase 9b) non sono ancora incluse.
+- **Correzione post-9a (confermata dall'autore) — un fallimento blocca la
+  traccia**: implementata riusando `azioni_uniche_usate` (nessuna logica
+  nuova, come richiesto): `GameState._chiave_traccia(riga)` genera la
+  chiave `"<traccia>|<rango>"`, marcata in `azioni_uniche_usate` ad ogni
+  TENTATIVO (non solo al successo) esattamente come già avveniva per le
+  azioni "Unica per run". `traccia_disponibile(riga)` ora controlla sia
+  questa chiave sia il prerequisito di rango. Effetto: un fallimento sul
+  Rango 1 rende l'intera traccia inaccessibile per il resto della run (il
+  Rango 2 non potrà mai sbloccarsi); un fallimento sul Rango 2 lascia
+  valido il Rango 1 già raggiunto ma preclude il Rango 2. UI e loop
+  testuale mostrano `[FALLITA — non più tentabile]` per distinguerlo da
+  `[RAGGIUNTO]`. Aggiornato anche il design doc (sezione 7.1, nuovo
+  paragrafo inserito con python-docx) per documentare questa regola.
+  Verificato: fallimento su Rango 1 blocca anche il Rango 2; fallimento
+  su Rango 2 lascia il Rango 1 valido; nessuna regressione su `--test-ui`
+  (corretta un'asserzione che assumeva erroneamente la ritentabilità).
+- **Fase 9b (le 10 sottotrame endgame)**: fatto.
+  - `tools/extract_sottotrame.py`: estrae il foglio Endgame (sezione "4.
+    LE 10 SOTTOTRAME") in `data/sottotrame.json`, stesso pattern di
+    `extract_azioni.py`/`extract_tracce.py`. Il prerequisito de "Il
+    tesoro del vecchio boss" (richiede "Riattivare un vecchio contatto
+    della rete criminale" completata con successo — design doc 6.1) NON
+    è una colonna Excel: è codificato a mano nello script
+    (`PREREQUISITI` dict), unico caso tra le 10 sottotrame.
+    `scripts/data/subplot_data.gd` (`SubplotData`) caricato dall'autoload
+    `SubplotDatabase`.
+  - `GameState.applica_sottotrama(sub)`: ogni sottotrama è un'azione una
+    tantum — stesso meccanismo di `azioni_uniche_usate` (chiave
+    `"sottotrama:<nome>"`) e stesso motore dado+varianza delle azioni e
+    tracce. `GameState.sottotrama_disponibile(sub)` controlla sia il
+    flag "già tentata" sia, per "Il tesoro del vecchio boss", il
+    prerequisito tramite il nuovo metodo pubblico
+    `GameState.azione_completata_con_successo(nome_azione)` (rinominato
+    da privato a pubblico: serve anche a UI/loop testuale per mostrare lo
+    stato del prerequisito, non solo internamente).
+  - UI (`scripts/ui/game_ui.gd`): nuova sezione "SOTTOTRAME" con un
+    bottone per sottotrama (tooltip con la nota Excel), disabilitato se
+    il prerequisito non è soddisfatto; si rivaluta dopo ogni azione core
+    completata (`_aggiorna_bottoni_sottotrama()` richiamato da
+    `_on_azione_pressed`, perché il prerequisito è un'ActionData, non una
+    traccia). Loop testuale (`--play`): le 10 sottotrame continuano la
+    numerazione (indici 75-84, dopo le 60 azioni + 14 righe di traccia).
+  - **Verificato**: 10 sottotrame caricate, 1 sola con prerequisito;
+    sottotrama con prerequisito rifiutata/sbloccata correttamente in
+    base al successo/fallimento del prerequisito; una tantum vera (sia
+    successo che fallimento bruciano il tentativo); varianza nel range
+    atteso. Verificato end-to-end in UI (`--test-ui` esteso, entrambi i
+    rami successo/fallimento del prerequisito) e nel loop testuale.
+    Nessuna regressione.
+  - **Richiesta esplicita dell'autore verificata — nuovo tetto
+    economico**: `tools/balance_ceiling.py` esteso con le 10 sottotrame
+    come item 0/1 indipendenti (una tantum); "Il tesoro del vecchio
+    boss" include nel proprio costo anche quello del prerequisito, per
+    non "regalargliela" nel calcolo. Tetto deterministico: **67.58 →
+    109.26 anni** (+41.68 anni, +61,7% sopra il tetto con le sole
+    tracce; +158,7% sopra le sole azioni core). Confermato col dado
+    vero: `--simulate=3000`, politica `greedy`, media **58.25 anni**
+    (era 32.70 senza sottotrame), massimo osservato **112.25** — di
+    nuovo molto vicino al tetto deterministico (109.26), buon segnale
+    di coerenza incrociata. 2,4% delle run supera i 100 anni (per il
+    solo padre, dato che il simulatore non dona mai — vedi nota
+    precedente su `prob_vittoria_100_100`).
+  - **Importante — questo NON è un'anomalia benché superi i 100 anni**:
+    il design doc (sezione 7.4) dichiara esplicitamente che "le sole
+    sottotrame, senza nessuna traccia, arrivano al massimo a 100 anni
+    entro 168 ore — già un traguardo raro di per sé". Ho verificato
+    indipendentemente questo claim isolando le sole sottotrame nel
+    knapsack (senza azioni né tracce): **100.36 anni**, praticamente
+    identico al numero dichiarato dal design doc — ottima conferma
+    incrociata che l'estrazione dati e la gestione del prerequisito
+    sono corrette. Il claim "impossibile arrivare a 100 anni" del
+    design doc (4.4/6) si applica SOLO alle 60 azioni core da sole
+    (verificato: 42.23 anni, ben sotto soglia), non al sistema
+    combinato con tracce e sottotrame — lì i 100 anni per un personaggio
+    sono un traguardo raro ma esplicitamente voluto. La vittoria
+    100+100 richiede comunque ENTRAMBI i personaggi a 100 anni tramite
+    la donazione (non ancora testata dal simulatore automatico), e il
+    tetto combinato di riferimento del foglio Excel con tracce E
+    sinergie è ~207-208 anni — le sinergie (Fase 9c) restano il pezzo
+    mancante per avvicinarsi a quel numero.

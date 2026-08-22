@@ -146,18 +146,41 @@ func _run_test_ui() -> void:
 	assert(bottone_lavoro2.disabled, "Rango 2 deve partire disabilitato")
 	print("OK: 14 bottoni traccia creati, Rango 2 disabilitato finché non si raggiunge il Rango 1.")
 
-	# Tentiamo il Rango 1 di Lavoro finché non riesce (rischio 15%, pochi
-	# tentativi attesi) per verificare che il successo sblocchi il Rango 2
-	# nella UI reale.
-	var tentativi := 0
-	while stato.tracce_raggiunte.get("Lavoro", 0) < 1 and tentativi < 200 and not stato.is_over:
-		bottone_lavoro1.pressed.emit()
-		tentativi += 1
-	assert(not stato.is_over, "la run non deve finire durante il test (rischio 15%%, atteso successo entro pochi tentativi)")
-	assert(stato.tracce_raggiunte.get("Lavoro", 0) == 1, "Rango 1 di Lavoro non raggiunto in %d tentativi" % tentativi)
-	assert(bottone_lavoro1.disabled, "Rango 1 raggiunto deve disabilitarsi")
-	assert(not bottone_lavoro2.disabled, "Rango 2 deve sbloccarsi nella UI dopo il successo al Rango 1")
-	print("OK: successo al Rango 1 sblocca il Rango 2 nella UI (in %d tentativi)." % tentativi)
+	# Un solo tentativo: dalla correzione post-Fase-9a un fallimento blocca
+	# la riga per sempre (stesso meccanismo delle azioni "Unica per run"),
+	# quindi non ha più senso ritentare — verifichiamo entrambi gli esiti
+	# possibili (il test di GameState dedicato, non qui, forza
+	# deterministicamente successo/fallimento; qui verifichiamo solo che la
+	# UI reagisca correttamente a quale che sia l'esito reale).
+	bottone_lavoro1.pressed.emit()
+	assert(bottone_lavoro1.disabled, "il Rango 1 tentato (successo o fallimento) deve sempre disabilitarsi")
+	if stato.tracce_raggiunte.get("Lavoro", 0) == 1:
+		assert("[RAGGIUNTO]" in bottone_lavoro1.text)
+		assert(not bottone_lavoro2.disabled, "Rango 2 deve sbloccarsi nella UI dopo il successo al Rango 1")
+		print("OK: successo al Rango 1 sblocca il Rango 2 nella UI.")
+	else:
+		assert("[FALLITA" in bottone_lavoro1.text)
+		assert(bottone_lavoro2.disabled, "un fallimento al Rango 1 deve bloccare anche il Rango 2")
+		print("OK: fallimento al Rango 1 blocca l'intera traccia nella UI.")
+
+	# Fase 9b: le 10 sottotrame devono essere nella UI. "Il tesoro del
+	# vecchio boss" ha un prerequisito (design doc 6.1) e deve partire
+	# disabilitata; le altre 9 no.
+	assert(ui.bottoni_sottotrama.size() == 10)
+	var bottone_tesoro: Button = ui.bottoni_sottotrama["Il tesoro del vecchio boss"]
+	var bottone_ultima_donazione: Button = ui.bottoni_sottotrama["L'ultima donazione"]
+	assert(bottone_tesoro.disabled, "sottotrama con prerequisito non soddisfatto deve partire disabilitata")
+	assert(not bottone_ultima_donazione.disabled, "sottotrama senza prerequisito deve partire disponibile")
+	print("OK: 10 bottoni sottotrama creati, prerequisito di 'Il tesoro del vecchio boss' rispettato.")
+
+	# Completare il prerequisito (qualunque esito) deve rivalutare il
+	# bottone della sottotrama tramite la UI.
+	var bottone_riattivare: Button = ui.bottoni_azione["Riattivare un vecchio contatto della rete criminale"]
+	bottone_riattivare.pressed.emit()
+	var riattivato_con_successo := stato.azione_completata_con_successo("Riattivare un vecchio contatto della rete criminale")
+	assert(bottone_tesoro.disabled == not riattivato_con_successo,
+		"il bottone della sottotrama deve riflettere l'esito del prerequisito dopo la pressione del bottone azione")
+	print("OK: la UI rivaluta la sottotrama con prerequisito dopo l'azione richiesta (esito: %s)." % ("successo" if riattivato_con_successo else "fallimento"))
 
 	ui.donazione_input.text = "5"
 	ui.donazione_button.pressed.emit()
@@ -236,14 +259,16 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 	print("")
 
 	var tracce := TrackDatabase.get_tracce_normali()
+	var sottotrame := SubplotDatabase.get_all()
 
 	while not stato.is_over:
 		_stampa_stato(stato)
 		var azioni := ActionDatabase.get_all()
 		_stampa_azioni(azioni, stato)
 		_stampa_tracce(tracce, stato, azioni.size())
+		_stampa_sottotrame(sottotrame, stato, azioni.size() + tracce.size())
 		print("")
-		print("Scrivi il numero di un'azione o riga di traccia, 'spostati' per un evento di spostamento (durata variabile, rischio indipendente di incidente), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
+		print("Scrivi il numero di un'azione, riga di traccia o sottotrama, 'spostati' per un evento di spostamento (durata variabile, rischio indipendente di incidente), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
 		print("> ")
 
 		var input := OS.read_string_from_stdin().strip_edges()
@@ -289,6 +314,31 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 			continue
 
 		var indice := int(input) - 1
+
+		if indice >= azioni.size() + tracce.size():
+			var indice_sub := indice - azioni.size() - tracce.size()
+			if indice_sub < 0 or indice_sub >= sottotrame.size():
+				print("Numero fuori range: %s." % input)
+				print("")
+				continue
+			var sub: SubplotData = sottotrame[indice_sub]
+			var r := stato.applica_sottotrama(sub)
+			print("")
+			if r.has("rifiutata"):
+				print("Sottotrama non disponibile: %s" % r.motivo)
+				print("")
+				continue
+			var roll_s: DiceSystem.RollResult = r.roll
+			print("-> %s (CD %d)" % [sub.nome, roll_s.cd])
+			if roll_s.dadi.size() == 1:
+				print("   Tiro: %d + mod %d = %d" % [roll_s.dadi[0], roll_s.modificatore, roll_s.totale])
+			else:
+				print("   Tiro: %s -> tenuto %d + mod %d = %d" % [roll_s.dadi, roll_s.naturale, roll_s.modificatore, roll_s.totale])
+			print("   Esito: %s | Costo Tempo-Figlia: -%.1fh | Effetto Sabbia-Padre: %+.1fh" % [
+				"SUCCESSO" if r.successo else "FALLIMENTO", r.costo_tempo_figlia_ore, r.effetto_sabbia_padre_ore
+			])
+			print("")
+			continue
 
 		if indice >= azioni.size():
 			var indice_traccia := indice - azioni.size()
@@ -403,8 +453,24 @@ func _stampa_tracce(tracce: Array[TrackData], stato: GameState, offset: int) -> 
 		var etichetta := ""
 		if progresso >= t.rango:
 			etichetta = " [RAGGIUNTO]"
+		elif stato.azioni_uniche_usate.has("%s|%d" % [t.traccia, t.rango]):
+			etichetta = " [FALLITA - non più tentabile]"
 		elif not stato.traccia_disponibile(t):
 			etichetta = " [richiede rango precedente]"
 		print("  %2d) %s Rango %d - %-40s costo=%5.1fh  effetto=%+9.1fh  rischio=%3d%%%s" % [
 			offset + i + 1, t.traccia, t.rango, t.nome_rango, t.costo_tempo_figlia_ore, t.effetto_sabbia_padre_ore, roundi(t.rischio_pct * 100), etichetta
+		])
+
+
+func _stampa_sottotrame(sottotrame: Array[SubplotData], stato: GameState, offset: int) -> void:
+	print("[SOTTOTRAME]")
+	for i in sottotrame.size():
+		var s := sottotrame[i]
+		var etichetta := ""
+		if stato.azioni_uniche_usate.has("sottotrama:%s" % s.nome):
+			etichetta = " [già tentata]"
+		elif s.prerequisito != "" and not stato.azione_completata_con_successo(s.prerequisito):
+			etichetta = " [richiede: %s]" % s.prerequisito
+		print("  %2d) %-45s costo=%5.1fh  effetto=%+10.1fh  rischio=%3d%%%s" % [
+			offset + i + 1, s.nome, s.costo_tempo_figlia_ore, s.effetto_sabbia_padre_ore, roundi(s.rischio_pct * 100), etichetta
 		])
