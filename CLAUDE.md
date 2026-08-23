@@ -26,12 +26,13 @@ le 7 tracce normali + le 10 sottotrame endgame + le sinergie tra tracce
 Fede del Culto/della Setta) + una versione meccanica minima (dialoghi
 segnaposto) del Patto con lo Stregatto (Fase 10, completa). Eterni, il
 personaggio scritto per esteso dello Stregatto, contenuti narrativi: fasi
-successive, non ancora iniziate. **Ambiguità aperta da confermare con
-l'autore prima di considerare il tetto economico definitivo**: la formula
-del cash-in di sinergia — vedi "Fase 9c" più sotto. (La soglia di Fede per
-il Rango 2 di Religiosa/Occulto, inizialmente 50 e trovata irraggiungibile
-in pratica, è stata corretta a 40 e confermata dall'autore — vedi "Fase 10"
-più sotto, non è più un'ambiguità aperta.)
+successive, non ancora iniziate. Il tetto economico del sistema completo
+è **definitivo e confermato**: **265,55 anni** per un solo personaggio
+(azioni + tracce + sottotrame + sinergie, budget 168h) — vedi "Fase 10 —
+verifica e correzione cash-in" più sotto per lo storico delle due
+ambiguità che precedevano questo numero (formula del cash-in
+interpretazione A/B, soglia di Fede per il Rango 2 religioso), entrambe
+ora risolte e confermate dall'autore.
 
 ## Convenzioni di codice
 
@@ -692,29 +693,18 @@ godot --headless --path . -- --test-save-read
     validazione originale — non ho investigato ulteriormente il perché
     esatto, riportato così com'è per istruzione esplicita di non forzare
     la coincidenza).
-  - **⚠️ AMBIGUITÀ IMPORTANTE DA RISOLVERE CON L'AUTORE — non risolta
-    unilateralmente**: il design doc 7.3 dice che il cash-in "frutta la
-    somma dei valori base delle N tracce moltiplicata per" il fattore,
-    ma non chiarisce se "valori base" = Rango1+Rango2 sommati
-    (interpretazione A, quella implementata sia in
-    `GameState.applica_cash_in()` sia nel knapsack: i ranghi si
-    incassano normalmente E IN PIÙ il cash-in dà quella somma ×
-    moltiplicatore) oppure solo il Rango2 (interpretazione B, senza
-    sommare anche i ranghi già incassati). Le due letture divergono
-    enormemente: per la tripletta storica, A dà **293,43 anni**
-    (**2.570.470,5 ore**), B dà **206,86 anni** (**1.812.080,8 ore**).
-    **Il riferimento storico del documento "Elementi mancanti" (~206,9
-    anni per questa stessa tripletta) combacia quasi esattamente con
-    l'interpretazione B**, non con la A — probabile che l'autore
-    intendesse quella, ma il codice attuale implementa la A. Tetto del
-    sistema completo (azioni+tracce+sottotrame+sinergie) col codice
-    attuale (interpretazione A): **293,43 anni** per un solo personaggio
-    (ben sopra sia i 100 anni sia il riferimento storico ~207-208 anni,
-    che però non includeva le sottotrame nello stesso calcolo — non è un
-    confronto pulito). Se l'autore conferma l'interpretazione B, sia
-    `GameState.applica_cash_in()` sia `tools/balance_ceiling.py`
-    andranno corretti di conseguenza — NON ho corretto nulla
-    unilateralmente, come da istruzioni.
+  - **Ambiguità cash-in A/B — segnalata qui a fine Fase 9c, rimasta
+    APERTA (non applicata nel codice) per tutta la Fase 10**
+    (interpretazione A: Rango1+Rango2 sommati come base del
+    moltiplicatore; interpretazione B: solo il Rango2). Il resoconto di
+    fine Fase 10 riportava ancora 293,43 anni/interpretazione A perché
+    la Fase 10 non conteneva un'istruzione a cambiarla — restava solo
+    segnalata come ambiguità da confermare, correttamente non toccata
+    unilateralmente. **L'autore ha poi confermato esplicitamente
+    l'interpretazione B in una richiesta di verifica dedicata,
+    successiva al resoconto di fine Fase 10** — vedi la voce "Fase 10 —
+    verifica e correzione cash-in" più sotto per i dettagli e i numeri
+    aggiornati.
 - **Fase 10 (le 5 risorse + Patto con lo Stregatto minimo)**: fatto.
   Attenzione Polizia / Rivalità Criminale / Fama Pubblica (0-100, per run,
   azzerate a inizio run, salgono/scendono SOLO tramite azioni dedicate —
@@ -893,3 +883,72 @@ godot --headless --path . -- --test-save-read
     diretto a `dona()` bypassando l'interfaccia potrebbe teoricamente
     donare con un patto ancora aperto. Non specificato dalle istruzioni
     della Fase 10, lasciato così per non estendere lo scope.
+- **Fase 10 — verifica e correzione cash-in (interpretazione B)**: fatto,
+  chiude definitivamente la Fase 10. L'autore ha segnalato che il
+  resoconto di fine Fase 10 riportava ancora 293,43 anni/interpretazione
+  A per il tetto con sinergie. Verifica: confermato che la correzione
+  all'interpretazione B (segnalata come ambiguità aperta a fine Fase 9c)
+  non era MAI stata applicata al codice — non un refuso nel resoconto, un
+  passo mancato. Per la cronaca: la Fase 10 originale non conteneva
+  un'istruzione esplicita a cambiarla, quindi non è stata un'omissione
+  di un'istruzione già data — restava segnalata come ambiguità aperta,
+  correttamente non toccata unilateralmente fino a questa conferma
+  esplicita dell'autore.
+  - **Correzione applicata**: `GameState.applica_cash_in()` usa ora
+    l'interpretazione B — nuova funzione `valore_rango2_traccia(nome)`
+    (solo l'effetto del Rango 2, non Rango1+Rango2 sommati come la
+    preesistente `valore_base_traccia()`, che resta ma non è più usata
+    per il cash-in). Il bonus del cash-in si somma al guadagno di
+    Rango1+Rango2 già incassato NORMALMENTE salendo di rango (
+    `applica_traccia()`, invariato) — non lo sostituisce e non lo
+    raddoppia nel moltiplicatore. `combo_tracce()` (per la scelta delle
+    4 tracce di maggior valore quando 5+ qualificano) ordina ora per
+    `valore_rango2_traccia`, coerente con cosa determina davvero il
+    payout. Stessa correzione propagata a `BalanceSimulator._candidato_sinergia`
+    (Monte Carlo) e `tools/balance_ceiling.py` (nuova
+    `valore_rango2_traccia()` Python, formula del combo aggiornata da
+    `base_r1r2 * (1 + moltiplicatore)` a
+    `base_r1r2 + base_rango2_soli * moltiplicatore`).
+  - **⚠️ Chiarimento importante sul numero atteso**: il riferimento
+    storico ~206,9 anni corrisponde al **bonus del cash-in isolato**
+    (`base_rango2_soli * moltiplicatore` = 206,86 anni, quasi esatto),
+    NON al valore TOTALE della combo. Nel gioco reale il guadagno di
+    Rango1+Rango2 si incassa SEMPRE al momento del climb
+    (`applica_traccia`, invariato fin dalla Fase 9a, indipendente dal
+    cash-in), quindi il valore totale realmente ottenibile perseguendo
+    la tripletta è bonus + guadagno di rango = 206,86 + 58,69 = **265,55
+    anni**, non 206,9. Riportato con la scomposizione completa (vedi
+    output di `tools/balance_ceiling.py`) invece di forzare il numero a
+    combaciare con l'aspettativa: se l'autore intendeva un meccanismo
+    diverso (es. il cash-in SOSTITUISCE il guadagno di rango invece di
+    sommarcisi), è una modifica strutturale ulteriore, non ancora fatta,
+    da confermare esplicitamente.
+  - **Tetto finale ai quattro livelli** (`tools/balance_ceiling.py`,
+    rilanciato dopo la correzione):
+    - Sole azioni core: **42,23 anni** (invariato)
+    - + tracce (senza sottotrame/sinergie): **67,58 anni** (invariato)
+    - + sottotrame (senza sinergie): **109,26 anni** (invariato)
+    - + sinergie (sistema completo): **265,55 anni** (era 293,43 con
+      l'interpretazione A) — combo ottima invariata (Azzardo + Bancaria
+      + Religiosa, moltiplicatore x4, usa l'intero budget di 168h);
+      sottotrame contribuiscono **0** a questo specifico ottimo, perché
+      la combo consuma tutte le 168h disponibili senza lasciare margine
+      residuo — il loro contributo resta comunque incluso nel calcolo
+      (tier "+ sottotrame" sopra, 109,26 anni, e nella ricerca
+      esaustiva delle 91 combo, dove ogni combo lascia il budget
+      residuo ottimizzabile anche su azioni/sottotrame).
+  - **Verificato con Monte Carlo** (`--simulate=2000`, dado vero):
+    sequenza scriptata tripletta storica tornata a **16,80%** di
+    successo sull'intera catena (era 0,00% con la soglia di Fede 50 non
+    ancora corretta, 15,00%/15,37% con la sola correzione di Fede prima
+    di questa — il numero è salito ulteriormente perché ora il costo
+    atteso del cash-in non cambia ma il fallimento/successo dipende solo
+    dal tiro CASH_IN_RISCHIO_PCT, indipendente dalla formula A/B: la
+    piccola oscillazione tra 15,00/15,37/16,80% è normale rumore
+    statistico su 2000 campioni, non un effetto della correzione),
+    punteggio medio quando la catena riesce **266,57 anni** — coerente
+    col tetto deterministico di 265,55.
+  - **Nessuna regressione**: `--test-sinergie` aggiornato (assert ora
+    verifica il bonus contro `valore_rango2_traccia` invece della somma
+    Rango1+Rango2, con lo stesso margine di varianza ±20%),
+    `--test-fase10`, `--test-ui`, `--test-save-write/read` tutti PASS.

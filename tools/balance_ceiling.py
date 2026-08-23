@@ -223,10 +223,22 @@ def main() -> None:
           f"({tetto_senza_sinergia_anni - tetto_con_tracce_anni:+.2f} anni rispetto alle sole tracce)\n")
 
     # --- Fase 9c: enumerazione esaustiva delle 91 combo di sinergia -----
+    # Fase 10 (correzione, interpretazione B confermata dall'autore): il
+    # cash-in NON raddoppia il conteggio di Rango1+Rango2 (quello è già
+    # incassato normalmente completando i ranghi, a prescindere dal cash-in
+    # — vedi apply_track_groups sopra). Il cash-in aggiunge SOLO il
+    # moltiplicatore di sinergia sul valore del solo Rango 2 delle tracce
+    # della combo (GameState.applica_cash_in, valore_rango2_traccia): la
+    # formula qui sotto rispecchia esattamente quella meccanica, non una
+    # ricostruzione indipendente della formula storica del foglio Excel.
     def valore_base_traccia(nome: str) -> float:
         r1 = tracce_per_nome[nome][1]
         r2 = tracce_per_nome[nome].get(2)
         return r1["effetto_sabbia_padre_ore"] + (r2["effetto_sabbia_padre_ore"] if r2 else 0.0)
+
+    def valore_rango2_traccia(nome: str) -> float:
+        r2 = tracce_per_nome[nome].get(2)
+        return r2["effetto_sabbia_padre_ore"] if r2 else 0.0
 
     def costo_traccia_r1r2(nome: str) -> int:
         r1 = tracce_per_nome[nome][1]
@@ -251,8 +263,9 @@ def main() -> None:
             combo_costo = sum(costo_traccia_r1r2(t) for t in combo) + CASH_IN_COSTO_ORE
             if combo_costo > BUDGET_ORE:
                 continue
-            combo_valore_base = sum(valore_base_traccia(t) for t in combo)
-            combo_valore_totale = combo_valore_base * (1 + moltiplicatore)  # guadagno di rango + bonus cash-in
+            combo_valore_rank_climb = sum(valore_base_traccia(t) for t in combo)  # R1+R2, incassati salendo di rango
+            combo_valore_cashin_base = sum(valore_rango2_traccia(t) for t in combo)  # solo R2, base del cash-in (interpretazione B)
+            combo_valore_totale = combo_valore_rank_climb + combo_valore_cashin_base * moltiplicatore
 
             budget_residuo = BUDGET_ORE - combo_costo
             tracce_religiose_in_combo = combo_set & TRACCE_RELIGIOSE
@@ -292,30 +305,41 @@ def main() -> None:
     print(f"  ({combo_religiose_scartate} combo scartate perché includevano ENTRAMBE Religiosa e Occulto a "
           f"Rango 2 — impossibile per il vincolo di Fede, Fase 10)")
 
-    # --- AMBIGUITA' DA SEGNALARE: due letture possibili di "somma dei ---
-    # valori base delle N tracce" per il cash-in, che il design doc non
-    # disambigua esplicitamente. La differenza è enorme: da riportare
-    # all'autore, NON risolta unilateralmente qui.
+    # --- CORREZIONE APPLICATA (Fase 10, confermata dall'autore): il ---
+    # cash-in usa ora l'interpretazione B (solo Rango2 x moltiplicatore,
+    # SOMMATO al guadagno di Rango1+Rango2 già incassato normalmente
+    # salendo di rango — non moltiplicato insieme come nell'interpretazione
+    # A usata prima). Numeri riportati per trasparenza/tracciabilità, non
+    # perché resti un'ambiguità aperta.
     if migliore_combo:
         combo, n, mult, _, _ = migliore_combo
         base_r1r2 = sum(valore_base_traccia(t) for t in combo)
-        base_solo_r2 = sum(tracce_per_nome[t][2]["effetto_sabbia_padre_ore"] for t in combo)
-        interpretazione_a = base_r1r2 * (1 + mult)  # quella usata sopra e nel codice di gioco
-        interpretazione_b = base_solo_r2 * mult      # alternativa, senza R1 e senza sommare i ranghi già incassati
+        base_solo_r2 = sum(valore_rango2_traccia(t) for t in combo)
+        interpretazione_a_precedente = base_r1r2 * (1 + mult)  # usata prima della correzione
+        interpretazione_b_solo_bonus = base_solo_r2 * mult      # solo il bonus cash-in, senza il rank climb
+        interpretazione_b_totale = base_r1r2 + interpretazione_b_solo_bonus  # quella ORA implementata (rank climb + bonus)
         print()
-        print("AMBIGUITA' DA SEGNALARE (non risolta unilateralmente): il design doc 7.3 dice che il cash-in "
-              "\"frutta la somma dei VALORI BASE delle N tracce moltiplicata per\" il fattore, ma non chiarisce "
-              "se \"valori base\" = Rango1+Rango2 sommati (interpretazione A, quella usata sopra e nel codice "
-              "di gioco: i ranghi si incassano normalmente E IN PIÙ il cash-in dà base x moltiplicatore) oppure "
-              "solo il Rango2 (interpretazione B, senza sommare i ranghi già incassati).")
-        print(f"  Interpretazione A (quella implementata ora, combo {n} tracce): "
-              f"{interpretazione_a:,.1f}h = {interpretazione_a/ORE_PER_ANNO:.2f} anni per la sola combo.")
-        print(f"  Interpretazione B (solo Rango2 x moltiplicatore): "
-              f"{interpretazione_b:,.1f}h = {interpretazione_b/ORE_PER_ANNO:.2f} anni per la sola combo.")
-        print(f"  Il riferimento storico del documento \"Elementi mancanti\" (~206,9 anni per questa stessa "
-              f"tripletta) combacia quasi esattamente con l'interpretazione B, non con la A — probabile che "
-              f"l'autore intendesse quella. Il codice di gioco (GameState.applica_cash_in) usa attualmente "
-              f"l'interpretazione A: da confermare/correggere insieme.")
+        print("Formula del cash-in CORRETTA in Fase 10 (interpretazione B, confermata dall'autore): il cash-in "
+              "NON raddoppia Rango1+Rango2 nel moltiplicatore — quei ranghi si incassano normalmente salendo, "
+              "il cash-in aggiunge SOLO il bonus (somma dei soli valori di Rango2 delle tracce della combo) x "
+              "moltiplicatore, sopra al guadagno di rango già incassato.")
+        print(f"  Guadagno di rango (Rango1+Rango2, incassato salendo, combo {n} tracce): "
+              f"{base_r1r2:,.1f}h = {base_r1r2/ORE_PER_ANNO:.2f} anni.")
+        print(f"  Bonus cash-in (solo Rango2 x moltiplicatore x{mult:.0f}): "
+              f"{interpretazione_b_solo_bonus:,.1f}h = {interpretazione_b_solo_bonus/ORE_PER_ANNO:.2f} anni.")
+        print(f"  TOTALE combo (rank climb + bonus cash-in, quello ora implementato e usato nel tetto sopra): "
+              f"{interpretazione_b_totale:,.1f}h = {interpretazione_b_totale/ORE_PER_ANNO:.2f} anni.")
+        print(f"  Per confronto — vecchia interpretazione A (pre-correzione): "
+              f"{interpretazione_a_precedente:,.1f}h = {interpretazione_a_precedente/ORE_PER_ANNO:.2f} anni per la sola combo.")
+        print(f"  Per confronto — solo il bonus cash-in isolato (senza il rank climb, il numero ~206,9 anni "
+              f"che avevo riportato come \"interpretazione B\" a fine Fase 9c corrispondeva a QUESTO, non al "
+              f"totale con rank climb incluso): {interpretazione_b_solo_bonus/ORE_PER_ANNO:.2f} anni.")
+        scarto_da_206_9 = interpretazione_b_totale / ORE_PER_ANNO - 206.9
+        print(f"  Scarto del totale (rank climb + bonus) rispetto al riferimento storico ~206,9 anni: "
+              f"{scarto_da_206_9:+.2f} anni — la meccanica reale del gioco banka SEMPRE il guadagno di rango "
+              f"al momento del climb (GameState.applica_traccia, invariato da Fase 9a), quindi il totale per "
+              f"questa combo è necessariamente rank-climb + bonus, non il solo bonus: se il riferimento storico "
+              f"~206,9 rappresentava il bonus isolato, lo scarto qui sopra è atteso, non un errore.")
 
     print()
     print(f"Tetto SOLE AZIONI CORE: {tetto_solo_azioni_anni:.2f} anni (< 100, coerente col design doc "

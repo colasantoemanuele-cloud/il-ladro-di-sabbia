@@ -718,22 +718,36 @@ func tracce_a_rango_2() -> Array:
 	return out
 
 
+## Somma di Rango1+Rango2 di una traccia (i due guadagni già incassati
+## separatamente quando si sale di rango — NON è più la base del cash-in,
+## vedi valore_rango2_traccia() e la nota sotto applica_cash_in).
 func valore_base_traccia(nome: String) -> float:
 	var r1 := TrackDatabase.get_riga(nome, 1)
 	var r2 := TrackDatabase.get_riga(nome, 2)
 	return (r1.effetto_sabbia_padre_ore if r1 != null else 0.0) + (r2.effetto_sabbia_padre_ore if r2 != null else 0.0)
 
 
+## Solo il valore del Rango 2 di una traccia (interpretazione B, confermata
+## dall'autore dopo la Fase 10 per il calcolo del cash-in di sinergia — il
+## Rango 1 NON viene sommato di nuovo: è già stato incassato per conto suo
+## quando è stato completato, il cash-in aggiunge solo un moltiplicatore
+## sul valore del Rango 2).
+func valore_rango2_traccia(nome: String) -> float:
+	var r2 := TrackDatabase.get_riga(nome, 2)
+	return r2.effetto_sabbia_padre_ore if r2 != null else 0.0
+
+
 ## Tracce che verrebbero effettivamente incluse in un cash-in tentato ora:
 ## tutte quelle a Rango 2 se sono <= 4, altrimenti le 4 di maggior valore
-## base (il design doc 7.4 nota che una quadrupletta è già di fatto
+## di Rango 2 (il design doc 7.4 nota che una quadrupletta è già di fatto
 ## irraggiungibile entro 168 ore, quindi 5+ è solo una guardia difensiva,
-## non un caso atteso in pratica).
+## non un caso atteso in pratica) — ordinate per lo stesso valore che
+## determina davvero il payout del cash-in (interpretazione B).
 func combo_tracce() -> Array:
 	var candidate := tracce_a_rango_2()
 	if candidate.size() <= 4:
 		return candidate
-	candidate.sort_custom(func(a, b): return valore_base_traccia(a) > valore_base_traccia(b))
+	candidate.sort_custom(func(a, b): return valore_rango2_traccia(a) > valore_rango2_traccia(b))
 	return candidate.slice(0, 4)
 
 
@@ -760,9 +774,17 @@ func malus_attivi() -> Array:
 
 
 ## Applica il tentativo di cash-in della sinergia (design doc 7.3). Costo
-## (8h) e guadagno (somma dei valori base della combo x moltiplicatore)
-## hanno la stessa varianza ±15%/±20% di azioni/tracce/sottotrame, stesso
-## _rng seedato. Un fallimento fa perdere TUTTI i ranghi coinvolti nella
+## (8h) e guadagno hanno la stessa varianza ±15%/±20% di azioni/tracce/
+## sottotrame, stesso _rng seedato.
+##
+## Guadagno — INTERPRETAZIONE B (confermata dall'autore dopo la Fase 10,
+## corregge l'interpretazione A usata inizialmente): la "somma dei valori
+## base delle N tracce" del design doc 7.3 è la somma dei soli valori di
+## RANGO 2 delle tracce della combo, NON Rango1+Rango2 sommati. Il Rango 1
+## e il Rango 2 di ciascuna traccia sono già stati incassati per conto
+## proprio quando completati (vedi applica_traccia) — il cash-in aggiunge
+## solo il moltiplicatore di sinergia sul valore di Rango 2, non un
+## secondo incasso del Rango 1. Un fallimento fa perdere TUTTI i ranghi coinvolti nella
 ## combo ("si perdono TUTTI i ranghi coinvolti nella combo, non solo
 ## uno") — riusa esattamente lo stesso meccanismo di azioni_uniche_usate
 ## già scritto per il fallimento di rango (Fase 9a/9b, non logica nuova):
@@ -785,7 +807,7 @@ func applica_cash_in(
 	var moltiplicatore: float = SINERGIA_MOLTIPLICATORI.get(n, SINERGIA_MOLTIPLICATORI[4])
 	var valore_base := 0.0
 	for nome in combo:
-		valore_base += valore_base_traccia(nome)
+		valore_base += valore_rango2_traccia(nome)
 
 	var evento_info := _avanza_turno()
 	var costo := ActionVariance.costo_variato(CASH_IN_COSTO_ORE, _rng)

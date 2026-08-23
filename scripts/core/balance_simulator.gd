@@ -51,7 +51,10 @@ static func _candidato_sinergia(stato: GameState) -> SynergyCandidate:
 	var moltiplicatore: float = GameState.SINERGIA_MOLTIPLICATORI.get(combo.size(), GameState.SINERGIA_MOLTIPLICATORI[4])
 	var valore_base := 0.0
 	for nome in combo:
-		valore_base += stato.valore_base_traccia(nome)
+		# Interpretazione B (Fase 10, confermata dall'autore): il bonus del
+		# cash-in si basa solo sul valore di Rango 2, non su Rango1+Rango2 —
+		# vedi GameState.applica_cash_in().
+		valore_base += stato.valore_rango2_traccia(nome)
 	var c := SynergyCandidate.new()
 	c.effetto_sabbia_padre_ore = valore_base * moltiplicatore
 	return c

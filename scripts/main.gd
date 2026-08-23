@@ -277,17 +277,21 @@ func _run_test_sinergie() -> void:
 		var s := GameState.new(tentativo_seed)
 		s.tracce_raggiunte["Lavoro"] = 2
 		s.tracce_raggiunte["Criminale"] = 2
-		var valore_atteso: float = s.valore_base_traccia("Lavoro") + s.valore_base_traccia("Criminale")
+		# Interpretazione B (Fase 10, confermata dall'autore): il bonus del
+		# cash-in si basa solo sul valore di Rango 2 delle tracce coinvolte,
+		# non su Rango1+Rango2 sommati — vedi GameState.applica_cash_in().
+		var bonus_atteso: float = (s.valore_rango2_traccia("Lavoro") + s.valore_rango2_traccia("Criminale")) * 2.0
 		var sabbia_prima := s.sabbia_padre_ore
 		var r := s.applica_cash_in()
 
 		if r.successo and not trovato_successo:
 			assert(r.effetto_sabbia_padre_ore > 0)
-			assert(s.sabbia_padre_ore > sabbia_prima + valore_atteso,
-				"il cash-in riuscito deve rendere più della semplice somma base (moltiplicatore x2)")
+			# ±20% di varianza sul guadagno (ActionVariance), stesso range delle azioni/tracce/sottotrame.
+			assert(r.effetto_sabbia_padre_ore >= bonus_atteso * 0.75 and r.effetto_sabbia_padre_ore <= bonus_atteso * 1.25,
+				"il bonus del cash-in deve essere ~(solo Rango2 x moltiplicatore x2), non (Rango1+Rango2) x3: atteso ~%.1f, ottenuto %.1f" % [bonus_atteso, r.effetto_sabbia_padre_ore])
 			assert(r.moltiplicatore == 2.0)
 			trovato_successo = true
-			print("OK: cash-in riuscito applica somma_base x2 (con varianza) alla Sabbia-Padre.")
+			print("OK: cash-in riuscito applica (solo Rango2 delle tracce della combo) x moltiplicatore alla Sabbia-Padre.")
 
 		elif not r.successo and not trovato_fallimento:
 			assert(s.tracce_raggiunte.get("Lavoro", 0) == 0,
