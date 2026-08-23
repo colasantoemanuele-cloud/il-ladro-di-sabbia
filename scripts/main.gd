@@ -22,6 +22,11 @@ extends Control
 ##   --test-sinergie      -> Fase 9c: auto-test headless del sistema di
 ##                          sinergie tra tracce (cash-in, malus, esclusione
 ##                          delle sottotrame dal conteggio)
+##   --test-fase10        -> Fase 10: auto-test headless delle 5 risorse
+##                          (Attenzione Polizia/Rivalità Criminale/Fama
+##                          Pubblica/Karma/Fede), del malus/Vantaggio-
+##                          Svantaggio al tiro, del sistema di eventi
+##                          casuali e del Patto con lo Stregatto
 ##
 ## Esempi:
 ##   godot --path .                          (gioco con la UI)
@@ -64,6 +69,9 @@ func _ready() -> void:
 		get_tree().quit()
 	elif altri_args.has("--test-sinergie"):
 		_run_test_sinergie()
+		get_tree().quit()
+	elif altri_args.has("--test-fase10"):
+		_run_test_fase10()
 		get_tree().quit()
 	elif altri_args.is_empty():
 		_run_ui(seed_arg)
@@ -115,7 +123,7 @@ func _run_test_ui() -> void:
 	var stato := GameState.new()
 	ui.avvia(stato)
 
-	assert(ui.bottoni_azione.size() == 60)
+	assert(ui.bottoni_azione.size() == 62)  # 60 core + 2 aggiunte in Fase 10 (Rivalità Criminale/Fama Pubblica)
 	print("OK: %d bottoni azione creati." % ui.bottoni_azione.size())
 
 	var nome_azione := "Turno di lavoro onesto (8h, salario mediano)"
@@ -329,6 +337,178 @@ func _run_test_sinergie() -> void:
 	print("TUTTI I TEST SINERGIE OK")
 
 
+func _run_test_fase10() -> void:
+	print("=== Fase 10: auto-test headless delle 5 risorse ===")
+
+	# --- Formula comune malus/Svantaggio -----------------------------------
+	var sf := GameState.new(1)
+	assert(sf._malus_risorsa(0.0) == 0)
+	assert(sf._malus_risorsa(19.0) == 0)
+	assert(sf._malus_risorsa(20.0) == -1)
+	assert(sf._malus_risorsa(39.0) == -1)
+	assert(sf._malus_risorsa(40.0) == -2)
+	assert(sf._malus_risorsa(100.0) == -5)
+	assert(not sf._svantaggio_da_risorsa(50.0), "50 non deve ancora dare Svantaggio (soglia: valore > 50)")
+	assert(sf._svantaggio_da_risorsa(51.0))
+	print("OK: formula malus graduale -floor(valore/20) e soglia Svantaggio a 50 (esclusivo) corrette.")
+
+	# --- Ambito Attenzione Polizia / Fama Pubblica --------------------------
+	var sap := GameState.new(2)
+	sap.attenzione_polizia = 60.0  # malus -3, Svantaggio
+	var azione_furto: ActionData = ActionDatabase.get_by_categoria("Furto")[0]
+	var mod_furto := sap._modificatore_polizia_fama(azione_furto)
+	assert(mod_furto.modificatore == -3 and mod_furto.svantaggio)
+	var azione_lavoro: ActionData = ActionDatabase.find_by_nome("Turno di lavoro onesto (8h, salario mediano)")
+	var mod_lavoro := sap._modificatore_polizia_fama(azione_lavoro)
+	assert(mod_lavoro.modificatore == 0 and not mod_lavoro.svantaggio, "categorie fuori ambito non devono subire il malus")
+	print("OK: Attenzione Polizia modifica il tiro solo nelle 7 categorie in ambito.")
+
+	sap.fama_pubblica = 60.0
+	var mod_senza_fama := sap._modificatore_polizia_fama(azione_furto)
+	assert(mod_senza_fama.modificatore == -3, "Fama Pubblica non deve pesare senza un Rango 2 legittimo raggiunto")
+	sap.tracce_raggiunte["Lavoro"] = 2
+	var mod_con_fama := sap._modificatore_polizia_fama(azione_furto)
+	assert(mod_con_fama.modificatore == -6, "con un Rango 2 legittimo, Fama Pubblica deve sommarsi al malus")
+	print("OK: Fama Pubblica si applica solo dopo un Rango 2 legittimo raggiunto in questa run.")
+
+	# --- Peso Karma ----------------------------------------------------------
+	assert(sf._peso_karma("Estrema") == -5.0)
+	assert(sf._peso_karma("Ambigua (costo emotivo)") == -1.0, "un suffisso tra parentesi deve contare come l'etichetta base")
+	assert(sf._peso_karma("Pulita/altruista") == 2.0)
+	assert(sf._peso_karma("Neutra") == 0.0)
+	assert(sf._peso_karma("Pericoloso") == 0.0)
+	print("OK: pesi Karma per etichetta Moralità corretti, incluse le varianti con suffisso.")
+
+	# --- Attenzione Polizia sale su fallimento, scende con la corruzione ----
+	var trovato_fallimento_polizia := false
+	var trovato_corruzione := false
+	for seed_t in range(1, 500):
+		if trovato_fallimento_polizia and trovato_corruzione:
+			break
+		if not trovato_fallimento_polizia:
+			var s := GameState.new(seed_t)
+			var r := s.applica_azione_con_dado(azione_furto)
+			if not r.successo:
+				var atteso: float = GameState.ATTENZIONE_POLIZIA_INCREMENTO_FALLIMENTO_CRITICO if r.roll.fallimento_critico else GameState.ATTENZIONE_POLIZIA_INCREMENTO_FALLIMENTO
+				assert(s.attenzione_polizia == atteso)
+				trovato_fallimento_polizia = true
+		if not trovato_corruzione:
+			var s2 := GameState.new(seed_t + 10000)
+			s2.attenzione_polizia = 50.0
+			var azione_corr := ActionDatabase.find_by_nome(GameState.AZIONE_DECREMENTO_ATTENZIONE_POLIZIA)
+			var r2 := s2.applica_azione_con_dado(azione_corr)
+			if r2.successo:
+				assert(s2.attenzione_polizia == 50.0 - GameState.ATTENZIONE_POLIZIA_DECREMENTO_CORRUZIONE)
+				trovato_corruzione = true
+	assert(trovato_fallimento_polizia and trovato_corruzione)
+	print("OK: Attenzione Polizia sale su un fallimento in ambito e scende con 'Corrompere un poliziotto' riuscita.")
+
+	# --- Karma si aggiorna sempre, successo o fallimento ---------------------
+	var sk := GameState.new(3)
+	var azione_ambigua := ActionDatabase.find_by_nome(GameState.AZIONE_DECREMENTO_RIVALITA_CRIMINALE)
+	assert(azione_ambigua.moralita == "Ambigua")
+	var karma_prima_k := sk.karma
+	sk.applica_azione_con_dado(azione_ambigua)
+	assert(sk.karma == karma_prima_k - 1.0)
+	print("OK: Karma si aggiorna dal peso Moralità dell'azione indipendentemente dall'esito.")
+
+	# --- Cadenza eventi casuali: ogni 6 turni --------------------------------
+	var se := GameState.new(4)
+	var azione_ripetibile := ActionDatabase.find_by_nome("Turno di lavoro onesto (8h, salario mediano)")
+	var eventi_visti := 0
+	for i in 6:
+		var r := se.applica_azione_con_dado(azione_ripetibile)
+		if r.get("evento_casuale") != null:
+			eventi_visti += 1
+			assert(i == 5, "l'evento deve scattare esattamente al 6° turno, non prima")
+	assert(eventi_visti == 1)
+	print("OK: un evento casuale scatta esattamente ogni 6 turni risolti.")
+
+	# --- Fede del Culto/Setta -------------------------------------------------
+	var riga_culto_1 := TrackDatabase.get_riga("Religiosa (indulgenze)", 1)
+	var sfe := GameState.new(5)
+	sfe.fede_setta = 15.0
+	sfe._aggiorna_fede_dopo_traccia(riga_culto_1)
+	assert(sfe.fede_culto == 40.0)
+	assert(sfe.fede_setta == 5.0, "il Rango 1 dell'una deve abbassare l'altra di 10")
+	print("OK: completare il Rango 1 di Religiosa alza Fede del Culto di 40 e abbassa Fede della Setta di 10.")
+
+	var riga_culto_2 := TrackDatabase.get_riga("Religiosa (indulgenze)", 2)
+	var sfe2 := GameState.new(6)
+	sfe2.tracce_raggiunte["Religiosa (indulgenze)"] = 1
+	assert(not sfe2.traccia_disponibile(riga_culto_2), "Rango 2 deve restare bloccato con Fede < 50")
+	assert(sfe2.traccia_bloccata_da_fede(riga_culto_2))
+	sfe2.fede_culto = 50.0
+	assert(sfe2.traccia_disponibile(riga_culto_2), "Rango 2 deve sbloccarsi con Fede >= 50 e Rango 1 già raggiunto")
+	assert(not sfe2.traccia_bloccata_da_fede(riga_culto_2))
+	print("OK: il Rango 2 di Religiosa/Occulto richiede sia il Rango 1 sia Fede corrispondente >= 50.")
+
+	# --- Rivalità Criminale: traccia Criminale, sottotrame, tributo ----------
+	var riga_crim_1 := TrackDatabase.get_riga("Criminale", 1)
+	var trovato_rivalita_su := false
+	var trovato_rivalita_giu := false
+	for seed_t2 in range(1, 500):
+		if trovato_rivalita_su and trovato_rivalita_giu:
+			break
+		if not trovato_rivalita_su:
+			var s := GameState.new(seed_t2)
+			var r := s.applica_traccia(riga_crim_1)
+			if r.get("successo", false):
+				assert(s.rivalita_criminale == GameState.RIVALITA_CRIMINALE_INCREMENTO_RANGO1)
+				trovato_rivalita_su = true
+		if not trovato_rivalita_giu:
+			var s2 := GameState.new(seed_t2 + 10000)
+			s2.rivalita_criminale = 50.0
+			var azione_tributo := ActionDatabase.find_by_nome(GameState.AZIONE_DECREMENTO_RIVALITA_CRIMINALE)
+			var r2 := s2.applica_azione_con_dado(azione_tributo)
+			if r2.successo:
+				assert(s2.rivalita_criminale == 50.0 - GameState.RIVALITA_CRIMINALE_DECREMENTO_TRIBUTO)
+				trovato_rivalita_giu = true
+	assert(trovato_rivalita_su and trovato_rivalita_giu)
+	print("OK: Rivalità Criminale sale con la traccia Criminale e scende con 'Pagare un tributo ai rivali' riuscita.")
+
+	# --- Patto con lo Stregatto ------------------------------------------------
+	var patto_trovato := false
+	for seed_p in range(1, 400):
+		var sp := GameState.new(seed_p)
+		sp.karma_inizio_run = -60.0
+		sp._karma_inizio_run_catturato = true
+		var ev := sp._pesca_evento_casuale()
+		if ev.get("tipo") == "patto_stregatto_proposto":
+			patto_trovato = true
+			assert(not sp.patto_in_sospeso.is_empty())
+			var prezzo_atteso := roundf(sp.sabbia_padre_ore * 0.5)
+			assert(ev.prezzo_ore == prezzo_atteso)
+
+			var r_bloccato := sp.applica_azione_con_dado(azione_lavoro)
+			assert(r_bloccato.has("rifiutata"), "nessun'altra azione deve poter procedere col patto in sospeso")
+
+			var karma_prima_p := sp.karma
+			var sabbia_prima_p := sp.sabbia_padre_ore
+			var r_accetta := sp.risolvi_patto_stregatto(true)
+			assert(r_accetta.accettato)
+			assert(is_equal_approx(sp.sabbia_padre_ore, sabbia_prima_p - prezzo_atteso))
+			assert(is_equal_approx(sp.karma, minf(karma_prima_p + 30.0, 100.0)))
+			assert(sp.patto_in_sospeso.is_empty())
+			break
+	assert(patto_trovato, "nessuna proposta di patto trovata in 400 tentativi (atteso ~15% con Karma iniziale <= -50)")
+	print("OK: il Patto con lo Stregatto viene proposto solo con Karma <= -50 a inizio run, blocca altre azioni finché non risolto, applica prezzo/effetto se accettato.")
+
+	var sp2 := GameState.new(1)
+	sp2.karma_inizio_run = 0.0
+	sp2._karma_inizio_run_catturato = true
+	var mai_proposto := true
+	for i in 200:
+		var ev2 := sp2._pesca_evento_casuale()
+		if ev2.get("tipo") == "patto_stregatto_proposto":
+			mai_proposto = false
+			break
+	assert(mai_proposto, "il patto non deve mai essere proposto con Karma iniziale > -50")
+	print("OK: nessun patto proposto quando il Karma a inizio run non è <= -50.")
+
+	print("TUTTI I TEST FASE 10 OK")
+
+
 func _run_ui(seed_arg: int = -1) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ui := GameUI.new()
@@ -419,6 +599,7 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 			else:
 				print("   Nessun imprevisto. Durata: %.1fh." % esito.durata_totale_ore)
 			print("")
+			_gestisci_evento_casuale(stato, r.get("evento_casuale"))
 			continue
 
 		if input == "cashin":
@@ -434,6 +615,7 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 				r.costo_tempo_figlia_ore, r.effetto_sabbia_padre_ore
 			])
 			print("")
+			_gestisci_evento_casuale(stato, r.get("evento_casuale"))
 			continue
 
 		if input.begins_with("donare"):
@@ -481,6 +663,7 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 				"SUCCESSO" if r.successo else "FALLIMENTO", r.costo_tempo_figlia_ore, r.effetto_sabbia_padre_ore
 			])
 			print("")
+			_gestisci_evento_casuale(stato, r.get("evento_casuale"))
 			continue
 
 		if indice >= azioni.size():
@@ -506,6 +689,7 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 				"SUCCESSO" if r.successo else "FALLIMENTO", r.costo_tempo_figlia_ore, r.effetto_sabbia_padre_ore
 			])
 			print("")
+			_gestisci_evento_casuale(stato, r.get("evento_casuale"))
 			continue
 
 		var azione := ActionDatabase.get_by_index(indice)
@@ -539,6 +723,7 @@ func _run_play_loop(seed_arg: int = -1) -> void:
 			risultato.effetto_sabbia_padre_ore
 		])
 		print("")
+		_gestisci_evento_casuale(stato, risultato.get("evento_casuale"))
 
 	_stampa_stato(stato)
 	print("")
@@ -566,7 +751,51 @@ func _stampa_stato(stato: GameState) -> void:
 	print("Turno %d | Tempo-Figlia: %.1fh (~%.1f giorni) | Sabbia-Padre: %.1fh (~%.4f anni)" % [
 		stato.turno, stato.tempo_figlia_ore, giorni_figlia, stato.sabbia_padre_ore, anni_padre
 	])
+	print("Attenzione Polizia: %.0f/100 | Rivalità Criminale: %.0f/100 | Fama Pubblica: %.0f/100 | Karma (persistente): %.0f" % [
+		stato.attenzione_polizia, stato.rivalita_criminale, stato.fama_pubblica, stato.karma
+	])
+	print("Fede del Culto: %.0f/100 | Fede della Setta: %.0f/100" % [stato.fede_culto, stato.fede_setta])
 	print("--------------------------------------------------")
+
+
+## Fase 10: stampa e risolve un evento casuale (o Patto con lo Stregatto)
+## restituito da _avanza_turno() dentro `evento_info` — chiamata dopo OGNI
+## turno risolto (azione, traccia, sottotrama, cash-in). Se propone il
+## patto, blocca il loop testuale finché il giocatore non risponde: la
+## logica di gioco stessa rifiuta ogni altra azione mentre
+## `patto_in_sospeso` non è vuoto (vedi GameState._patto_in_sospeso_blocca).
+func _gestisci_evento_casuale(stato: GameState, evento) -> void:
+	if evento == null or evento.is_empty():
+		return
+	if evento.tipo == "patto_stregatto_proposto":
+		print("")
+		print("*** EVENTO RARO ***")
+		print(evento.testo)
+		print("Prezzo: %.1fh di Sabbia-Padre (metà di quella posseduta ora) in cambio di Karma +30." % evento.prezzo_ore)
+		while true:
+			print("Accetti il patto? (si/no) > ")
+			var risposta := OS.read_string_from_stdin().strip_edges().to_lower()
+			if risposta == "si" or risposta == "s":
+				var r := stato.risolvi_patto_stregatto(true)
+				print("[PLACEHOLDER STREGATTO] Patto accettato: -%.1fh Sabbia-Padre, Karma %+.0f (ora %.0f)." % [
+					r.prezzo_ore, r.karma_ottenuto, stato.karma
+				])
+				break
+			elif risposta == "no" or risposta == "n":
+				stato.risolvi_patto_stregatto(false)
+				print("[PLACEHOLDER STREGATTO] Patto rifiutato.")
+				break
+			else:
+				print("Rispondi 'si' o 'no'.")
+		print("")
+		return
+
+	print("")
+	print("*** EVENTO CASUALE *** -> %s" % evento.azione)
+	print("   Esito: %s | Effetto Sabbia-Padre: %+.1fh" % [
+		"SUCCESSO" if evento.successo else "FALLIMENTO", evento.effetto_sabbia_padre_ore
+	])
+	print("")
 
 
 func _stampa_azioni(azioni: Array[ActionData], stato: GameState) -> void:
@@ -598,6 +827,9 @@ func _stampa_tracce(tracce: Array[TrackData], stato: GameState, offset: int) -> 
 			etichetta = " [RAGGIUNTO]"
 		elif stato.azioni_uniche_usate.has("%s|%d" % [t.traccia, t.rango]):
 			etichetta = " [FALLITA - non più tentabile]"
+		elif stato.traccia_bloccata_da_fede(t):
+			var chiave_fede: String = GameState.FEDE_TRACCE[t.traccia]
+			etichetta = " [richiede Fede %s >= 50, attuale %.0f]" % [chiave_fede, stato._fede(chiave_fede)]
 		elif not stato.traccia_disponibile(t):
 			etichetta = " [richiede rango precedente]"
 		print("  %2d) %s Rango %d - %-40s costo=%5.1fh  effetto=%+9.1fh  rischio=%3d%%%s" % [

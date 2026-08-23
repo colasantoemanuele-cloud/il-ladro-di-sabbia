@@ -39,13 +39,23 @@ def main() -> None:
         if nome is None or categoria is None:
             # Riga vuota o nota istruttiva in fondo al foglio: non e' un'azione.
             continue
+        valore_eur = row[3].value
+        # Le colonne E/F sono formule Excel (=D/$B$2, =E/$B$3): calcolate qui
+        # direttamente da D invece di leggere il valore cache di openpyxl
+        # (data_only=True legge solo l'ULTIMO valore calcolato da Excel/
+        # LibreOffice al salvataggio — righe aggiunte via script, come quelle
+        # della Fase 10, non hanno mai una cache e leggerebbero None). Più
+        # robusto: funziona sempre, a prescindere da come il file e' stato
+        # salvato l'ultima volta.
+        effetto_ore = valore_eur / salario_mediano
+        effetto_anni = effetto_ore / ore_anno
         actions.append({
             "nome": nome,
             "categoria": categoria,
             "costo_tempo_figlia_ore": row[2].value,
-            "valore_economico_eur": row[3].value,
-            "effetto_sabbia_padre_ore": row[4].value,
-            "effetto_sabbia_padre_anni": row[5].value,
+            "valore_economico_eur": valore_eur,
+            "effetto_sabbia_padre_ore": effetto_ore,
+            "effetto_sabbia_padre_anni": effetto_anni,
             "rischio_pct": row[6].value,
             "moralita": row[7].value,
             "unica_per_run": row[8].value == "VERO",
@@ -67,10 +77,10 @@ def main() -> None:
         json.dump(output, f, ensure_ascii=False, indent=2)
 
     print(f"Scritte {len(actions)} azioni in {JSON_PATH}")
-    if len(actions) != 60:
+    if len(actions) != 62:
         print(
-            f"ATTENZIONE: attese 60 azioni core (numero confermato dall'autore), "
-            f"ma il foglio Excel ne contiene {len(actions)}.",
+            f"ATTENZIONE: attese 62 azioni (60 core confermate + 2 aggiunte in Fase 10 per far "
+            f"scendere Rivalita' Criminale/Fama Pubblica), ma il foglio Excel ne contiene {len(actions)}.",
             file=sys.stderr,
         )
     n_uniche = sum(1 for a in actions if a["unica_per_run"])

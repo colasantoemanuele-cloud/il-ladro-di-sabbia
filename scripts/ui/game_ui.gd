@@ -28,11 +28,22 @@ var cashin_button: Button
 
 var azioni_vbox: VBoxContainer
 var bottoni_azione: Dictionary = {}  # nome azione -> Button
+var azioni_per_nome: Dictionary = {}  # nome azione -> ActionData
 
 var bottoni_traccia: Dictionary = {}  # "traccia|rango" -> Button
 var righe_traccia: Dictionary = {}    # "traccia|rango" -> TrackData
 
 var bottoni_sottotrama: Dictionary = {}  # nome sottotrama -> Button
+
+## Fase 10, design doc sezione 9: barra del Patto con lo Stregatto (versione
+## meccanica minima, dialoghi segnaposto). Visibile solo quando
+## `stato.patto_in_sospeso` non è vuoto; mentre è visibile TUTTI gli altri
+## controlli si disabilitano (vedi _blocca_controlli_per_patto), perché
+## GameState stesso rifiuta ogni altra azione finché il patto è in sospeso.
+var patto_bar: VBoxContainer
+var lbl_patto: Label
+var patto_accetta_button: Button
+var patto_rifiuta_button: Button
 
 
 ## `profilo_iniziale` e' opzionale: se omesso (es. --test-ui) la UI resta
@@ -133,6 +144,31 @@ func _costruisci_ui() -> void:
 
 	root.add_child(HSeparator.new())
 
+	# --- Patto con lo Stregatto (Fase 10, versione meccanica minima) ---
+	patto_bar = VBoxContainer.new()
+	patto_bar.visible = false
+	root.add_child(patto_bar)
+
+	lbl_patto = Label.new()
+	lbl_patto.autowrap_mode = TextServer.AUTOWRAP_WORD
+	patto_bar.add_child(lbl_patto)
+
+	var patto_buttons_bar := HBoxContainer.new()
+	patto_buttons_bar.add_theme_constant_override("separation", 8)
+	patto_bar.add_child(patto_buttons_bar)
+
+	patto_accetta_button = Button.new()
+	patto_accetta_button.text = "Accetta il patto"
+	patto_accetta_button.pressed.connect(_on_patto_accetta_pressed)
+	patto_buttons_bar.add_child(patto_accetta_button)
+
+	patto_rifiuta_button = Button.new()
+	patto_rifiuta_button.text = "Rifiuta"
+	patto_rifiuta_button.pressed.connect(_on_patto_rifiuta_pressed)
+	patto_buttons_bar.add_child(patto_rifiuta_button)
+
+	root.add_child(HSeparator.new())
+
 	# --- Messaggio / esito ultima azione / fine partita ---
 	lbl_messaggio = RichTextLabel.new()
 	lbl_messaggio.custom_minimum_size = Vector2(0, 80)
@@ -167,6 +203,7 @@ func _popola_azioni() -> void:
 		bottone.pressed.connect(_on_azione_pressed.bind(azione))
 		azioni_vbox.add_child(bottone)
 		bottoni_azione[azione.nome] = bottone
+		azioni_per_nome[azione.nome] = azione
 
 
 ## Fase 9a: le 7 tracce normali (Rango 1 + Rango 2, dipendenza solo interna
@@ -230,8 +267,15 @@ func _aggiorna_bottoni_traccia() -> void:
 		elif gia_tentata:
 			bottone.disabled = true
 			bottone.text = _testo_bottone_traccia(riga) + " [FALLITA — non più tentabile]"
+		elif stato.traccia_bloccata_da_fede(riga):
+			bottone.disabled = true
+			var chiave_fede: String = GameState.FEDE_TRACCE[riga.traccia]
+			bottone.text = _testo_bottone_traccia(riga) + " [richiede Fede %s >= 50, attuale %.0f]" % [
+				chiave_fede, stato._fede(chiave_fede)
+			]
 		else:
 			bottone.disabled = not stato.traccia_disponibile(riga)
+			bottone.text = _testo_bottone_traccia(riga)
 
 
 func _on_traccia_pressed(riga: TrackData) -> void:
@@ -251,6 +295,7 @@ func _on_traccia_pressed(riga: TrackData) -> void:
 	_aggiorna_bottoni_traccia()
 	_aggiorna_sinergia_ui()
 	_aggiorna_stato_ui()
+	_gestisci_evento_casuale(risultato.get("evento_casuale"))
 
 	if stato.is_over:
 		_fine_partita()
@@ -348,6 +393,7 @@ func _on_sottotrama_pressed(sub: SubplotData) -> void:
 		bottone.text = _testo_bottone_sottotrama(sub) + (" [RAGGIUNTA]" if risultato.successo else " [FALLITA — non più tentabile]")
 
 	_aggiorna_stato_ui()
+	_gestisci_evento_casuale(risultato.get("evento_casuale"))
 
 	if stato.is_over:
 		_fine_partita()
@@ -402,6 +448,7 @@ func _on_azione_pressed(azione: ActionData) -> void:
 	# di una sottotrama (es. "Il tesoro del vecchio boss" — design doc 6.1).
 	_aggiorna_bottoni_sottotrama()
 	_aggiorna_stato_ui()
+	_gestisci_evento_casuale(risultato.get("evento_casuale"))
 
 	if stato.is_over:
 		_fine_partita()
@@ -438,8 +485,12 @@ func _on_spostamento_pressed() -> void:
 		return
 
 	var risultato := stato.applica_spostamento()
-	var esito: Spostamento.Esito = risultato.spostamento
 
+	if risultato.has("rifiutata"):
+		lbl_messaggio.text = "[b]Spostamento non disponibile:[/b] %s" % risultato.motivo
+		return
+
+	var esito: Spostamento.Esito = risultato.spostamento
 	if esito.incidente:
 		lbl_messaggio.text = "[b]Spostamento in città — INCIDENTE![/b]\nDurata base %.1fh + ritardo %.1fh = %.1fh totali." % [
 			esito.durata_base_ore, esito.ritardo_extra_ore, esito.durata_totale_ore
@@ -448,6 +499,7 @@ func _on_spostamento_pressed() -> void:
 		lbl_messaggio.text = "[b]Spostamento in città[/b]\nNessun imprevisto. Durata: %.1fh." % esito.durata_totale_ore
 
 	_aggiorna_stato_ui()
+	_gestisci_evento_casuale(risultato.get("evento_casuale"))
 
 	if stato.is_over:
 		_fine_partita()
@@ -488,6 +540,7 @@ func _on_cashin_pressed() -> void:
 	_aggiorna_bottoni_traccia()
 	_aggiorna_sinergia_ui()
 	_aggiorna_stato_ui()
+	_gestisci_evento_casuale(risultato.get("evento_casuale"))
 
 	if stato.is_over:
 		_fine_partita()
@@ -510,14 +563,95 @@ func _on_dona_pressed() -> void:
 	_fine_partita()
 
 
+## Fase 10: ricalcola lo stato "disabilitato" di tutti i bottoni azione
+## (la sola regola è "Unica per run" già tentata — le azioni ripetibili
+## restano sempre disponibili finché la run non finisce). Serve per poter
+## RIABILITARE i bottoni dopo che un Patto con lo Stregatto in sospeso è
+## stato risolto (li avevamo disabilitati tutti in blocco, vedi
+## _blocca_controlli_per_patto), senza perdere lo stato delle uniche.
+func _aggiorna_bottoni_azione() -> void:
+	for nome in bottoni_azione:
+		var azione: ActionData = azioni_per_nome.get(nome)
+		var bottone: Button = bottoni_azione[nome]
+		bottone.disabled = azione.unica_per_run and not stato.azione_disponibile(azione)
+
+
+## Fase 10: gestisce l'esito di _avanza_turno() (chiave "evento_casuale" nel
+## risultato di ogni applica_*()) — o un evento normale della categoria
+## "Evento" (già risolto, solo da mostrare) o la proposta del Patto con lo
+## Stregatto (design doc sezione 9, versione meccanica minima — dialoghi
+## segnaposto), che invece richiede una risposta del giocatore prima di
+## poter continuare.
+func _gestisci_evento_casuale(evento) -> void:
+	if evento == null or evento.is_empty():
+		return
+	if evento.tipo == "patto_stregatto_proposto":
+		_mostra_patto(evento)
+		return
+	lbl_messaggio.text += "\n\n[b]EVENTO CASUALE:[/b] %s -> %s (Sabbia-Padre %+.1fh)" % [
+		evento.azione, "SUCCESSO" if evento.successo else "FALLIMENTO", evento.effetto_sabbia_padre_ore
+	]
+	_aggiorna_stato_ui()
+
+
+func _mostra_patto(evento: Dictionary) -> void:
+	lbl_patto.text = "*** EVENTO RARO ***\n%s\nPrezzo: %.1fh di Sabbia-Padre (metà di quella posseduta ora) in cambio di Karma +30." % [
+		evento.testo, evento.prezzo_ore
+	]
+	patto_bar.visible = true
+	_blocca_controlli_per_patto(true)
+
+
+## Mentre il patto è in sospeso, GameState stesso rifiuta ogni altra
+## azione/traccia/sottotrama/cash-in/spostamento (vedi
+## GameState._patto_in_sospeso_blocca) — qui disabilitiamo anche i
+## controlli lato UI per coerenza visiva, poi li ricalcoliamo con le
+## rispettive funzioni _aggiorna_bottoni_*() una volta risolto.
+func _blocca_controlli_per_patto(bloccato: bool) -> void:
+	if bloccato:
+		for bottone: Button in bottoni_azione.values():
+			bottone.disabled = true
+		for bottone: Button in bottoni_traccia.values():
+			bottone.disabled = true
+		for bottone: Button in bottoni_sottotrama.values():
+			bottone.disabled = true
+		spostamento_button.disabled = true
+		cashin_button.disabled = true
+		donazione_button.disabled = true
+	else:
+		_aggiorna_bottoni_azione()
+		_aggiorna_bottoni_traccia()
+		_aggiorna_bottoni_sottotrama()
+		_aggiorna_sinergia_ui()
+		spostamento_button.disabled = false
+		donazione_button.disabled = false
+
+
+func _on_patto_accetta_pressed() -> void:
+	var r := stato.risolvi_patto_stregatto(true)
+	lbl_messaggio.text += "\n\n[b][PLACEHOLDER STREGATTO] Patto accettato:[/b] -%.1fh Sabbia-Padre, Karma %+.0f (ora %.0f)." % [
+		r.prezzo_ore, r.karma_ottenuto, stato.karma
+	]
+	patto_bar.visible = false
+	_blocca_controlli_per_patto(false)
+	_aggiorna_stato_ui()
+
+
+func _on_patto_rifiuta_pressed() -> void:
+	stato.risolvi_patto_stregatto(false)
+	lbl_messaggio.text += "\n\n[b][PLACEHOLDER STREGATTO] Patto rifiutato.[/b]"
+	patto_bar.visible = false
+	_blocca_controlli_per_patto(false)
+
+
 func _aggiorna_stato_ui() -> void:
 	var giorni_figlia := stato.tempo_figlia_ore / 24.0
 	var anni_padre := stato.sabbia_padre_ore / GameState.ORE_PER_ANNO
 	lbl_tempo_figlia.text = "Tempo-Figlia: %.1fh (~%.1f giorni)" % [stato.tempo_figlia_ore, giorni_figlia]
 	lbl_sabbia_padre.text = "Sabbia-Padre: %.1fh (~%.4f anni)" % [stato.sabbia_padre_ore, anni_padre]
 	lbl_seed.text = "Seed: %d" % stato.seed_run
-	lbl_risorse.text = "Attenzione Polizia: %.0f  |  Rivalità Criminale: %.0f  |  Fama Pubblica: %.0f  |  Karma: %.0f  |  Fede: %.0f" % [
-		stato.attenzione_polizia, stato.rivalita_criminale, stato.fama_pubblica, stato.karma, stato.fede
+	lbl_risorse.text = "Attenzione Polizia: %.0f  |  Rivalità Criminale: %.0f  |  Fama Pubblica: %.0f  |  Karma: %.0f  |  Fede del Culto: %.0f  |  Fede della Setta: %.0f" % [
+		stato.attenzione_polizia, stato.rivalita_criminale, stato.fama_pubblica, stato.karma, stato.fede_culto, stato.fede_setta
 	]
 
 
@@ -532,6 +666,8 @@ func _fine_partita() -> void:
 	donazione_input.editable = false
 	spostamento_button.disabled = true
 	cashin_button.disabled = true
+	patto_accetta_button.disabled = true
+	patto_rifiuta_button.disabled = true
 
 	var p := stato.calcola_punteggio()
 	var testo := "[b]%s[/b]\n\n[b]PUNTEGGIO FINALE[/b]\nPadre: %.1fh (~%.2f anni)\nFiglia: %.1fh (~%.2f anni)\nTotale: ~%.2f anni" % [

@@ -15,19 +15,30 @@ var sabbia_padre_ore: float = SABBIA_PADRE_INIZIALE
 var donation_made: bool = false
 var donated_ore: float = 0.0
 
-## Le 5 risorse del design doc (sezione 7.2), esposte per la UI (Fase 6) ma
-## SENZA alcuna logica che le aggiorni ancora: nessun sistema di tracce,
-## eventi o conseguenze le tocca in questo prototipo — restano fisse a 0.0
-## finché quei sistemi (fuori scope per le fasi 1-7) non verranno
-## implementati. `karma` è l'unica pensata per persistere tra le run (design
-## doc 7.2): viene inizializzata dal Profilo Persistente all'avvio della run
-## (Fase 7, vedi scripts/core/player_profile.gd) invece di partire sempre da
-## zero come le altre 4, ma nulla la modifica ancora durante il gioco.
+## Le 5 risorse del design doc (sezione 7.2). Attenzione Polizia/Rivalità
+## Criminale/Fama Pubblica: 0-100, per run, azzerate a inizio run, salgono
+## e scendono SOLO tramite azioni dedicate (decisione confermata
+## dall'autore in Fase 10: MAI passivamente nel tempo). `karma` è l'unica
+## pensata per persistere tra le run (design doc 7.2): viene inizializzata
+## dal Profilo Persistente all'avvio della run (Fase 7, vedi
+## scripts/core/player_profile.gd) invece di partire sempre da zero come
+## le altre, e accumula tra le run senza alcuna correzione artificiale
+## (decisione confermata dall'autore in Fase 10: il meccanismo di
+## accumulo grezzo tra le run è sufficiente da solo).
 var attenzione_polizia: float = 0.0
 var rivalita_criminale: float = 0.0
 var fama_pubblica: float = 0.0
 var karma: float = 0.0
-var fede: float = 0.0
+
+## Fede del Culto e Fede della Setta (Fase 10, design doc 7.2): due
+## contatori SEPARATI (0-100, per run), NON coincidono col Rango della
+## traccia Religiosa/Occulto. Completare il Rango 1 di una delle due
+## tracce alza la Fede corrispondente di 40 e abbassa l'altra di 10;
+## completare il Rango 2 alza la Fede corrispondente di altri 40. Il
+## Rango 2 richiede ORA anche Fede corrispondente >= 50, oltre al
+## consueto prerequisito di rango — vedi traccia_disponibile().
+var fede_culto: float = 0.0
+var fede_setta: float = 0.0
 
 var is_over: bool = false
 var end_reason: int = EndReason.NONE
@@ -43,6 +54,32 @@ var storico: Array[Dictionary] = []
 ## guadagni, perché entrambi pescano dallo stesso generatore seedato.
 var seed_run: int
 var _rng: RandomNumberGenerator
+
+## Fase 10: cadenza degli eventi casuali (design doc 12.1/"sistema minimo di
+## eventi casuali"). "Ogni 5-8 azioni compiute" lasciava la scelta esatta a
+## me: ho fissato 6 (valore singolo, non un intervallo re-randomizzato ad
+## ogni volta), a metà del range indicato. Conta OGNI turno risolto
+## (azione, traccia, sottotrama, cash-in, spostamento), non solo le 62
+## azioni core: altrimenti una run che gioca solo tracce/sottotrame non
+## vedrebbe mai un evento.
+const SOGLIA_EVENTO_TURNI := 6
+var _turni_dal_evento: int = 0
+
+## Karma congelato all'inizio della run (design doc: la condizione del
+## Patto con lo Stregatto è "Karma <= -50 A INIZIO RUN", non il Karma
+## corrente che può muoversi durante la run per effetto delle azioni
+## compiute — a differenza del PESO degli eventi normali, che invece usa
+## il Karma corrente). `karma` viene assegnato dal chiamante (GameUI/
+## main.gd) dal Profilo Persistente DOPO il costruttore, quindi va
+## catturato pigramente al primo turno risolto, non in _init().
+var karma_inizio_run: float = 0.0
+var _karma_inizio_run_catturato: bool = false
+
+## Fase 10, design doc sezione 9: versione meccanica minima del Patto con
+## lo Stregatto. Quando un evento casuale propone il patto, i dettagli
+## restano qui finché il giocatore non risponde con risolvi_patto_stregatto()
+## — vuoto se nessun patto è in sospeso.
+var patto_in_sospeso: Dictionary = {}
 
 
 func _init(seed_iniziale: int = -1) -> void:
@@ -99,18 +136,274 @@ func applica_azione_deterministica(azione: ActionData) -> Dictionary:
 	return risultato
 
 
-## Categorie considerate "illegali" ai soli fini della conseguenza di
-## fallimento (design doc 4.6: aumento di Attenzione Polizia/Rivalità
-## Criminale). Euristica basata sulla colonna Categoria, non sulla
-## Moralità (più fedele a "azione illegale" in senso stretto).
-const CATEGORIE_ILLEGALI := [
-	"Furto", "Crimine", "Grande colpo", "Minaccia 1 a 1",
-	"Crimine organizzato", "Corruzione", "Tradimento",
+## --- Fase 10: le 5 risorse — formule comuni e ambiti di applicazione -----
+##
+## Formula comune ad Attenzione Polizia / Rivalità Criminale / Fama
+## Pubblica (design doc 7.2, valori confermati dall'autore): malus al tiro
+## = -floor(valore/20) (0 a -5 su un range 0-100); Svantaggio (non
+## cumulativo: conta come un solo Svantaggio anche se più risorse lo
+## innescano) quando il valore supera 50. La soglia 75 esiste solo per la
+## gravità narrativa degli eventi (non implementata: nessun sistema di
+## eventi "gravi" distinti in questa fase), non per un secondo malus al
+## dado.
+const RISORSA_MAX := 100.0
+const RISORSA_SOGLIA_SVANTAGGIO := 50.0
+
+## Ambito di applicazione (decisione esplicita dell'autore, non generico):
+## Attenzione Polizia e Fama Pubblica riguardano le STESSE 7 categorie di
+## azioni core. Rivalità Criminale non è basata su categoria: riguarda
+## specificamente la traccia Criminale e le sottotrame/sinergie legate
+## all'organizzazione (gestito con casi dedicati in applica_traccia/
+## applica_sottotrama/applica_cash_in, non qui).
+const CATEGORIE_POLIZIA_FAMA := [
+	"Furto", "Crimine", "Crimine organizzato", "Minaccia 1 a 1",
+	"Tradimento", "Corruzione", "Azzardo",
 ]
 
+## Tracce "pubbliche/legittime" il cui Rango 2 sblocca l'applicabilità del
+## malus di Fama Pubblica (design doc 7.2: "Cresce con i ranghi legittimi").
+const TRACCE_LEGITTIME := ["Lavoro", "Politica", "Bancaria", "Religiosa (indulgenze)"]
 
-func _is_azione_illegale(azione: ActionData) -> bool:
-	return CATEGORIE_ILLEGALI.has(azione.categoria)
+## Incrementi/decrementi delle risorse: NON specificati numericamente né dal
+## design doc né dalle istruzioni dell'autore ("piccolo aumento" era la sola
+## indicazione per Attenzione Polizia) — valori miei, documentati qui e in
+## CLAUDE.md, da confermare.
+const ATTENZIONE_POLIZIA_INCREMENTO_FALLIMENTO := 10.0
+const ATTENZIONE_POLIZIA_INCREMENTO_FALLIMENTO_CRITICO := 20.0
+const ATTENZIONE_POLIZIA_DECREMENTO_CORRUZIONE := 25.0
+const RIVALITA_CRIMINALE_INCREMENTO_RANGO1 := 15.0
+const RIVALITA_CRIMINALE_INCREMENTO_RANGO2 := 25.0
+const RIVALITA_CRIMINALE_INCREMENTO_SOTTOTRAMA := 15.0
+const RIVALITA_CRIMINALE_INCREMENTO_CASHIN := 20.0
+const RIVALITA_CRIMINALE_DECREMENTO_TRIBUTO := 20.0
+const FAMA_PUBBLICA_INCREMENTO_RANGO_LEGITTIMO := 30.0
+const FAMA_PUBBLICA_DECREMENTO_BASSO_PROFILO := 20.0
+
+## Nomi delle 2 sottotrame "legate all'organizzazione" (design doc 6.1/6.10 —
+## giudizio dell'autore delegato a me, "usa il buon senso"): entrambe
+## coinvolgono esplicitamente il boss/l'organizzazione criminale del
+## protagonista, non un bersaglio esterno.
+const SOTTOTRAME_ORGANIZZAZIONE := ["Il tesoro del vecchio boss", "La cassa di guerra della vecchia organizzazione"]
+
+const AZIONE_DECREMENTO_ATTENZIONE_POLIZIA := "Corrompere un poliziotto"
+const AZIONE_DECREMENTO_RIVALITA_CRIMINALE := "Pagare un tributo ai rivali"
+const AZIONE_DECREMENTO_FAMA_PUBBLICA := "Mantenere un basso profilo pubblico"
+
+
+func _malus_risorsa(valore: float) -> int:
+	return -floori(valore / 20.0)
+
+
+func _svantaggio_da_risorsa(valore: float) -> bool:
+	return valore > RISORSA_SOGLIA_SVANTAGGIO
+
+
+func _clamp_risorsa(valore: float) -> float:
+	return clampf(valore, 0.0, RISORSA_MAX)
+
+
+## Combina il malus/Svantaggio di Attenzione Polizia e Fama Pubblica per
+## un'azione core, secondo l'ambito di applicazione dichiarato. La Fama
+## Pubblica si applica solo se il giocatore ha già raggiunto almeno un
+## Rango 2 in una traccia legittima in questa run (design doc, Fase 10).
+func _modificatore_polizia_fama(azione: ActionData) -> Dictionary:
+	if not CATEGORIE_POLIZIA_FAMA.has(azione.categoria):
+		return {"modificatore": 0, "svantaggio": false}
+
+	var modificatore := _malus_risorsa(attenzione_polizia)
+	var svantaggio := _svantaggio_da_risorsa(attenzione_polizia)
+
+	var fama_attiva := false
+	for nome_traccia in TRACCE_LEGITTIME:
+		if tracce_raggiunte.get(nome_traccia, 0) >= 2:
+			fama_attiva = true
+			break
+	if fama_attiva:
+		modificatore += _malus_risorsa(fama_pubblica)
+		svantaggio = svantaggio or _svantaggio_da_risorsa(fama_pubblica)
+
+	return {"modificatore": modificatore, "svantaggio": svantaggio}
+
+
+## Peso Karma per azione (design doc 7.2, valori confermati dall'autore),
+## dalla colonna Moralità del foglio Azioni: Estrema -5, Molto sporca -3,
+## Sporca -2, Ambigua -1, Pulita +1, Pulita/altruista +2. Le varianti con
+## suffisso tra parentesi (es. "Ambigua (costo emotivo)") o con un prefisso
+## "Molto "/ecc. contano come la loro etichetta base — solo un suffisso
+## descrittivo, non una categoria diversa. Etichette che non riconducono
+## chiaramente a una delle sei (Neutra, Negativo, Pericoloso e varianti,
+## più le etichette ibride "Pulita/ambigua" e "Pulita/neutra") pesano 0,
+## come confermato esplicitamente dall'autore.
+const PESI_KARMA := {
+	"Estrema": -5.0,
+	"Molto sporca": -3.0,
+	"Sporca": -2.0,
+	"Ambigua": -1.0,
+	"Pulita": 1.0,
+	"Pulita/altruista": 2.0,
+}
+
+
+func _peso_karma(moralita: String) -> float:
+	if PESI_KARMA.has(moralita):
+		return PESI_KARMA[moralita]
+	# Rimuove un eventuale suffisso " (...)" per confrontare solo la base:
+	# "Ambigua (costo emotivo)" -> "Ambigua".
+	var idx := moralita.find(" (")
+	var base := moralita.substr(0, idx) if idx >= 0 else moralita
+	return PESI_KARMA.get(base, 0.0)
+
+
+## --- Fase 10: sistema minimo di eventi casuali + Patto con lo Stregatto -
+
+const KARMA_SOGLIA_ALTA := 50.0    ## Vantaggio agli eventi, pesa 3x gli eventi "Pulita"
+const KARMA_SOGLIA_BASSA := -50.0  ## Svantaggio agli eventi, pesa 3x "Negativo"/"Sporca", soglia del Patto
+
+const STREGATTO_PROBABILITA := 0.15     ## quando Karma <= KARMA_SOGLIA_BASSA
+const STREGATTO_PREZZO_FRAZIONE := 0.5  ## metà della Sabbia-Padre posseduta
+const STREGATTO_KARMA_EFFETTO := 30.0
+
+
+## Modificatore Karma per gli eventi casuali (design doc, "applicata SOLO
+## agli eventi casuali, mai alle azioni scelte attivamente"): stessa
+## formula di malus graduale delle altre risorse, ma BIPOLARE — Karma
+## positivo dà un BONUS al tiro (non solo l'assenza di malus), coerente
+## col design doc 7.2 ("sopra +50... un piccolo sconto al rischio
+## globale"). Vantaggio se Karma >= 50, Svantaggio se Karma <= -50.
+func _modificatore_karma_eventi() -> Dictionary:
+	var segno := 1 if karma > 0 else (-1 if karma < 0 else 0)
+	var modificatore := floori(abs(karma) / 20.0) * segno
+	var modo := DiceSystem.RollMode.NORMALE
+	if karma >= KARMA_SOGLIA_ALTA:
+		modo = DiceSystem.RollMode.VANTAGGIO
+	elif karma <= KARMA_SOGLIA_BASSA:
+		modo = DiceSystem.RollMode.SVANTAGGIO
+	return {"modificatore": modificatore, "modo": modo}
+
+
+func _pesca_pesata(elementi: Array[ActionData], pesi: Array[float]) -> ActionData:
+	var totale := 0.0
+	for p in pesi:
+		totale += p
+	var r := _rng.randf() * totale
+	var accumulato := 0.0
+	for i in elementi.size():
+		accumulato += pesi[i]
+		if r < accumulato:
+			return elementi[i]
+	return elementi[elementi.size() - 1]
+
+
+## Sistema minimo di eventi casuali (design doc, "sistema minimo di eventi
+## casuali"): pesca un'azione dalla categoria "Evento" del foglio Azioni e
+## la risolve subito (dado con modificatore Karma), oppure — se Karma <=
+## -50 e un tiro al 15% lo conferma — propone il Patto con lo Stregatto al
+## suo posto (design doc sezione 9, versione meccanica minima; il
+## personaggio scritto per esteso arriva in Fase 11, qui solo dialoghi
+## segnaposto chiaramente marcati). Con Karma >= 50 pesa 3x le voci
+## "Pulita"; con Karma <= -50 pesa 3x le voci "Negativo"/"Sporca";
+## altrimenti pesca uniforme.
+func _pesca_evento_casuale() -> Dictionary:
+	if karma_inizio_run <= KARMA_SOGLIA_BASSA and _rng.randf() < STREGATTO_PROBABILITA:
+		var prezzo := roundf(sabbia_padre_ore * STREGATTO_PREZZO_FRAZIONE)
+		patto_in_sospeso = {"prezzo_ore": prezzo}
+		return {
+			"tipo": "patto_stregatto_proposto",
+			"testo": "[PLACEHOLDER STREGATTO]: offre di aggiustare il tuo Karma in cambio di metà della tua Sabbia-Padre. Accetti?",
+			"prezzo_ore": prezzo,
+		}
+
+	var eventi := ActionDatabase.get_by_categoria("Evento")
+	if eventi.is_empty():
+		return {}
+
+	var pesi: Array[float] = []
+	for e in eventi:
+		var peso := 1.0
+		if karma >= KARMA_SOGLIA_ALTA and e.moralita == "Pulita":
+			peso = 3.0
+		elif karma <= KARMA_SOGLIA_BASSA and (e.moralita == "Negativo" or e.moralita == "Sporca"):
+			peso = 3.0
+		pesi.append(peso)
+
+	var scelto := _pesca_pesata(eventi, pesi)
+	var mod_karma := _modificatore_karma_eventi()
+	var roll := DiceSystem.risolvi(scelto.rischio_pct, mod_karma.modo, mod_karma.modificatore, _rng)
+	var effetto := 0.0
+	if roll.successo:
+		effetto = ActionVariance.effetto_variato(scelto.effetto_sabbia_padre_ore, _rng)
+		sabbia_padre_ore += effetto
+
+	return {
+		"tipo": "evento_normale",
+		"azione": scelto.nome,
+		"roll": roll,
+		"successo": roll.successo,
+		"effetto_sabbia_padre_ore": effetto,
+	}
+
+
+## Va chiamata da OGNI metodo applica_*() al posto di un `turno += 1`
+## diretto: avanza il turno e, ogni SOGLIA_EVENTO_TURNI turni, innesca un
+## evento casuale (o il Patto con lo Stregatto). Conta OGNI turno risolto
+## (azione, traccia, sottotrama, cash-in, spostamento), non solo le azioni
+## core: altrimenti una run che gioca solo tracce/sottotrame non vedrebbe
+## mai un evento.
+func _avanza_turno() -> Dictionary:
+	if not _karma_inizio_run_catturato:
+		karma_inizio_run = karma
+		_karma_inizio_run_catturato = true
+	turno += 1
+	_turni_dal_evento += 1
+	if _turni_dal_evento < SOGLIA_EVENTO_TURNI:
+		return {}
+	_turni_dal_evento = 0
+	return {"evento": _pesca_evento_casuale()}
+
+
+## [PLACEHOLDER STREGATTO]: risponde a un patto proposto da
+## _pesca_evento_casuale(). Se accettato: sottrae il prezzo (metà della
+## Sabbia-Padre al momento della proposta, già arrotondata) e aggiunge
+## +30 Karma SENZA clamp a zero (può portare il Karma sopra zero anche se
+## era molto negativo, come richiesto) — resta comunque dentro il range
+## generale -100/+100 del Karma. Non consuma un turno proprio: risolve un
+## evento già innescato da un'altra azione.
+func risolvi_patto_stregatto(accetta: bool) -> Dictionary:
+	if patto_in_sospeso.is_empty():
+		return {"rifiutata": true, "motivo": "Nessun patto con lo Stregatto in sospeso."}
+
+	var prezzo: float = patto_in_sospeso.prezzo_ore
+	patto_in_sospeso = {}
+
+	if not accetta:
+		var rifiuto := {"accettato": false, "azione": "[PLACEHOLDER STREGATTO] Patto rifiutato"}
+		storico.append(rifiuto)
+		return rifiuto
+
+	sabbia_padre_ore -= prezzo
+	karma = clampf(karma + STREGATTO_KARMA_EFFETTO, -RISORSA_MAX, RISORSA_MAX)
+
+	var risultato := {
+		"accettato": true,
+		"azione": "[PLACEHOLDER STREGATTO] Patto accettato",
+		"prezzo_ore": prezzo,
+		"karma_ottenuto": STREGATTO_KARMA_EFFETTO,
+		"sabbia_padre_ore": sabbia_padre_ore,
+	}
+	storico.append(risultato)
+
+	_controlla_fine_partita()
+	return risultato
+
+
+## Guardia comune a tutti i metodi applica_*(): finché un Patto con lo
+## Stregatto è in sospeso (design doc sezione 9), nessun'altra azione/
+## traccia/sottotrama/cash-in/spostamento può essere tentata — il giocatore
+## deve prima rispondere con risolvi_patto_stregatto(). Applicata a livello
+## di logica di gioco (non solo in UI) così resta valida anche dal loop
+## testuale e dal simulatore.
+func _patto_in_sospeso_blocca() -> Dictionary:
+	return {"rifiutata": true, "motivo": "Devi prima rispondere al patto con lo Stregatto in sospeso."}
 
 
 ## Applica un'azione risolvendola con un tiro di dado d20 (Fase 3, design doc
@@ -122,11 +415,16 @@ func _is_azione_illegale(azione: ActionData) -> bool:
 ## entrambi dal generatore seedato della run (`_rng`), quindi rilanciare con
 ## lo stesso seed_run riproduce esattamente la stessa sequenza.
 ##
-## `modo` e `modificatore` sono gli aggangi per Vantaggio/Svantaggio e
-## Bonus/Malus: nessuna fonte (oggetti, ranghi di traccia, soglie di
-## risorsa) esiste ancora nel gioco, quindi qui arrivano sempre i valori di
-## default — ma il sistema è già pronto a riceverli quando quelle fonti
-## verranno implementate.
+## Fase 10: Attenzione Polizia/Fama Pubblica modificano il tiro secondo il
+## loro ambito di applicazione (vedi _modificatore_polizia_fama). Un
+## fallimento su un'azione nell'ambito di Attenzione Polizia la alza;
+## "Corrompere un poliziotto" riuscita la abbassa. Il Karma si aggiorna
+## SEMPRE (successo o fallimento: il peso riflette la scelta compiuta, non
+## il suo esito) secondo il peso Moralità dell'azione.
+##
+## `modo` e `modificatore` restano gli aggangi per fonti future
+## (oggetti, ranghi di traccia): si sommano/combinano con quelli delle
+## risorse invece di sostituirli.
 func applica_azione_con_dado(
 	azione: ActionData,
 	modo: DiceSystem.RollMode = DiceSystem.RollMode.NORMALE,
@@ -134,14 +432,18 @@ func applica_azione_con_dado(
 ) -> Dictionary:
 	if not azione_disponibile(azione):
 		return {"rifiutata": true, "motivo": "Azione unica per run: già tentata in questa run."}
+	if not patto_in_sospeso.is_empty():
+		return _patto_in_sospeso_blocca()
 
-	turno += 1
+	var evento_info := _avanza_turno()
 	var costo := ActionVariance.costo_variato(azione.costo_tempo_figlia_ore, _rng)
 	tempo_figlia_ore -= costo
 	if azione.unica_per_run:
 		azioni_uniche_usate[azione.nome] = true
 
-	var roll := DiceSystem.risolvi(azione.rischio_pct, modo, modificatore, _rng)
+	var mod_risorse := _modificatore_polizia_fama(azione)
+	var modo_finale: DiceSystem.RollMode = DiceSystem.RollMode.SVANTAGGIO if (modo == DiceSystem.RollMode.NORMALE and mod_risorse.svantaggio) else modo
+	var roll := DiceSystem.risolvi(azione.rischio_pct, modo_finale, modificatore + mod_risorse.modificatore, _rng)
 
 	var risultato := {
 		"turno": turno,
@@ -150,17 +452,24 @@ func applica_azione_con_dado(
 		"roll": roll,
 		"successo": roll.successo,
 		"effetto_sabbia_padre_ore": 0.0,
-		"conseguenza_risorsa": null,  # placeholder: Attenzione Polizia / Rivalità Criminale non esistono ancora (fase futura)
+		"evento_casuale": evento_info.get("evento"),
 	}
 
 	if roll.successo:
 		var effetto := ActionVariance.effetto_variato(azione.effetto_sabbia_padre_ore, _rng)
 		sabbia_padre_ore += effetto
 		risultato.effetto_sabbia_padre_ore = effetto
-	elif _is_azione_illegale(azione):
-		risultato.conseguenza_risorsa = "rivalita_criminale_o_attenzione_polizia (fallimento%s)" % (
-			"_critico" if roll.fallimento_critico else ""
-		)
+		if azione.nome == AZIONE_DECREMENTO_ATTENZIONE_POLIZIA:
+			attenzione_polizia = _clamp_risorsa(attenzione_polizia - ATTENZIONE_POLIZIA_DECREMENTO_CORRUZIONE)
+		elif azione.nome == AZIONE_DECREMENTO_RIVALITA_CRIMINALE:
+			rivalita_criminale = _clamp_risorsa(rivalita_criminale - RIVALITA_CRIMINALE_DECREMENTO_TRIBUTO)
+		elif azione.nome == AZIONE_DECREMENTO_FAMA_PUBBLICA:
+			fama_pubblica = _clamp_risorsa(fama_pubblica - FAMA_PUBBLICA_DECREMENTO_BASSO_PROFILO)
+	elif CATEGORIE_POLIZIA_FAMA.has(azione.categoria):
+		var incremento := ATTENZIONE_POLIZIA_INCREMENTO_FALLIMENTO_CRITICO if roll.fallimento_critico else ATTENZIONE_POLIZIA_INCREMENTO_FALLIMENTO
+		attenzione_polizia = _clamp_risorsa(attenzione_polizia + incremento)
+
+	karma = clampf(karma + _peso_karma(azione.moralita), -RISORSA_MAX, RISORSA_MAX)
 
 	risultato["tempo_figlia_ore"] = tempo_figlia_ore
 	risultato["sabbia_padre_ore"] = sabbia_padre_ore
@@ -176,7 +485,10 @@ func applica_azione_con_dado(
 ## sempre; non ha alcun effetto diretto su Sabbia-Padre (solo tempo perso in
 ## caso di incidente).
 func applica_spostamento() -> Dictionary:
-	turno += 1
+	if not patto_in_sospeso.is_empty():
+		return _patto_in_sospeso_blocca()
+
+	var evento_info := _avanza_turno()
 	var esito := Spostamento.esegui(_rng)
 	tempo_figlia_ore -= esito.durata_totale_ore
 
@@ -186,6 +498,7 @@ func applica_spostamento() -> Dictionary:
 		"spostamento": esito,
 		"costo_tempo_figlia_ore": esito.durata_totale_ore,
 		"effetto_sabbia_padre_ore": 0.0,
+		"evento_casuale": evento_info.get("evento"),
 		"tempo_figlia_ore": tempo_figlia_ore,
 		"sabbia_padre_ore": sabbia_padre_ore,
 	}
@@ -209,16 +522,72 @@ func _chiave_traccia(riga: TrackData) -> String:
 	return "%s|%d" % [riga.traccia, riga.rango]
 
 
+## Fede del Culto e Fede della Setta (Fase 10, design doc 7.2): mappa il
+## nome traccia -> chiave interna della Fede corrispondente. Solo Religiosa
+## e Occulto sono collegate a una Fede — le altre 5 tracce normali non
+## hanno alcuna interazione con questo sistema.
+const FEDE_TRACCE := {
+	"Religiosa (indulgenze)": "culto",
+	"Occulto (setta satanica)": "setta",
+}
+const FEDE_INCREMENTO_RANGO := 40.0
+const FEDE_DECREMENTO_RIVALE := 10.0
+const FEDE_SOGLIA_RANGO2 := 50.0
+
+
+func _fede(chiave: String) -> float:
+	return fede_culto if chiave == "culto" else fede_setta
+
+
+func _imposta_fede(chiave: String, valore: float) -> void:
+	var v := clampf(valore, 0.0, RISORSA_MAX)
+	if chiave == "culto":
+		fede_culto = v
+	else:
+		fede_setta = v
+
+
+## Completare il Rango 1 di Religiosa/Occulto alza la Fede corrispondente
+## di 40 e abbassa l'ALTRA di 10 (design doc 7.2: le due fedi sono in
+## competizione, un passo verso l'una allontana dall'altra); completare il
+## Rango 2 alza solo la Fede corrispondente di altri 40, senza toccare
+## l'altra una seconda volta.
+func _aggiorna_fede_dopo_traccia(riga: TrackData) -> void:
+	if not FEDE_TRACCE.has(riga.traccia):
+		return
+	var chiave: String = FEDE_TRACCE[riga.traccia]
+	_imposta_fede(chiave, _fede(chiave) + FEDE_INCREMENTO_RANGO)
+	if riga.rango == 1:
+		var altra_chiave := "setta" if chiave == "culto" else "culto"
+		_imposta_fede(altra_chiave, _fede(altra_chiave) - FEDE_DECREMENTO_RIVALE)
+
+
+## True se il Rango 2 di Religiosa/Occulto è bloccato SOLO dalla Fede
+## insufficiente (il prerequisito di rango è già soddisfatto) — Fase 10,
+## per distinguere questo caso dal normale "manca ancora il Rango 1" in
+## UI/loop testuale (design doc: l'azione resta visibile ma non
+## selezionabile, con un messaggio esplicativo dedicato).
+func traccia_bloccata_da_fede(riga: TrackData) -> bool:
+	if riga.rango != 2 or not FEDE_TRACCE.has(riga.traccia):
+		return false
+	if tracce_raggiunte.get(riga.traccia, 0) < 1:
+		return false
+	return _fede(FEDE_TRACCE[riga.traccia]) < FEDE_SOGLIA_RANGO2
+
+
 ## True se questa riga (Rango 1 o Rango 2 di una traccia) può essere
 ## tentata ora: serve che il Rango precedente della stessa traccia sia già
 ## stato raggiunto (per il Rango 1 questo è automaticamente vero, essendo
-## 0 == 1-1) E che questa riga non sia già stata tentata in questa run —
-## riuscita o fallita, vedi applica_traccia().
+## 0 == 1-1), che questa riga non sia già stata tentata in questa run —
+## riuscita o fallita, vedi applica_traccia() — e, SOLO per il Rango 2 di
+## Religiosa/Occulto (Fase 10), che la Fede corrispondente sia >= 50.
 func traccia_disponibile(riga: TrackData) -> bool:
 	if azioni_uniche_usate.has(_chiave_traccia(riga)):
 		return false
 	var progresso: int = tracce_raggiunte.get(riga.traccia, 0)
-	return progresso == riga.rango - 1
+	if progresso != riga.rango - 1:
+		return false
+	return not traccia_bloccata_da_fede(riga)
 
 
 ## Applica il tentativo di salire di rango in una traccia: stesso motore di
@@ -233,6 +602,13 @@ func traccia_disponibile(riga: TrackData) -> bool:
 ## sbloccarsi, dato che richiede il Rango 1 completato con successo); un
 ## fallimento sul Rango 2 lascia valido il Rango 1 già raggiunto ma
 ## preclude il Rango 2.
+##
+## Fase 10: un successo sulla traccia Criminale alza Rivalità Criminale; un
+## successo di Rango 2 su una traccia legittima (Lavoro/Politica/Bancaria/
+## Religiosa) alza Fama Pubblica; un successo su Religiosa/Occulto
+## aggiorna le rispettive Fede (vedi _aggiorna_fede_dopo_traccia). Il
+## Rango 2 di Religiosa/Occulto richiede anche Fede >= 50, controllato da
+## traccia_disponibile()/traccia_bloccata_da_fede().
 func applica_traccia(
 	riga: TrackData,
 	modo: DiceSystem.RollMode = DiceSystem.RollMode.NORMALE,
@@ -240,11 +616,17 @@ func applica_traccia(
 ) -> Dictionary:
 	if not traccia_disponibile(riga):
 		var motivo := "già tentata in questa run (riuscita o fallita)."
-		if riga.rango > 1 and tracce_raggiunte.get(riga.traccia, 0) < riga.rango - 1:
+		if traccia_bloccata_da_fede(riga):
+			motivo = "richiede Fede %s >= %d (attualmente %d)." % [
+				FEDE_TRACCE[riga.traccia], int(FEDE_SOGLIA_RANGO2), int(_fede(FEDE_TRACCE[riga.traccia]))
+			]
+		elif riga.rango > 1 and tracce_raggiunte.get(riga.traccia, 0) < riga.rango - 1:
 			motivo = "serve prima completare con successo il Rango %d della stessa traccia." % (riga.rango - 1)
 		return {"rifiutata": true, "motivo": motivo}
+	if not patto_in_sospeso.is_empty():
+		return _patto_in_sospeso_blocca()
 
-	turno += 1
+	var evento_info := _avanza_turno()
 	var costo := ActionVariance.costo_variato(riga.costo_tempo_figlia_ore, _rng)
 	tempo_figlia_ore -= costo
 	azioni_uniche_usate[_chiave_traccia(riga)] = true
@@ -260,6 +642,7 @@ func applica_traccia(
 		"roll": roll,
 		"successo": roll.successo,
 		"effetto_sabbia_padre_ore": 0.0,
+		"evento_casuale": evento_info.get("evento"),
 	}
 
 	if roll.successo:
@@ -267,6 +650,13 @@ func applica_traccia(
 		sabbia_padre_ore += effetto
 		risultato.effetto_sabbia_padre_ore = effetto
 		tracce_raggiunte[riga.traccia] = riga.rango
+		_aggiorna_fede_dopo_traccia(riga)
+
+		if riga.traccia == "Criminale":
+			var incremento_rivalita: float = RIVALITA_CRIMINALE_INCREMENTO_RANGO2 if riga.rango == 2 else RIVALITA_CRIMINALE_INCREMENTO_RANGO1
+			rivalita_criminale = _clamp_risorsa(rivalita_criminale + incremento_rivalita)
+		if riga.rango == 2 and TRACCE_LEGITTIME.has(riga.traccia):
+			fama_pubblica = _clamp_risorsa(fama_pubblica + FAMA_PUBBLICA_INCREMENTO_RANGO_LEGITTIMO)
 
 	risultato["tempo_figlia_ore"] = tempo_figlia_ore
 	risultato["sabbia_padre_ore"] = sabbia_padre_ore
@@ -378,6 +768,8 @@ func applica_cash_in(
 			"rifiutata": true,
 			"motivo": "servono almeno 2 tracce diverse a Rango 2, oppure il cash-in è già stato tentato in questa run.",
 		}
+	if not patto_in_sospeso.is_empty():
+		return _patto_in_sospeso_blocca()
 
 	var combo := combo_tracce()
 	var n := combo.size()
@@ -386,7 +778,7 @@ func applica_cash_in(
 	for nome in combo:
 		valore_base += valore_base_traccia(nome)
 
-	turno += 1
+	var evento_info := _avanza_turno()
 	var costo := ActionVariance.costo_variato(CASH_IN_COSTO_ORE, _rng)
 	tempo_figlia_ore -= costo
 	azioni_uniche_usate["cashin"] = true
@@ -402,12 +794,15 @@ func applica_cash_in(
 		"roll": roll,
 		"successo": roll.successo,
 		"effetto_sabbia_padre_ore": 0.0,
+		"evento_casuale": evento_info.get("evento"),
 	}
 
 	if roll.successo:
 		var effetto := ActionVariance.effetto_variato(valore_base * moltiplicatore, _rng)
 		sabbia_padre_ore += effetto
 		risultato.effetto_sabbia_padre_ore = effetto
+		if combo.has("Criminale"):
+			rivalita_criminale = _clamp_risorsa(rivalita_criminale + RIVALITA_CRIMINALE_INCREMENTO_CASHIN)
 	else:
 		for nome in combo:
 			for rango in [1, 2]:
@@ -468,8 +863,10 @@ func applica_sottotrama(
 		if sub.prerequisito != "" and not azione_completata_con_successo(sub.prerequisito):
 			motivo = "richiede prima di completare con successo l'azione \"%s\" in questa run." % sub.prerequisito
 		return {"rifiutata": true, "motivo": motivo}
+	if not patto_in_sospeso.is_empty():
+		return _patto_in_sospeso_blocca()
 
-	turno += 1
+	var evento_info := _avanza_turno()
 	var costo := ActionVariance.costo_variato(sub.costo_tempo_figlia_ore, _rng)
 	tempo_figlia_ore -= costo
 	azioni_uniche_usate[_chiave_sottotrama(sub)] = true
@@ -483,12 +880,15 @@ func applica_sottotrama(
 		"roll": roll,
 		"successo": roll.successo,
 		"effetto_sabbia_padre_ore": 0.0,
+		"evento_casuale": evento_info.get("evento"),
 	}
 
 	if roll.successo:
 		var effetto := ActionVariance.effetto_variato(sub.effetto_sabbia_padre_ore, _rng)
 		sabbia_padre_ore += effetto
 		risultato.effetto_sabbia_padre_ore = effetto
+		if SOTTOTRAME_ORGANIZZAZIONE.has(sub.nome):
+			rivalita_criminale = _clamp_risorsa(rivalita_criminale + RIVALITA_CRIMINALE_INCREMENTO_SOTTOTRAMA)
 
 	risultato["tempo_figlia_ore"] = tempo_figlia_ore
 	risultato["sabbia_padre_ore"] = sabbia_padre_ore

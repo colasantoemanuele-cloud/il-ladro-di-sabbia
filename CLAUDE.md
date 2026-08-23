@@ -18,13 +18,19 @@ Dettaglio narrativo ed economico completo: `Il_ladro_di_sabbia_design_doc.docx`
 `Il_ladro_di_sabbia_elementi_mancanti.docx`, numeri in
 `ladro_di_sabbia_bilanciamento.xlsx`.
 
-**Scope attuale**: loop core (60 azioni, doppio countdown, dado d20,
-donazione, punteggio, varianza roguelite) + le 7 tracce normali + le 10
-sottotrame endgame + le sinergie tra tracce (Blocco Fase 9, completo:
-9a+9b+9c). Le 5 risorse con effetti reali (Fase 10), Eterni, Stregatto,
-contenuti narrativi: fasi successive, non ancora iniziate. **Ambiguità
-aperta da confermare con l'autore prima di considerare il tetto economico
-definitivo**: la formula del cash-in di sinergia — vedi "Fase 9c" più sotto.
+**Scope attuale**: loop core (62 azioni — 60 originali + 2 aggiunte in Fase
+10, doppio countdown, dado d20, donazione, punteggio, varianza roguelite) +
+le 7 tracce normali + le 10 sottotrame endgame + le sinergie tra tracce
+(Blocco Fase 9, completo: 9a+9b+9c) + le 5 risorse con effetti reali
+(Attenzione Polizia, Rivalità Criminale, Fama Pubblica, Karma persistente,
+Fede del Culto/della Setta) + una versione meccanica minima (dialoghi
+segnaposto) del Patto con lo Stregatto (Fase 10, completa). Eterni, il
+personaggio scritto per esteso dello Stregatto, contenuti narrativi: fasi
+successive, non ancora iniziate. **Ambiguità aperte da confermare con
+l'autore prima di considerare il tetto economico definitivo**: la formula
+del cash-in di sinergia (vedi "Fase 9c" più sotto) e la soglia di Fede
+50 per il Rango 2 di Religiosa/Occulto, che con le sole regole date lo
+rende irraggiungibile in pratica (vedi "Fase 10" più sotto).
 
 ## Convenzioni di codice
 
@@ -708,3 +714,177 @@ godot --headless --path . -- --test-save-read
     `GameState.applica_cash_in()` sia `tools/balance_ceiling.py`
     andranno corretti di conseguenza — NON ho corretto nulla
     unilateralmente, come da istruzioni.
+- **Fase 10 (le 5 risorse + Patto con lo Stregatto minimo)**: fatto.
+  Attenzione Polizia / Rivalità Criminale / Fama Pubblica (0-100, per run,
+  azzerate a inizio run, salgono/scendono SOLO tramite azioni dedicate —
+  mai passivamente) e Karma (-100/+100, **persistente** nel Profilo
+  Persistente, Fase 7) implementati in `scripts/core/game_state.gd`.
+  - **Formula comune malus/Svantaggio** (`_malus_risorsa`,
+    `_svantaggio_da_risorsa`): malus al tiro = `-floor(valore/20)` (0 a
+    -5); Svantaggio (non cumulativo tra le tre risorse: conta come un
+    solo Svantaggio) quando il valore **supera** 50 (soglia esclusiva:
+    50 esatto non dà ancora Svantaggio). La soglia 75 resta un
+    placeholder per la gravità degli eventi futuri, nessun secondo malus
+    implementato.
+  - **Ambito Attenzione Polizia/Fama Pubblica**
+    (`_modificatore_polizia_fama`): le 7 categorie
+    `CATEGORIE_POLIZIA_FAMA` (Furto, Crimine, Crimine organizzato,
+    Minaccia 1 a 1, Tradimento, Corruzione, Azzardo). Fama Pubblica si
+    somma SOLO se il giocatore ha già raggiunto almeno un Rango 2 in una
+    traccia `TRACCE_LEGITTIME` (Lavoro/Politica/Bancaria/Religiosa) in
+    questa run — altrimenti pesa 0, verificato esplicitamente in
+    `--test-fase10`.
+  - **Rivalità Criminale**: non è basata su categoria (decisione
+    delegata dall'autore, "usa il buon senso, documenta"). Sale con
+    successi sulla traccia Criminale (Rango 1: +15, Rango 2: +25), con
+    le 2 sottotrame giudicate "legate all'organizzazione"
+    (`SOTTOTRAME_ORGANIZZAZIONE`: "Il tesoro del vecchio boss" e "La
+    cassa di guerra della vecchia organizzazione", scelte perché
+    entrambe coinvolgono esplicitamente il boss/l'organizzazione nel
+    testo — non colonne Excel, da confermare) con +15, e con un cash-in
+    di sinergia che include la traccia Criminale nella combo con +20.
+  - **Karma**: peso per azione dalla colonna Moralità (Estrema -5, Molto
+    sporca -3, Sporca -2, Ambigua -1, Pulita +1, Pulita/altruista +2,
+    tutte le altre 0 — incluse le etichette ibride come
+    "Pulita/ambigua"), applicato SEMPRE (successo o fallimento: il peso
+    riflette la scelta, non l'esito), MAI sulle azioni "una tantum" già
+    esaurite ovviamente (l'azione va comunque rifiutata prima). Le
+    etichette con un suffisso tra parentesi (es. "Ambigua (costo
+    emotivo)") contano come la loro base (`_peso_karma`, taglia al primo
+    " ("). Persiste tra le run tramite il Profilo Persistente, nessuna
+    correzione artificiale (decisione confermata dall'autore).
+  - **Nuove azioni per colmare il vuoto di riduzione** (istruzione
+    esplicita: "decidi tu... purché ogni risorsa abbia almeno un modo
+    concreto di scendere"), aggiunte SIA all'Excel (foglio Azioni, righe
+    68-69) SIA rigenerate in `data/azioni.json` via
+    `tools/extract_azioni.py` (ora 62 azioni, non più 60 — contatore di
+    sanità aggiornato nello script):
+    - **"Pagare un tributo ai rivali"** (Relazioni, costo 4h, -10.000€,
+      rischio 15%, moralità Ambigua): riduce Rivalità Criminale di 20 al
+      successo (`RIVALITA_CRIMINALE_DECREMENTO_TRIBUTO`).
+    - **"Mantenere un basso profilo pubblico"** (Relazioni, costo 6h,
+      -1.000€, rischio 5%, moralità Neutra): riduce Fama Pubblica di 20
+      al successo (`FAMA_PUBBLICA_DECREMENTO_BASSO_PROFILO`).
+    - Attenzione Polizia riusa l'azione già esistente "Corrompere un
+      poliziotto" (-25 al successo,
+      `ATTENZIONE_POLIZIA_DECREMENTO_CORRUZIONE`), come richiesto
+      esplicitamente dall'autore.
+    - **Incrementi/decrementi numerici**: NON specificati dall'autore
+      (solo "piccolo aumento" per Attenzione Polizia) — tutti valori
+      placeholder miei (10 su fallimento semplice, 20 su fallimento
+      critico per Attenzione Polizia; 15/25 per Rango 1/2 Criminale; 15
+      per le sottotrame; 20 per il cash-in; 20/25/20 per i tre
+      decrementi), documentati come costanti nominate in `game_state.gd`
+      e qui, da confermare con l'autore.
+  - **Sistema minimo di eventi casuali** (design doc: "ogni 5-8 azioni
+    compiute", scelta esatta delegata a me): fissato **6** (valore
+    singolo al centro del range, non re-randomizzato ogni volta —
+    `SOGLIA_EVENTO_TURNI`). Conta OGNI turno che consuma tempo (azione,
+    traccia, sottotrama, cash-in, spostamento — tutti ora passano da
+    `_avanza_turno()` invece di un `turno += 1` diretto), non solo le 62
+    azioni core, altrimenti una run "solo tracce/sottotrame" non
+    vedrebbe mai un evento. Pesca dalla categoria "Evento" del foglio
+    Azioni (9 righe): con Karma corrente >= 50 pesa 3x le voci
+    "Pulita"; con Karma <= -50 pesa 3x "Negativo"/"Sporca"; altrimenti
+    uniforme (`_pesca_pesata`). L'evento pescato si risolve subito con
+    un dado modificato dal Karma corrente (bipolare: malus/bonus
+    `floor(|karma|/20)` col segno di karma, Vantaggio se karma >= 50,
+    Svantaggio se karma <= -50 — `_modificatore_karma_eventi`), MAI
+    applicato alle azioni scelte attivamente, solo agli eventi.
+  - **Patto con lo Stregatto — versione meccanica minima** (design doc
+    sezione 9; il personaggio scritto per esteso resta per la Fase 11,
+    qui SOLO dialoghi segnaposto marcati `[PLACEHOLDER STREGATTO]`).
+    Innestato nello stesso selettore di eventi
+    (`_pesca_evento_casuale`): se il **Karma a inizio run** (NON quello
+    corrente, che può muoversi durante la run — congelato al primo
+    turno risolto in `karma_inizio_run`, dato che `karma` viene
+    assegnato dal chiamante dal Profilo Persistente DOPO il costruttore
+    di `GameState`) è <= -50, un tiro al 15% (`STREGATTO_PROBABILITA`)
+    decide se l'evento pescato è il patto invece di un evento normale.
+    Prezzo: 50% della Sabbia-Padre posseduta al momento, arrotondata
+    (`STREGATTO_PREZZO_FRAZIONE`); effetto se accettato: Karma +30
+    (`STREGATTO_KARMA_EFFETTO`) SENZA clamp a zero (può portare il
+    Karma sopra zero anche partendo da molto negativo — clampato solo
+    al range generale ±100). Il giocatore può rifiutare
+    (`GameState.risolvi_patto_stregatto(accetta)`). **Finché il patto è
+    in sospeso, GameState rifiuta ogni altro tentativo di
+    azione/traccia/sottotrama/cash-in/spostamento**
+    (`_patto_in_sospeso_blocca`, applicato a livello di logica di
+    gioco, non solo UI) — il giocatore deve rispondere prima di
+    continuare. UI (`scripts/ui/game_ui.gd`): barra dedicata con
+    messaggio e due bottoni Accetta/Rifiuta, che appare quando
+    `stato.patto_in_sospeso` non è vuoto e disabilita tutti gli altri
+    controlli nel frattempo (`_blocca_controlli_per_patto`). Loop
+    testuale (`scripts/main.gd`): prompt bloccante `si/no` via stdin
+    (`_gestisci_evento_casuale`).
+  - **Fede del Culto / Fede della Setta** (0-100, per run, NON
+    coincidono col Rango della traccia): completare il Rango 1 di
+    Religiosa (indulgenze) o di Occulto (setta satanica) alza la Fede
+    corrispondente di 40 e abbassa l'ALTRA di 10
+    (`_aggiorna_fede_dopo_traccia`); completare il Rango 2 alza la Fede
+    corrispondente di altri 40. Il Rango 2 di queste due tracce richiede
+    ORA due condizioni: il consueto prerequisito di Rango 1 raggiunto E
+    Fede corrispondente >= 50 (`FEDE_SOGLIA_RANGO2`) — se manca solo la
+    seconda, `traccia_disponibile()` resta false ma
+    `traccia_bloccata_da_fede()` la distingue esplicitamente dal caso
+    "manca ancora il Rango 1", con un messaggio dedicato sia in UI sia
+    nel loop testuale ("richiede Fede X >= 50, attuale Y").
+  - **⚠️ TROVATO DURANTE LA VERIFICA — probabile buco di bilanciamento,
+    non corretto unilateralmente**: con le regole esattamente come
+    specificate, il Rango 2 di Religiosa/Occulto risulta **IRRAGGIUNGIBILE
+    nella pratica**. Un singolo successo al Rango 1 porta la Fede
+    corrispondente a 40, sotto la soglia 50 richiesta per il Rango 2 — e
+    nessun'altra azione o meccanismo definito nelle istruzioni della
+    Fase 10 alza ulteriormente la Fede (il Rango 1 è "Unica per run",
+    quindi non ritentabile per accumulare +40 una seconda volta). Ho
+    verificato la conseguenza pratica rilanciando
+    `BalanceSimulator.simula_tripletta_storica()` (la sequenza
+    scriptata Azzardo+Bancaria+Religiosa usata dalla Fase 9c per
+    misurare la sinergia): **probabilità di successo dell'intera catena
+    crollata dal 15,37% (fine Fase 9c) allo 0,00%**, perché il tentativo
+    di Religiosa Rango 2 viene sempre rifiutato per Fede insufficiente
+    prima ancora di tirare il dado. `tools/balance_ceiling.py` (che non
+    modella la Fede né alcuna dipendenza dallo stato di gioco) non
+    riflette questo blocco e continua a riportare 293,43 anni come se il
+    Rango 2 fosse raggiungibile: i due strumenti sono quindi ora
+    disallineati su questo punto specifico. Non ho corretto la soglia né
+    aggiunto fonti di Fede extra di mia iniziativa, perché i numeri (40,
+    10, 50) sono stati dati esplicitamente dall'autore, non lasciati
+    alla mia discrezione — serve una decisione dell'autore su una di:
+    abbassare la soglia (es. a 40), aggiungere una fonte di Fede
+    aggiuntiva non ancora specificata, o confermare che il Rango 2 di
+    queste due tracce sia deliberatamente fuori portata in una singola
+    run "pulita" (riservato a un percorso Karma/eventi diverso, non
+    ancora costruito).
+  - **Verificato**: nuovo `--test-fase10` (`scripts/main.gd`), 13
+    blocchi di asserzioni — formula malus/Svantaggio, ambito
+    Polizia/Fama, pesi Karma (incluse varianti con suffisso), Attenzione
+    Polizia su/giù, Karma sempre aggiornato, cadenza eventi esattamente
+    ogni 6 turni, Fede dopo Rango 1, gating Rango 2 da Fede, Rivalità
+    Criminale su/giù, proposta/accettazione/blocco del Patto con lo
+    Stregatto, nessuna proposta di patto con Karma iniziale > -50. Tutti
+    PASS. Nessuna regressione su `--test-ui` (contatore azioni aggiornato
+    da 60 a 62), `--test-sinergie`, `--test-save-write/read`, `--play`.
+  - **Tetto di riferimento aggiornato**: `tools/balance_ceiling.py`
+    **invariato** (42,23 / 67,58 / 109,26 / 293,43 anni per i quattro
+    livelli) — le 2 nuove azioni hanno effetto economico negativo
+    (costano Sabbia-Padre), quindi il knapsack non le seleziona mai;
+    lo strumento non modella comunque risorse/dado, quindi non poteva
+    comunque riflettere i nuovi malus. Monte Carlo (`--simulate=2000`,
+    con la Fede/Attenzione Polizia/eventi ora attivi): politica `greedy`
+    media **58,13 anni** (contro 58,25 di fine Fase 9b/prima della Fase
+    9c — sostanzialmente invariato, atteso: nessuna politica euristica
+    tenta mai spontaneamente il cash-in o le tracce a lungo termine
+    abbastanza da accumulare Attenzione Polizia/Rivalità Criminale
+    significative in una run breve), max osservato 114,82. La sequenza
+    scriptata tripletta storica è l'unico numero cambiato in modo
+    sostanziale, per il motivo Fede spiegato sopra (0,00% invece di
+    15,37%) — non è un effetto generale di bilanciamento, è specifico al
+    gate di Fede sulla Religiosa.
+  - **Semplificazione nota, non richiesta esplicitamente**: la donazione
+    finale (`GameState.dona()`) NON verifica `patto_in_sospeso` a
+    livello di logica di gioco (il blocco è solo lato UI/testuale,
+    disabilitando il controllo mentre il patto è aperto) — un accesso
+    diretto a `dona()` bypassando l'interfaccia potrebbe teoricamente
+    donare con un patto ancora aperto. Non specificato dalle istruzioni
+    della Fase 10, lasciato così per non estendere lo scope.
