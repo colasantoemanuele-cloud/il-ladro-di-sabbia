@@ -26,11 +26,12 @@ le 7 tracce normali + le 10 sottotrame endgame + le sinergie tra tracce
 Fede del Culto/della Setta) + una versione meccanica minima (dialoghi
 segnaposto) del Patto con lo Stregatto (Fase 10, completa). Eterni, il
 personaggio scritto per esteso dello Stregatto, contenuti narrativi: fasi
-successive, non ancora iniziate. **Ambiguità aperte da confermare con
+successive, non ancora iniziate. **Ambiguità aperta da confermare con
 l'autore prima di considerare il tetto economico definitivo**: la formula
-del cash-in di sinergia (vedi "Fase 9c" più sotto) e la soglia di Fede
-50 per il Rango 2 di Religiosa/Occulto, che con le sole regole date lo
-rende irraggiungibile in pratica (vedi "Fase 10" più sotto).
+del cash-in di sinergia — vedi "Fase 9c" più sotto. (La soglia di Fede per
+il Rango 2 di Religiosa/Occulto, inizialmente 50 e trovata irraggiungibile
+in pratica, è stata corretta a 40 e confermata dall'autore — vedi "Fase 10"
+più sotto, non è più un'ambiguità aperta.)
 
 ## Convenzioni di codice
 
@@ -824,40 +825,47 @@ godot --headless --path . -- --test-save-read
     (`_aggiorna_fede_dopo_traccia`); completare il Rango 2 alza la Fede
     corrispondente di altri 40. Il Rango 2 di queste due tracce richiede
     ORA due condizioni: il consueto prerequisito di Rango 1 raggiunto E
-    Fede corrispondente >= 50 (`FEDE_SOGLIA_RANGO2`) — se manca solo la
+    Fede corrispondente >= 40 (`FEDE_SOGLIA_RANGO2`) — se manca solo la
     seconda, `traccia_disponibile()` resta false ma
     `traccia_bloccata_da_fede()` la distingue esplicitamente dal caso
     "manca ancora il Rango 1", con un messaggio dedicato sia in UI sia
-    nel loop testuale ("richiede Fede X >= 50, attuale Y").
-  - **⚠️ TROVATO DURANTE LA VERIFICA — probabile buco di bilanciamento,
-    non corretto unilateralmente**: con le regole esattamente come
-    specificate, il Rango 2 di Religiosa/Occulto risulta **IRRAGGIUNGIBILE
-    nella pratica**. Un singolo successo al Rango 1 porta la Fede
-    corrispondente a 40, sotto la soglia 50 richiesta per il Rango 2 — e
-    nessun'altra azione o meccanismo definito nelle istruzioni della
-    Fase 10 alza ulteriormente la Fede (il Rango 1 è "Unica per run",
-    quindi non ritentabile per accumulare +40 una seconda volta). Ho
-    verificato la conseguenza pratica rilanciando
-    `BalanceSimulator.simula_tripletta_storica()` (la sequenza
-    scriptata Azzardo+Bancaria+Religiosa usata dalla Fase 9c per
-    misurare la sinergia): **probabilità di successo dell'intera catena
-    crollata dal 15,37% (fine Fase 9c) allo 0,00%**, perché il tentativo
-    di Religiosa Rango 2 viene sempre rifiutato per Fede insufficiente
-    prima ancora di tirare il dado. `tools/balance_ceiling.py` (che non
-    modella la Fede né alcuna dipendenza dallo stato di gioco) non
-    riflette questo blocco e continua a riportare 293,43 anni come se il
-    Rango 2 fosse raggiungibile: i due strumenti sono quindi ora
-    disallineati su questo punto specifico. Non ho corretto la soglia né
-    aggiunto fonti di Fede extra di mia iniziativa, perché i numeri (40,
-    10, 50) sono stati dati esplicitamente dall'autore, non lasciati
-    alla mia discrezione — serve una decisione dell'autore su una di:
-    abbassare la soglia (es. a 40), aggiungere una fonte di Fede
-    aggiuntiva non ancora specificata, o confermare che il Rango 2 di
-    queste due tracce sia deliberatamente fuori portata in una singola
-    run "pulita" (riservato a un percorso Karma/eventi diverso, non
-    ancora costruito).
-  - **Verificato**: nuovo `--test-fase10` (`scripts/main.gd`), 13
-    blocchi di asserzioni — formula malus/Svantaggio, ambito
+    nel loop testuale ("richiede Fede X >= 40, attuale Y").
+  - **Correzione post-Fase-10 (confermata dall'autore) — soglia di Fede
+    50 → 40**: la prima verifica aveva trovato il Rango 2 di
+    Religiosa/Occulto **irraggiungibile nella pratica** con soglia 50 (un
+    singolo successo al Rango 1 porta la Fede a 40, e nessun'altra azione
+    la alza ulteriormente — il Rango 1 è "Unica per run", non
+    ritentabile). L'autore ha confermato la causa e corretto la soglia a
+    40 (`FEDE_SOGLIA_RANGO2`), lasciando invariati il guadagno di +40 per
+    Rango 1 riuscito e il malus di -10 sulla Fede rivale: un singolo
+    Rango 1 pulito su una sola traccia religiosa sblocca ora direttamente
+    il Rango 2 di quella traccia, mantenendo l'attrito tra le due Fedi
+    per chi tenta entrambe nella stessa run (tentare l'altra traccia fa
+    scendere la propria Fede sotto soglia). Verificato: la sequenza
+    scriptata `BalanceSimulator.simula_tripletta_storica()`
+    (Azzardo+Bancaria+Religiosa, Fase 9c) è tornata dallo 0,00% (bug) al
+    **15,00%** su 2000 run (riferimento storico Fase 9c: 15,37% — stessa
+    fascia).
+  - `tools/balance_ceiling.py` esteso con `apply_tracce_religiose()`: una
+    versione SEMPLIFICATA del vincolo di Fede (il vincolo reale è
+    sequenziale/stateful — dipende dall'ordine in cui si tentano le due
+    tracce religiose — non riducibile esattamente a un knapsack, che non
+    ha nozione di ordine). Regola usata: il Rango 2 di una traccia
+    religiosa è raggiungibile SOLO se quella traccia ha completato il
+    proprio Rango 1 E l'altra traccia religiosa non è stata toccata
+    affatto (nemmeno il solo Rango 1) nella stessa sequenza — più severa
+    della regola reale in un caso limite (nella realtà la traccia
+    completata per ULTIMA può comunque raggiungere il proprio Rango 2
+    anche se l'altra è stata tentata prima), ma esclude correttamente la
+    combinazione realmente impossibile di ENTRAMBE le tracce religiose a
+    Rango 2 nella stessa run. Le 91 combo di sinergia che includerebbero
+    entrambe le tracce religiose a Rango 2 vengono ora scartate a monte
+    (16 su 91, segnalate a schermo) invece di essere contate come
+    raggiungibili.
+  - **Verificato**: nuovo `--test-fase10` (`scripts/main.gd`), 14 blocchi
+    di asserzioni (aggiunta una verifica dedicata: un singolo Rango 1
+    riuscito su una traccia religiosa sblocca DA SOLO il Rango 2 della
+    stessa traccia con la soglia 40) — formula malus/Svantaggio, ambito
     Polizia/Fama, pesi Karma (incluse varianti con suffisso), Attenzione
     Polizia su/giù, Karma sempre aggiornato, cadenza eventi esattamente
     ogni 6 turni, Fede dopo Rango 1, gating Rango 2 da Fede, Rivalità
@@ -865,22 +873,19 @@ godot --headless --path . -- --test-save-read
     Stregatto, nessuna proposta di patto con Karma iniziale > -50. Tutti
     PASS. Nessuna regressione su `--test-ui` (contatore azioni aggiornato
     da 60 a 62), `--test-sinergie`, `--test-save-write/read`, `--play`.
-  - **Tetto di riferimento aggiornato**: `tools/balance_ceiling.py`
-    **invariato** (42,23 / 67,58 / 109,26 / 293,43 anni per i quattro
-    livelli) — le 2 nuove azioni hanno effetto economico negativo
-    (costano Sabbia-Padre), quindi il knapsack non le seleziona mai;
-    lo strumento non modella comunque risorse/dado, quindi non poteva
-    comunque riflettere i nuovi malus. Monte Carlo (`--simulate=2000`,
-    con la Fede/Attenzione Polizia/eventi ora attivi): politica `greedy`
-    media **58,13 anni** (contro 58,25 di fine Fase 9b/prima della Fase
-    9c — sostanzialmente invariato, atteso: nessuna politica euristica
-    tenta mai spontaneamente il cash-in o le tracce a lungo termine
-    abbastanza da accumulare Attenzione Polizia/Rivalità Criminale
-    significative in una run breve), max osservato 114,82. La sequenza
-    scriptata tripletta storica è l'unico numero cambiato in modo
-    sostanziale, per il motivo Fede spiegato sopra (0,00% invece di
-    15,37%) — non è un effetto generale di bilanciamento, è specifico al
-    gate di Fede sulla Religiosa.
+  - **Tetto di riferimento aggiornato**: `tools/balance_ceiling.py` **42,23
+    / 67,58 / 109,26 / 293,43 anni** per i quattro livelli —
+    **invariato numericamente** rispetto a prima della correzione: la
+    combo ottima (Azzardo+Bancaria+Religiosa) tocca una sola traccia
+    religiosa, quindi il nuovo vincolo di Fede non la penalizza; le 16
+    combo scartate perché includevano entrambe le tracce religiose non
+    erano comunque ottimali. Monte Carlo (`--simulate=2000`, con
+    Fede/Attenzione Polizia/eventi attivi): politica `greedy` media
+    **58,47 anni** (sostanzialmente in linea con la Fase 9c — nessuna
+    politica euristica tenta mai spontaneamente il cash-in o le tracce
+    religiose abbastanza da essere influenzata dal vincolo di Fede), max
+    osservato 111,65. La sequenza scriptata tripletta storica è tornata a
+    **15,00%** (era 15,37% a fine Fase 9c, 0,00% col bug pre-correzione).
   - **Semplificazione nota, non richiesta esplicitamente**: la donazione
     finale (`GameState.dona()`) NON verifica `patto_in_sospeso` a
     livello di logica di gioco (il blocco è solo lato UI/testuale,

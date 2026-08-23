@@ -435,13 +435,25 @@ func _run_test_fase10() -> void:
 
 	var riga_culto_2 := TrackDatabase.get_riga("Religiosa (indulgenze)", 2)
 	var sfe2 := GameState.new(6)
+	assert(not sfe2.traccia_disponibile(riga_culto_2), "Rango 2 deve restare bloccato senza il Rango 1")
 	sfe2.tracce_raggiunte["Religiosa (indulgenze)"] = 1
-	assert(not sfe2.traccia_disponibile(riga_culto_2), "Rango 2 deve restare bloccato con Fede < 50")
+	assert(not sfe2.traccia_disponibile(riga_culto_2), "Rango 2 deve restare bloccato con Fede < %.0f" % GameState.FEDE_SOGLIA_RANGO2)
 	assert(sfe2.traccia_bloccata_da_fede(riga_culto_2))
-	sfe2.fede_culto = 50.0
-	assert(sfe2.traccia_disponibile(riga_culto_2), "Rango 2 deve sbloccarsi con Fede >= 50 e Rango 1 già raggiunto")
+	sfe2.fede_culto = GameState.FEDE_SOGLIA_RANGO2
+	assert(sfe2.traccia_disponibile(riga_culto_2), "Rango 2 deve sbloccarsi con Fede >= soglia e Rango 1 già raggiunto")
 	assert(not sfe2.traccia_bloccata_da_fede(riga_culto_2))
-	print("OK: il Rango 2 di Religiosa/Occulto richiede sia il Rango 1 sia Fede corrispondente >= 50.")
+	print("OK: il Rango 2 di Religiosa/Occulto richiede sia il Rango 1 sia Fede corrispondente >= %.0f." % GameState.FEDE_SOGLIA_RANGO2)
+
+	# Correzione confermata dall'autore dopo la Fase 10: la soglia è stata
+	# abbassata da 50 a 40 esattamente perché un singolo Rango 1 riuscito dà
+	# +40 Fede — deve bastare da solo, senza bisogno di altre fonti.
+	var sfe3 := GameState.new(7)
+	sfe3._aggiorna_fede_dopo_traccia(TrackDatabase.get_riga("Religiosa (indulgenze)", 1))
+	sfe3.tracce_raggiunte["Religiosa (indulgenze)"] = 1
+	assert(sfe3.fede_culto == 40.0)
+	assert(sfe3.traccia_disponibile(riga_culto_2),
+		"un singolo Rango 1 riuscito (Fede 40) deve bastare da solo a sbloccare il Rango 2, senza altre fonti di Fede")
+	print("OK: un singolo Rango 1 riuscito su una traccia religiosa sblocca da solo il Rango 2 della stessa traccia (soglia 40).")
 
 	# --- Rivalità Criminale: traccia Criminale, sottotrame, tributo ----------
 	var riga_crim_1 := TrackDatabase.get_riga("Criminale", 1)
@@ -829,7 +841,7 @@ func _stampa_tracce(tracce: Array[TrackData], stato: GameState, offset: int) -> 
 			etichetta = " [FALLITA - non più tentabile]"
 		elif stato.traccia_bloccata_da_fede(t):
 			var chiave_fede: String = GameState.FEDE_TRACCE[t.traccia]
-			etichetta = " [richiede Fede %s >= 50, attuale %.0f]" % [chiave_fede, stato._fede(chiave_fede)]
+			etichetta = " [richiede Fede %s >= %.0f, attuale %.0f]" % [chiave_fede, GameState.FEDE_SOGLIA_RANGO2, stato._fede(chiave_fede)]
 		elif not stato.traccia_disponibile(t):
 			etichetta = " [richiede rango precedente]"
 		print("  %2d) %s Rango %d - %-40s costo=%5.1fh  effetto=%+9.1fh  rischio=%3d%%%s" % [

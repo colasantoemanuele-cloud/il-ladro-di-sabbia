@@ -270,8 +270,8 @@ func _aggiorna_bottoni_traccia() -> void:
 		elif stato.traccia_bloccata_da_fede(riga):
 			bottone.disabled = true
 			var chiave_fede: String = GameState.FEDE_TRACCE[riga.traccia]
-			bottone.text = _testo_bottone_traccia(riga) + " [richiede Fede %s >= 50, attuale %.0f]" % [
-				chiave_fede, stato._fede(chiave_fede)
+			bottone.text = _testo_bottone_traccia(riga) + " [richiede Fede %s >= %.0f, attuale %.0f]" % [
+				chiave_fede, GameState.FEDE_SOGLIA_RANGO2, stato._fede(chiave_fede)
 			]
 		else:
 			bottone.disabled = not stato.traccia_disponibile(riga)

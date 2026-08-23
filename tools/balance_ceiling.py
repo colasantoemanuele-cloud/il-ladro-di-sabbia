@@ -28,6 +28,13 @@ Metodo: knapsack misto sul budget di 168 ore intere.
     tracce NON coinvolte nella combo (ancora libere di essere skip/R1/R1+R2)
     e le sottotrame. Il tetto finale è il massimo tra "nessuna sinergia
     tentata" e il migliore tra tutte le 91 combo.
+  - Religiosa e Occulto (Fase 10, corretto dopo la Fase 10): il Rango 2 di
+    ciascuna richiede Fede corrispondente >= 40, e completare il Rango 1
+    dell'una abbassa la Fede dell'altra di 10 — le due tracce non sono più
+    indipendenti come le altre 5. Vedi apply_tracce_religiose() per la
+    versione semplificata del vincolo usata qui (un knapsack non modella
+    l'ordine di gioco): niente combo di sinergia può includere ENTRAMBE le
+    tracce religiose a Rango 2 (impossibile nella realtà).
 
 Uso: python3 tools/balance_ceiling.py
 """
@@ -108,6 +115,59 @@ def apply_track_groups(dp: list, tracce_per_nome: dict, escludi: set = frozenset
     return dp
 
 
+NOME_RELIGIOSA = "Religiosa (indulgenze)"
+NOME_OCCULTO = "Occulto (setta satanica)"
+TRACCE_RELIGIOSE = {NOME_RELIGIOSA, NOME_OCCULTO}
+
+
+def apply_tracce_religiose(dp: list, tracce_per_nome: dict) -> list:
+    """Fase 10 (correzione post-autore): il Rango 2 di Religiosa/Occulto
+    richiede Fede corrispondente >= 40 in GameState, e completare il Rango 1
+    dell'UNA abbassa la Fede dell'ALTRA di 10 — quindi le due tracce non
+    sono più indipendenti come le altre 5 (apply_track_groups le tratterebbe
+    come se lo fossero). Versione SEMPLIFICATA del vincolo reale (che è
+    sequenziale/stateful — dipende dall'ORDINE in cui si tentano le due
+    tracce — non riducibile esattamente a un knapsack, che non ha nozione
+    di ordine): il Rango 2 di una traccia religiosa è raggiungibile qui
+    SOLO se quella traccia ha completato il proprio Rango 1 E l'altra
+    traccia religiosa non è stata toccata affatto (nemmeno il solo Rango 1)
+    nella stessa sequenza. Più severa della regola reale in un caso limite
+    (nella realtà, la traccia completata per ULTIMA può comunque raggiungere
+    il proprio Rango 2 anche se l'altra è stata tentata prima — qui invece
+    nessuna delle due ci riesce se entrambe vengono toccate), ma esclude
+    correttamente la combinazione realmente impossibile di ENTRAMBE le
+    tracce religiose a Rango 2 nella stessa run, che prima di questa
+    correzione il knapsack contava come raggiungibile.
+    """
+    r1a, r2a = tracce_per_nome[NOME_RELIGIOSA][1], tracce_per_nome[NOME_RELIGIOSA].get(2)
+    r1b, r2b = tracce_per_nome[NOME_OCCULTO][1], tracce_per_nome[NOME_OCCULTO].get(2)
+
+    def c(row):
+        return int(row["costo_tempo_figlia_ore"])
+
+    def v(row):
+        return row["effetto_sabbia_padre_ore"]
+
+    opzioni = [(0, 0.0), (c(r1a), v(r1a)), (c(r1b), v(r1b)), (c(r1a) + c(r1b), v(r1a) + v(r1b))]
+    if r2a is not None:
+        opzioni.append((c(r1a) + c(r2a), v(r1a) + v(r2a)))
+    if r2b is not None:
+        opzioni.append((c(r1b) + c(r2b), v(r1b) + v(r2b)))
+
+    dp_prima_del_gruppo = dp.copy()
+    dp = dp.copy()
+    for t in range(BUDGET_ORE + 1):
+        migliore_t = dp[t]
+        for co, va in opzioni:
+            if co <= t:
+                candidato = dp_prima_del_gruppo[t - co] + va
+                if candidato > migliore_t:
+                    migliore_t = candidato
+        dp[t] = migliore_t
+    _forward_fill(dp)
+    return dp
+
+
 def apply_subplots(dp: list, sottotrame: list, costo_prerequisito_per_nome: dict) -> list:
     dp = dp.copy()
     for s in sottotrame:
@@ -147,7 +207,8 @@ def main() -> None:
     for r in righe_traccia:
         tracce_per_nome.setdefault(r["traccia"], {})[r["rango"]] = r
 
-    dp_con_tracce = apply_track_groups(dp_azioni, tracce_per_nome)
+    dp_con_tracce = apply_track_groups(dp_azioni, tracce_per_nome, escludi=TRACCE_RELIGIOSE)
+    dp_con_tracce = apply_tracce_religiose(dp_con_tracce, tracce_per_nome)
     tetto_con_tracce_anni = dp_con_tracce[BUDGET_ORE] / ORE_PER_ANNO
     print(f"Tetto deterministico AZIONI + TRACCE (senza sottotrame/sinergie): {tetto_con_tracce_anni:.2f} anni "
           f"({tetto_con_tracce_anni - tetto_solo_azioni_anni:+.2f} anni)\n")
@@ -176,8 +237,17 @@ def main() -> None:
     migliore_combo = None
     migliore_totale_ore = dp_senza_sinergia[BUDGET_ORE]
 
+    combo_religiose_scartate = 0
     for n, moltiplicatore in SINERGIA_MOLTIPLICATORI.items():
         for combo in combinations(nomi_tracce, n):
+            combo_set = set(combo)
+            if TRACCE_RELIGIOSE.issubset(combo_set):
+                # Vincolo di Fede (Fase 10): non si possono portare ENTRAMBE
+                # Religiosa e Occulto a Rango 2 nella stessa run — combo
+                # realmente impossibile, va scartata qui.
+                combo_religiose_scartate += 1
+                continue
+
             combo_costo = sum(costo_traccia_r1r2(t) for t in combo) + CASH_IN_COSTO_ORE
             if combo_costo > BUDGET_ORE:
                 continue
@@ -185,7 +255,17 @@ def main() -> None:
             combo_valore_totale = combo_valore_base * (1 + moltiplicatore)  # guadagno di rango + bonus cash-in
 
             budget_residuo = BUDGET_ORE - combo_costo
-            dp_resto = apply_track_groups(dp_azioni, tracce_per_nome, escludi=set(combo))
+            tracce_religiose_in_combo = combo_set & TRACCE_RELIGIOSE
+            if tracce_religiose_in_combo:
+                # Una sola traccia religiosa nel combo, già forzata a Rango 2:
+                # l'ALTRA deve restare del tutto intoccata nel resto del
+                # budget, altrimenti farebbe scendere la Fede della prima
+                # sotto la soglia 40 (vedi apply_tracce_religiose).
+                altra_religiosa = (TRACCE_RELIGIOSE - tracce_religiose_in_combo).pop()
+                dp_resto = apply_track_groups(dp_azioni, tracce_per_nome, escludi=combo_set | {altra_religiosa})
+            else:
+                dp_resto = apply_track_groups(dp_azioni, tracce_per_nome, escludi=combo_set | TRACCE_RELIGIOSE)
+                dp_resto = apply_tracce_religiose(dp_resto, tracce_per_nome)
             dp_resto = apply_subplots(dp_resto, sottotrame, costo_prerequisito_per_nome)
 
             totale_ore = combo_valore_totale + dp_resto[budget_residuo]
@@ -209,6 +289,8 @@ def main() -> None:
           f"({(tetto_anni/tetto_senza_sinergia_anni - 1)*100:+.1f}%)")
     print(f"  Soglia vittoria 100+100 anni = {100*ORE_PER_ANNO:,.0f} ore per personaggio")
     print(f"  Rapporto tetto/soglia-100-anni: {tetto_anni/100.0*100:.1f}%")
+    print(f"  ({combo_religiose_scartate} combo scartate perché includevano ENTRAMBE Religiosa e Occulto a "
+          f"Rango 2 — impossibile per il vincolo di Fede, Fase 10)")
 
     # --- AMBIGUITA' DA SEGNALARE: due letture possibili di "somma dei ---
     # valori base delle N tracce" per il cash-in, che il design doc non

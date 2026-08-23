@@ -35,7 +35,9 @@ var karma: float = 0.0
 ## traccia Religiosa/Occulto. Completare il Rango 1 di una delle due
 ## tracce alza la Fede corrispondente di 40 e abbassa l'altra di 10;
 ## completare il Rango 2 alza la Fede corrispondente di altri 40. Il
-## Rango 2 richiede ORA anche Fede corrispondente >= 50, oltre al
+## Rango 2 richiede ORA anche Fede corrispondente >= 40 (corretto da 50
+## dopo la Fase 10: un solo Rango 1 riuscito dà esattamente 40, quindi la
+## combo storica di un singolo Rango 1 pulito resta sufficiente), oltre al
 ## consueto prerequisito di rango — vedi traccia_disponibile().
 var fede_culto: float = 0.0
 var fede_setta: float = 0.0
@@ -532,7 +534,14 @@ const FEDE_TRACCE := {
 }
 const FEDE_INCREMENTO_RANGO := 40.0
 const FEDE_DECREMENTO_RIVALE := 10.0
-const FEDE_SOGLIA_RANGO2 := 50.0
+## Corretta da 50 a 40 (confermato dall'autore dopo la Fase 10): con la
+## soglia originale un singolo Rango 1 riuscito (+40 Fede) non bastava mai
+## a raggiungerla, rendendo il Rango 2 irraggiungibile in pratica — nessuna
+## azione colmava il divario di 10. A 40, un Rango 1 pulito su una sola
+## traccia religiosa sblocca subito il Rango 2 di quella traccia, mentre
+## l'attrito tra le due Fedi (-10 sulla rivale) resta reale per chi tenta
+## entrambe le tracce nella stessa run.
+const FEDE_SOGLIA_RANGO2 := 40.0
 
 
 func _fede(chiave: String) -> float:
@@ -580,7 +589,7 @@ func traccia_bloccata_da_fede(riga: TrackData) -> bool:
 ## stato raggiunto (per il Rango 1 questo è automaticamente vero, essendo
 ## 0 == 1-1), che questa riga non sia già stata tentata in questa run —
 ## riuscita o fallita, vedi applica_traccia() — e, SOLO per il Rango 2 di
-## Religiosa/Occulto (Fase 10), che la Fede corrispondente sia >= 50.
+## Religiosa/Occulto (Fase 10), che la Fede corrispondente sia >= 40.
 func traccia_disponibile(riga: TrackData) -> bool:
 	if azioni_uniche_usate.has(_chiave_traccia(riga)):
 		return false
@@ -607,7 +616,7 @@ func traccia_disponibile(riga: TrackData) -> bool:
 ## successo di Rango 2 su una traccia legittima (Lavoro/Politica/Bancaria/
 ## Religiosa) alza Fama Pubblica; un successo su Religiosa/Occulto
 ## aggiorna le rispettive Fede (vedi _aggiorna_fede_dopo_traccia). Il
-## Rango 2 di Religiosa/Occulto richiede anche Fede >= 50, controllato da
+## Rango 2 di Religiosa/Occulto richiede anche Fede >= 40, controllato da
 ## traccia_disponibile()/traccia_bloccata_da_fede().
 func applica_traccia(
 	riga: TrackData,
