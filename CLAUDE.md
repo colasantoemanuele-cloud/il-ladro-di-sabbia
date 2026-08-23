@@ -310,7 +310,14 @@ godot --headless --path . -- --test-save-read
       sotto sia dei 100 anni (soglia 100+100 dichiarata irraggiungibile con
       le sole azioni core) sia del tetto di ~207 anni del sistema completo
       con tracce+sottotrame (foglio Endgame) — ordine di grandezza
-      ragionevole, nessuna ulteriore anomalia rilevata.
+      ragionevole, nessuna ulteriore anomalia rilevata. **Nota aggiunta a
+      posteriori (Fase 10)**: quel ~207 anni era il numero del foglio
+      Excel di questa fase (Fase 5), da un modello semplificato precedente
+      alla costruzione del vero sistema a due ranghi (dove anche il Rango
+      1, non solo il Rango 2, ha un guadagno economico proprio). Il tetto
+      definitivo del sistema completo, calcolato con la meccanica a due
+      ranghi effettivamente implementata, è **265,55 anni** — vedi "Fase
+      10 — verifica e correzione cash-in" in fondo a questo file.
   - **Nota sulla metrica vittoria_100_100 nel report Monte Carlo**: risulta
     sempre 0% perché il simulatore non effettua mai la donazione (Fase 4)
     — la Sabbia-Padre accumulata resta sul padre, la Sabbia-Figlia parte da
@@ -534,7 +541,14 @@ godot --headless --path . -- --test-save-read
     da segnalare. Il tetto resta ben sotto sia i 100 anni (soglia
     100+100) sia il tetto ~207 anni del sistema completo con sinergie
     (foglio Endgame) — margine coerente col fatto che sinergie (Fase 9c)
-    e sottotrame (Fase 9b) non sono ancora incluse.
+    e sottotrame (Fase 9b) non sono ancora incluse. **Nota aggiunta a
+    posteriori (Fase 10)**: quel ~207 anni era il numero del foglio
+    Excel di questa fase (Fase 9a), da un modello semplificato precedente
+    alla costruzione del vero sistema a due ranghi (dove anche il Rango 1
+    ha un guadagno economico proprio, non solo il Rango 2). Il tetto
+    definitivo, con la meccanica a due ranghi effettivamente implementata,
+    è **265,55 anni** — vedi "Fase 10 — verifica e correzione cash-in" in
+    fondo a questo file.
 - **Correzione post-9a (confermata dall'autore) — un fallimento blocca la
   traccia**: implementata riusando `azioni_uniche_usate` (nessuna logica
   nuova, come richiesto): `GameState._chiave_traccia(riga)` genera la
@@ -614,7 +628,15 @@ godot --headless --path . -- --test-save-read
     la donazione (non ancora testata dal simulatore automatico), e il
     tetto combinato di riferimento del foglio Excel con tracce E
     sinergie è ~207-208 anni — le sinergie (Fase 9c) restano il pezzo
-    mancante per avvicinarsi a quel numero.
+    mancante per avvicinarsi a quel numero. **Nota aggiunta a posteriori
+    (Fase 10)**: quel ~207-208 anni era il numero del foglio Excel di
+    questa fase (Fase 9b), da un modello semplificato precedente alla
+    costruzione del vero sistema a due ranghi (dove anche il Rango 1 ha
+    un guadagno economico proprio, non solo il Rango 2) — due modelli
+    diversi che non devono più coincidere. Il tetto definitivo, con la
+    meccanica a due ranghi effettivamente implementata, è **265,55
+    anni** — vedi "Fase 10 — verifica e correzione cash-in" in fondo a
+    questo file.
 - **Fase 9c (sinergie tra tracce)**: fatto. Chiude il Blocco Fase 9
   (tracce + sottotrame + sinergie).
   - `GameState`: `tracce_a_rango_2()`, `combo_tracce()` (limitata alle 4
@@ -909,20 +931,22 @@ godot --headless --path . -- --test-save-read
     `valore_rango2_traccia()` Python, formula del combo aggiornata da
     `base_r1r2 * (1 + moltiplicatore)` a
     `base_r1r2 + base_rango2_soli * moltiplicatore`).
-  - **⚠️ Chiarimento importante sul numero atteso**: il riferimento
-    storico ~206,9 anni corrisponde al **bonus del cash-in isolato**
-    (`base_rango2_soli * moltiplicatore` = 206,86 anni, quasi esatto),
-    NON al valore TOTALE della combo. Nel gioco reale il guadagno di
-    Rango1+Rango2 si incassa SEMPRE al momento del climb
-    (`applica_traccia`, invariato fin dalla Fase 9a, indipendente dal
-    cash-in), quindi il valore totale realmente ottenibile perseguendo
-    la tripletta è bonus + guadagno di rango = 206,86 + 58,69 = **265,55
-    anni**, non 206,9. Riportato con la scomposizione completa (vedi
-    output di `tools/balance_ceiling.py`) invece di forzare il numero a
-    combaciare con l'aspettativa: se l'autore intendeva un meccanismo
-    diverso (es. il cash-in SOSTITUISCE il guadagno di rango invece di
-    sommarcisi), è una modifica strutturale ulteriore, non ancora fatta,
-    da confermare esplicitamente.
+  - **Chiarimento confermato dall'autore — 265,55 anni non è un bug**:
+    il riferimento storico ~206,9 anni (e i vari "~207/~207-208 anni"
+    sparsi nei log delle fasi precedenti, vedi le note aggiunte a
+    posteriori più sopra) veniva da un **modello semplificato**,
+    precedente alla costruzione del vero sistema a due ranghi in cui
+    anche il Rango 1 — non solo il Rango 2 — ha un guadagno economico
+    proprio. Sono due modelli diversi, costruiti in momenti diversi
+    dello sviluppo, che non devono più coincidere: quello storico non
+    contabilizzava affatto il guadagno di Rango 1. Il numero
+    definitivo, calcolato con la meccanica a due ranghi effettivamente
+    implementata (Rango1+Rango2 incassati salendo di rango,
+    `applica_traccia`, invariato dalla Fase 9a, PIÙ il bonus del
+    cash-in sul solo Rango 2, interpretazione B), è **265,55 anni**:
+    206,86 di bonus cash-in isolato (quello che il vecchio riferimento
+    ~206,9 misurava) + 58,69 di guadagno di Rango1+Rango2 che il
+    vecchio modello non includeva.
   - **Tetto finale ai quattro livelli** (`tools/balance_ceiling.py`,
     rilanciato dopo la correzione):
     - Sole azioni core: **42,23 anni** (invariato)
