@@ -136,6 +136,17 @@ ora risolte e confermate dall'autore.
 # le singole verifiche sparse sotto. Uscita 0 se tutto passa, 1 altrimenti
 # (utile in CI/script). --simulate=N (default 500) controlla la
 # dimensione del Monte Carlo; --godot=PATH se "godot" non è nel PATH.
+#
+# ⚠️ VALIDO SOLO IN EDITOR O SU UN EXPORT DEBUG. Questo comando (come
+# ogni flag --test-*) si basa su assert() per verificare le condizioni —
+# e Godot RIMUOVE assert() dalle build "--export-release". Lanciato
+# contro un eseguibile di quel tipo, "TUTTI I TEST OK" comparirebbe
+# SEMPRE, anche se le verifiche interne non girassero affatto: un falso
+# PASS silenzioso, non un errore visibile. Su un export release
+# (quello che si dà ai giocatori) l'UNICA verifica valida è uno smoke
+# test comportamentale (--play o equivalente) — MAI i flag --test-*, MAI
+# questo comando. Dettagli e riproduzione del problema più sotto,
+# sezione "Export standalone Linux", e nel log "Task 7" più in fondo.
 python3 tools/regression_suite.py
 python3 tools/regression_suite.py --simulate=2000   # numero "ufficiale" da report di fase, più lento
 
@@ -201,8 +212,8 @@ godot --headless --path . -- --test-save-read
 # Godot (percorso reale stampato da --test-save-write); su Linux tipicamente:
 #   ~/.local/share/godot/app_userdata/Il ladro di sabbia/profilo_persistente.json
 
-# Export standalone Linux (batch tecnico): richiede gli export template
-# Godot 4.7.2.stable installati in
+# --- Export standalone Linux (batch tecnico) --------------------------
+# Richiede gli export template Godot 4.7.2.stable installati in
 # ~/.local/share/godot/export_templates/4.7.2.stable/ (scaricabili da
 # https://github.com/godotengine/godot/releases/tag/4.7.2-stable,
 # Godot_v4.7.2-stable_export_templates.tpz, da estrarre in quella cartella).
@@ -210,12 +221,21 @@ godot --headless --path . -- --test-save-read
 mkdir -p build/linux
 godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
 
-# Smoke test sull'eseguibile ESPORTATO (non nell'editor) — usare --play,
-# non i flag --test-*: assert() viene rimosso nelle build release, quindi
-# --test-* su un export release "passa" sempre anche se le verifiche
-# interne non girano davvero (vedi CLAUDE.md, "Task 7"). Per verificare
-# davvero i --test-* fuori dall'editor, esportare con --export-debug
-# invece di --export-release (stesso identico comando, preset "debug").
+# ⚠️ REGOLA DA NON DIMENTICARE PRIMA DELLA PUBBLICAZIONE: su un
+# eseguibile "--export-release" (quello che si dà ai giocatori), assert()
+# è RIMOSSO dal bytecode da Godot stesso — quindi ogni flag --test-*
+# (compreso l'intero tools/regression_suite.py, che li lancia tutti)
+# smette silenziosamente di verificare qualunque cosa e stampa comunque
+# "TUTTI I TEST OK": un falso PASS, non un errore visibile. Su un export
+# release l'UNICA verifica valida è uno smoke test COMPORTAMENTALE come
+# --play (sotto) — mai i flag --test-*. Per rilanciare davvero i
+# --test-* fuori dall'editor (con assert() ancora attivo, es. per
+# verificare l'export stesso prima di una release, come fatto qui),
+# esportare con --export-debug invece di --export-release — stesso
+# identico comando, preset "debug" invece di "release":
+#   godot --headless --export-debug "Linux" build/linux-debug/il_ladro_di_sabbia_debug.x86_64
+#   ./build/linux-debug/il_ladro_di_sabbia_debug.x86_64 --headless -- --test-ui
+# Ma su una build DA PUBBLICARE, la sola verifica sensata resta questa:
 ./build/linux/il_ladro_di_sabbia.x86_64 --headless -- --play --seed=12345
 ```
 
@@ -1491,3 +1511,31 @@ godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
     `--test-rete-contatti`, `--test-save-write`/`--test-save-read`)
     rilanciati sull'eseguibile debug esportato: tutti PASS, nessuna
     differenza rispetto all'editor.
+- **Messa a verbale (solo documentazione): assert() rimosso nelle build
+  release — confermato dall'autore, entrambe le decisioni tecniche del
+  batch precedente restano invariate** (gate binario della difficoltà
+  crescente, `export_presets.cfg` tracciato da git). L'unico compito di
+  questa sessione era assicurarsi che la scoperta del Task 7 non
+  restasse solo in fondo al log di questo file, dove rischiava di
+  passare inosservata prima della pubblicazione:
+  - **CLAUDE.md**: aggiunto un avviso ⚠️ prominente subito sotto il
+    comando di riferimento `tools/regression_suite.py` in cima a
+    "Comandi utili" (non solo nella sezione export, 80 righe più sotto)
+    — chi cerca "come verifico lo stato del progetto" lo trova subito,
+    non solo chi legge fino in fondo. Rafforzato anche l'avviso già
+    presente nella sezione export standalone.
+  - **Elementi mancanti**: nuova voce in sezione 1 "Decisioni tecniche"
+    (tabella), stato RISOLTO (il meccanismo di verifica in editor/export
+    debug funziona ed è verificato) ma col limite scritto per esteso e
+    marcato ⚠️ IMPORTANTE come prima parola del dettaglio — non
+    "RISOLTO" e basta, per non lasciare che un colpo d'occhio sul
+    tracker dia l'impressione di "tutto verificabile allo stesso modo
+    ovunque".
+  - **Design doc**: la sezione 4.7 "Architettura tecnica" non
+    menzionava affatto l'export/build finale — aggiunto un nuovo
+    paragrafo con la stessa scoperta, prima del rimando esistente al
+    documento "Elementi mancanti".
+  - **Changelog design doc**: aggiunte le righe 17 (il batch tecnico
+    Task 1-7 nel suo complesso, MAI loggato qui finora — solo in
+    CLAUDE.md) e 18 (questa sessione di sola documentazione).
+  - Nessuna modifica al codice, come richiesto.
