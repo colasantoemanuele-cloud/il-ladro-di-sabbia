@@ -4,13 +4,13 @@ extends RefCounted
 ## livelli): file permanente che sopravvive tra le run, a differenza dello
 ## Stato di Run (GameState, effimero, solo in memoria).
 ##
-## Fase 7: solo la STRUTTURA del salvataggio. Nessuno dei sistemi che
-## popoleranno questi campi esiste ancora (tracce, achievement, difficoltà
-## crescente, mondo senza sabbia — tutti fuori scope per le fasi 1-7): i
-## campi restano vuoti/a zero finché quei sistemi non verranno implementati.
-## L'unico collegamento reale già attivo è `karma`, che GameUI legge
-## all'inizio di ogni run e riscrive alla fine — ma senza alcun meccanismo
-## di gioco che lo modifichi ancora, resta 0.0 finché non esisterà.
+## Fase 7: solo la STRUTTURA del salvataggio. `karma` e (dal batch tecnico
+## post-Fase-10) `livello_difficolta`/`traguardo_100_100_raggiunto` hanno
+## un collegamento reale al gioco — vedi GameState/main.gd. `rete_contatti_
+## sbloccati`, `achievement` e `stato_mondo_senza_sabbia` restano vuoti/a
+## default finché i rispettivi sistemi (Rete di contatti — solo lo
+## scheletro tecnico esiste, vedi contact_network.gd — e mondo senza
+## sabbia) non saranno implementati.
 
 const DEFAULT_PATH := "user://profilo_persistente.json"
 
@@ -26,9 +26,19 @@ var rete_contatti_sbloccati: Array = []
 ## Achievement/traguardi raggiunti tra le run. Vuoto finché non esistono.
 var achievement: Array = []
 
-## Livello di difficoltà crescente (design doc 12.5, sbloccato dopo il primo
-## 100+100). 0 = difficoltà base, nessun livello superiore esiste ancora.
+## Livello di difficoltà crescente (design doc 12.5): il livello a cui il
+## giocatore ha scelto di giocare l'ultima volta (0 = base). Persistito così
+## la UI/CLI possono riproporlo come default alla run successiva.
 var livello_difficolta: int = 0
+
+## True se il giocatore ha raggiunto il traguardo 100+100 anni ALMENO una
+## volta (in qualunque run, con la donazione finale — GameState.dona() +
+## calcola_punteggio().vittoria_100_100). Design doc 12.5: "dopo il primo
+## traguardo 100+100 anni, si sbloccano i livelli di difficoltà crescente"
+## — finché è false, solo il livello 0 è selezionabile (invariato finché
+## questo campo non diventa true). Gate applicato dal chiamante (main.gd),
+## non da GameState, che si fida del livello ricevuto.
+var traguardo_100_100_raggiunto: bool = false
 
 ## Stato del meccanismo "mondo senza sabbia" (design doc sezione 10).
 ## "normale" = mondo standard; gli altri stati (innescato dagli Eterni,
@@ -42,6 +52,7 @@ func to_dict() -> Dictionary:
 		"rete_contatti_sbloccati": rete_contatti_sbloccati,
 		"achievement": achievement,
 		"livello_difficolta": livello_difficolta,
+		"traguardo_100_100_raggiunto": traguardo_100_100_raggiunto,
 		"stato_mondo_senza_sabbia": stato_mondo_senza_sabbia,
 	}
 
@@ -52,6 +63,7 @@ static func from_dict(d: Dictionary) -> PlayerProfile:
 	p.rete_contatti_sbloccati = d.get("rete_contatti_sbloccati", [])
 	p.achievement = d.get("achievement", [])
 	p.livello_difficolta = int(d.get("livello_difficolta", 0))
+	p.traguardo_100_100_raggiunto = bool(d.get("traguardo_100_100_raggiunto", false))
 	p.stato_mondo_senza_sabbia = d.get("stato_mondo_senza_sabbia", "normale")
 	return p
 

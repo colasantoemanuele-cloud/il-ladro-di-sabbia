@@ -1107,3 +1107,62 @@ godot --headless --path . -- --test-save-read
     sezione 11.1, la desse già RISOLTO da una fase precedente), è stata
     corretta su richiesta esplicita dell'autore: ora RISOLTO anche in
     Elementi mancanti, allineata al design doc.
+- **Batch tecnico (autore in viaggio, lavoro senza decisioni di
+  design/scrittura) — Task 1: difficoltà crescente (design doc 12.5)**:
+  fatto. `GameState._init(seed_iniziale, livello_difficolta_iniziale)`
+  accetta ora un secondo parametro opzionale: Sabbia-Padre iniziale
+  `24h - 4h*livello` (24→20→16→...), clampata a un floor di 1h invece di
+  un livello massimo esplicito (non specificato dal design doc — scelta
+  tecnica, non di design, evita solo che una Sabbia-Padre iniziale a 0 o
+  negativa renda la run immediatamente game-over o rompa la matematica).
+  Rischio base `+5%` per livello, clampato a 100%, applicato a
+  `DiceSystem.risolvi()` in TUTTI i 4 punti di risoluzione col dado
+  (azioni, tracce, sottotrame, cash-in) tramite il nuovo helper
+  `_rischio_con_difficolta()` — NON applicato agli eventi casuali
+  automatici né al Patto con lo Stregatto: non sono "azioni" scelte
+  attivamente nello stesso senso, scelta di scope documentata qui.
+  - **Interpretazione del gate, non esplicitamente scritta nel design
+    doc**: "sbloccabili dopo il primo traguardo 100+100" letto come un
+    **gate binario** (hai raggiunto 100+100 almeno una volta? sì → puoi
+    scegliere qualunque livello; no → forzato a 0), non un percorso
+    sequenziale "vinci al livello N per sbloccare N+1" come in Ascension
+    di Slay the Spire — che il design doc cita esplicitamente come
+    modello insieme ad Heat di Hades, ma i due sistemi citati hanno
+    regole di sblocco diverse tra loro (Ascension è sequenziale, Heat è
+    liberamente selezionabile dopo il primo completamento), quindi la
+    citazione non basta a determinare quale dei due si intendesse. Ho
+    scelto il gate binario perché è quello letteralmente descritto dal
+    testo del task ("sbloccabili dopo il primo traguardo 100+100" — una
+    condizione sola, non una progressione). **Se l'autore intendeva il
+    modello sequenziale, va rifatto**: non l'ho segnalato come domanda
+    bloccante separata perché il testo del task era comunque sufficiente
+    per procedere con un'interpretazione difendibile, ma la nota resta
+    qui per la revisione al ritorno.
+  - `PlayerProfile`: nuovo campo `traguardo_100_100_raggiunto: bool`
+    (persistito, round-trip testato). `livello_difficolta` (già esistente
+    dalla Fase 7, mai collegato a nulla) ora si aggiorna davvero a fine
+    run (`GameUI._fine_partita()`) col livello effettivamente giocato, e
+    `traguardo_100_100_raggiunto` diventa `true` la prima volta che
+    `calcola_punteggio().vittoria_100_100` risulta vero a fine run.
+  - **Gate applicato in `main.gd`, non in `GameState`** (che si fida del
+    livello ricevuto, coerente con come già si fida del seed):
+    `_livello_difficolta_effettivo(richiesto, profilo)` forza a 0 se
+    `not profilo.traguardo_100_100_raggiunto`. Nuovo flag `--difficolta=N`
+    (stesso pattern di `--seed=`): con la UI reale passa dal gate; con
+    `--play` (strumento di debug, non tocca il Profilo Persistente — scelta
+    di scope preesistente dalla Fase 7) il livello è applicato DIRETTAMENTE
+    senza gate, per poter testare qualunque livello senza dover prima
+    raggiungere 100+100. UI: barra seed ora mostra anche "Difficoltà: N".
+  - **Verificato**: nuovo `--test-difficolta` — livello 0 non altera nulla,
+    livello 2 dà esattamente 16h, livelli molto alti clampano al floor
+    1h (mai 0/negativo), il rischio sale +5%/livello clampato a 100%,
+    **a parità di seed un livello più alto trasforma un successo in un
+    fallimento** (prova che il rischio è davvero applicato al tiro, non
+    solo calcolato), il gate forza 0 senza traguardo e concede il
+    livello richiesto con traguardo raggiunto. `--test-save-write/read`
+    esteso al round-trip di `traguardo_100_100_raggiunto`. Nessuna
+    regressione su `--test-ui`, `--test-sinergie`, `--test-fase10`.
+  - **Non fatto, fuori scope per "lavoro tecnico"**: nessun selettore
+    grafico del livello in `GameUI` (solo il flag `--difficolta=` e la
+    lettura/scrittura da profilo) — costruire un widget di selezione
+    prima di una run è una decisione di UI/UX, non solo tecnica.

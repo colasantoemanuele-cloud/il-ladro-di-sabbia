@@ -649,7 +649,7 @@ func _aggiorna_stato_ui() -> void:
 	var anni_padre := stato.sabbia_padre_ore / GameState.ORE_PER_ANNO
 	lbl_tempo_figlia.text = "Tempo-Figlia: %.1fh (~%.1f giorni)" % [stato.tempo_figlia_ore, giorni_figlia]
 	lbl_sabbia_padre.text = "Sabbia-Padre: %.1fh (~%.4f anni)" % [stato.sabbia_padre_ore, anni_padre]
-	lbl_seed.text = "Seed: %d" % stato.seed_run
+	lbl_seed.text = "Seed: %d  |  Difficoltà: %d" % [stato.seed_run, stato.livello_difficolta]
 	lbl_risorse.text = "Attenzione Polizia: %.0f  |  Rivalità Criminale: %.0f  |  Fama Pubblica: %.0f  |  Karma: %.0f  |  Fede del Culto: %.0f  |  Fede della Setta: %.0f" % [
 		stato.attenzione_polizia, stato.rivalita_criminale, stato.fama_pubblica, stato.karma, stato.fede_culto, stato.fede_setta
 	]
@@ -679,4 +679,7 @@ func _fine_partita() -> void:
 
 	if profilo != null:
 		profilo.karma = stato.karma
+		profilo.livello_difficolta = stato.livello_difficolta
+		if p.vittoria_100_100:
+			profilo.traguardo_100_100_raggiunto = true
 		profilo.save()

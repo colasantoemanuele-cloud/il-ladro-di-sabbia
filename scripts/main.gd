@@ -27,6 +27,13 @@ extends Control
 ##                          Pubblica/Karma/Fede), del malus/Vantaggio-
 ##                          Svantaggio al tiro, del sistema di eventi
 ##                          casuali e del Patto con lo Stregatto
+##   --difficolta=N       -> forza il livello di difficoltà crescente
+##                          (design doc 12.5, con --play o in UI). Con
+##                          --play il livello è applicato direttamente
+##                          (strumento di debug, nessun gate). In UI è
+##                          limitato a 0 finché il Profilo Persistente non
+##                          ha traguardo_100_100_raggiunto = true.
+##   --test-difficolta    -> auto-test headless della difficoltà crescente
 ##
 ## Esempi:
 ##   godot --path .                          (gioco con la UI)
@@ -42,12 +49,15 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	var simulate_arg := ""
 	var seed_arg := -1
+	var difficolta_arg := 0
 	var altri_args: Array[String] = []
 	for a in args:
 		if a.begins_with("--simulate="):
 			simulate_arg = a
 		elif a.begins_with("--seed="):
 			seed_arg = int(a.split("=")[1])
+		elif a.begins_with("--difficolta="):
+			difficolta_arg = int(a.split("=")[1])
 		else:
 			altri_args.append(a)
 
@@ -56,7 +66,7 @@ func _ready() -> void:
 		_run_simulation(n)
 		get_tree().quit()
 	elif altri_args.has("--play"):
-		_run_play_loop(seed_arg)
+		_run_play_loop(seed_arg, difficolta_arg)
 		get_tree().quit()
 	elif altri_args.has("--test-ui"):
 		_run_test_ui()
@@ -73,8 +83,11 @@ func _ready() -> void:
 	elif altri_args.has("--test-fase10"):
 		_run_test_fase10()
 		get_tree().quit()
+	elif altri_args.has("--test-difficolta"):
+		_run_test_difficolta()
+		get_tree().quit()
 	elif altri_args.is_empty():
-		_run_ui(seed_arg)
+		_run_ui(seed_arg, difficolta_arg)
 		# niente quit(): la UI resta aperta e interattiva finché l'utente non chiude la finestra
 	else:
 		print("Argomento non riconosciuto: %s" % ", ".join(altri_args))
@@ -88,6 +101,7 @@ const _TEST_KARMA := 15.5
 const _TEST_CONTATTI := ["boss_traccia_criminale"]
 const _TEST_ACHIEVEMENT := ["primo_furto"]
 const _TEST_DIFFICOLTA := 2
+const _TEST_TRAGUARDO := true
 const _TEST_STATO_MONDO := "normale"
 
 
@@ -98,6 +112,7 @@ func _run_test_save_write() -> void:
 	profilo.rete_contatti_sbloccati = _TEST_CONTATTI
 	profilo.achievement = _TEST_ACHIEVEMENT
 	profilo.livello_difficolta = _TEST_DIFFICOLTA
+	profilo.traguardo_100_100_raggiunto = _TEST_TRAGUARDO
 	profilo.stato_mondo_senza_sabbia = _TEST_STATO_MONDO
 	var ok := profilo.save()
 	assert(ok)
@@ -111,6 +126,7 @@ func _run_test_save_read() -> void:
 	assert(profilo.rete_contatti_sbloccati == _TEST_CONTATTI)
 	assert(profilo.achievement == _TEST_ACHIEVEMENT)
 	assert(profilo.livello_difficolta == _TEST_DIFFICOLTA)
+	assert(profilo.traguardo_100_100_raggiunto == _TEST_TRAGUARDO)
 	assert(profilo.stato_mondo_senza_sabbia == _TEST_STATO_MONDO)
 	print("OK: profilo ricaricato da un processo Godot separato, tutti i campi coincidono.")
 	print("TEST SALVATAGGIO OK")
@@ -525,11 +541,78 @@ func _run_test_fase10() -> void:
 	print("TUTTI I TEST FASE 10 OK")
 
 
-func _run_ui(seed_arg: int = -1) -> void:
+func _run_test_difficolta() -> void:
+	print("=== Batch tecnico: auto-test headless della difficoltà crescente ===")
+
+	var s0 := GameState.new(1, 0)
+	assert(s0.sabbia_padre_ore == GameState.SABBIA_PADRE_INIZIALE)
+	print("OK: livello 0 non altera la Sabbia-Padre iniziale (%.1fh)." % s0.sabbia_padre_ore)
+
+	var s2 := GameState.new(1, 2)
+	assert(s2.sabbia_padre_ore == GameState.SABBIA_PADRE_INIZIALE - 2 * GameState.SABBIA_PADRE_RIDUZIONE_PER_LIVELLO)
+	print("OK: livello 2 riduce la Sabbia-Padre iniziale a %.1fh (24h - 2x4h)." % s2.sabbia_padre_ore)
+
+	var s_alto := GameState.new(1, 50)
+	assert(s_alto.sabbia_padre_ore == GameState.SABBIA_PADRE_MINIMA_DIFFICOLTA)
+	print("OK: livelli molto alti clampano la Sabbia-Padre iniziale al floor di %.1fh, mai a 0 o negativa." % GameState.SABBIA_PADRE_MINIMA_DIFFICOLTA)
+
+	assert(s0._rischio_con_difficolta(0.20) == 0.20)
+	assert(is_equal_approx(s2._rischio_con_difficolta(0.20), 0.30))
+	assert(s2._rischio_con_difficolta(0.95) == 1.0, "il rischio deve clampare a 100%%, mai superarlo")
+	print("OK: il rischio base sale del +5%% per livello (clampato a 100%%).")
+
+	var azione_furto: ActionData = ActionDatabase.get_by_categoria("Furto")[0]
+	var trovato_fallimento_soltanto_a_difficolta_alta := false
+	for seed_t in range(1, 500):
+		var s_base := GameState.new(seed_t, 0)
+		var s_diff := GameState.new(seed_t, 4)  # stesso seed: stessa sequenza di dadi, rischio diverso
+		var r_base := s_base.applica_azione_con_dado(azione_furto)
+		var r_diff := s_diff.applica_azione_con_dado(azione_furto)
+		if r_base.successo and not r_diff.successo:
+			trovato_fallimento_soltanto_a_difficolta_alta = true
+			break
+	assert(trovato_fallimento_soltanto_a_difficolta_alta,
+		"nessun seed trovato in cui la difficoltà più alta trasforma un successo in fallimento (stesso seed, stessa azione)")
+	print("OK: a parità di seed, una difficoltà più alta può trasformare un successo in un fallimento (rischio applicato davvero al dado).")
+
+	# Il gate (profilo senza traguardo -> livello forzato a 0) è testato
+	# direttamente sull'helper di main.gd, senza serializzazione.
+	var profilo_bloccato := PlayerProfile.new()
+	assert(_livello_difficolta_effettivo(3, profilo_bloccato) == 0,
+		"senza traguardo_100_100_raggiunto, qualunque livello richiesto deve essere forzato a 0")
+	profilo_bloccato.traguardo_100_100_raggiunto = true
+	assert(_livello_difficolta_effettivo(3, profilo_bloccato) == 3,
+		"con traguardo_100_100_raggiunto, il livello richiesto deve essere concesso")
+	print("OK: il gate 'sbloccato dopo il primo 100+100' forza il livello a 0 finché il profilo non lo conferma raggiunto.")
+
+	print("TUTTI I TEST DIFFICOLTÀ OK")
+
+
+## Difficoltà crescente (design doc 12.5): "sbloccabili DOPO il primo
+## traguardo 100+100" letto come un gate binario (non un percorso
+## sequenziale alla Ascension/Slay the Spire, che il design doc cita solo
+## come ispirazione di genere) — finché il profilo non ha
+## traguardo_100_100_raggiunto, qualunque livello richiesto viene forzato
+## a 0. Nessun tetto massimo esplicito al livello una volta sbloccato (non
+## specificato): GameState clampa comunque la Sabbia-Padre iniziale a un
+## floor di 1h, quindi livelli molto alti restano teoricamente selezionabili
+## ma sempre più ingiocabili, mai a costo/crash negativo.
+func _livello_difficolta_effettivo(richiesto: int, profilo: PlayerProfile) -> int:
+	if richiesto <= 0:
+		return 0
+	if not profilo.traguardo_100_100_raggiunto:
+		print("Difficoltà %d richiesta ma non ancora sbloccata (serve prima un traguardo 100+100): uso livello 0." % richiesto)
+		return 0
+	return richiesto
+
+
+func _run_ui(seed_arg: int = -1, difficolta_arg: int = 0) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ui := GameUI.new()
 	add_child(ui)
-	ui.avvia(GameState.new(seed_arg), PlayerProfile.load())
+	var profilo := PlayerProfile.load()
+	var livello := _livello_difficolta_effettivo(difficolta_arg, profilo)
+	ui.avvia(GameState.new(seed_arg, livello), profilo)
 
 
 func _run_simulation(n: int) -> void:
@@ -571,14 +654,21 @@ func _stampa_report_batch(s: Dictionary) -> void:
 	])
 
 
-func _run_play_loop(seed_arg: int = -1) -> void:
+func _run_play_loop(seed_arg: int = -1, difficolta_arg: int = 0) -> void:
 	print("=== IL LADRO DI SABBIA — prototipo testuale ===")
 	print("La figlia ha 168 ore di vita, tu (il padre) ne hai 24.")
 	print("Scegli azioni per raccogliere sabbia prima che uno dei due countdown arrivi a zero.")
 	print("")
 
-	var stato := GameState.new(seed_arg)
+	# --play e' uno strumento di debug/test (non usa il Profilo Persistente,
+	# vedi CLAUDE.md): il livello di difficolta' viene applicato SENZA il
+	# gate del traguardo 100+100 che si applica invece alla UI reale.
+	var stato := GameState.new(seed_arg, difficolta_arg)
 	print("Seed di questa run: %d (rilancia con --play --seed=%d per riprodurla)" % [stato.seed_run, stato.seed_run])
+	if difficolta_arg > 0:
+		print("Difficoltà forzata (debug, nessun gate): livello %d (Sabbia-Padre iniziale %.1fh, rischio +%.0f%%)" % [
+			difficolta_arg, stato.sabbia_padre_ore, difficolta_arg * GameState.RISCHIO_AUMENTO_PER_LIVELLO * 100.0
+		])
 	print("")
 
 	var tracce := TrackDatabase.get_tracce_normali()

@@ -9,6 +9,23 @@ enum EndReason { NONE, FIGLIA_MORTA, PADRE_MORTO, DONAZIONE_FINALE_SCELTA }
 const TEMPO_FIGLIA_INIZIALE := 168.0
 const SABBIA_PADRE_INIZIALE := 24.0
 
+## Difficoltà crescente (design doc 12.5, sbloccata "dopo il primo
+## traguardo 100+100 anni" — il gate è responsabilità del chiamante,
+## PlayerProfile.traguardo_100_100_raggiunto, non di GameState, che si
+## fida del livello ricevuto). Per livello: Sabbia-Padre iniziale -4h
+## (24h -> 20h -> 16h..., come da design doc), rischio base di ogni
+## azione/traccia/sottotrama/cash-in +5% (non applicato agli eventi
+## casuali automatici né al Patto con lo Stregatto: non sono "azioni"
+## scelte dal giocatore nello stesso senso). Clamp a un floor di 1h
+## invece di un livello massimo esplicito (non specificato dal design
+## doc): a livello 6 la formula darebbe 0h, ingiocabile da subito —
+## scelta tecnica, non di design.
+const SABBIA_PADRE_RIDUZIONE_PER_LIVELLO := 4.0
+const RISCHIO_AUMENTO_PER_LIVELLO := 0.05
+const SABBIA_PADRE_MINIMA_DIFFICOLTA := 1.0
+
+var livello_difficolta: int = 0
+
 var tempo_figlia_ore: float = TEMPO_FIGLIA_INIZIALE
 var sabbia_padre_ore: float = SABBIA_PADRE_INIZIALE
 
@@ -84,10 +101,23 @@ var _karma_inizio_run_catturato: bool = false
 var patto_in_sospeso: Dictionary = {}
 
 
-func _init(seed_iniziale: int = -1) -> void:
+func _init(seed_iniziale: int = -1, livello_difficolta_iniziale: int = 0) -> void:
 	seed_run = seed_iniziale if seed_iniziale >= 0 else randi()
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = seed_run
+
+	livello_difficolta = livello_difficolta_iniziale
+	sabbia_padre_ore = maxf(
+		SABBIA_PADRE_MINIMA_DIFFICOLTA,
+		SABBIA_PADRE_INIZIALE - SABBIA_PADRE_RIDUZIONE_PER_LIVELLO * livello_difficolta
+	)
+
+
+## Rischio effettivo dopo il malus di difficoltà (+5% per livello,
+## clampato a 100%). Applicato alle azioni/tracce/sottotrame/cash-in, non
+## agli eventi casuali automatici né al Patto con lo Stregatto.
+func _rischio_con_difficolta(rischio_base: float) -> float:
+	return clampf(rischio_base + RISCHIO_AUMENTO_PER_LIVELLO * livello_difficolta, 0.0, 1.0)
 
 ## Chiavi già "esaurite" in questa run — un TENTATIVO (riuscito o fallito)
 ## le consuma per sempre, non solo il successo. Due usi:
@@ -445,7 +475,7 @@ func applica_azione_con_dado(
 
 	var mod_risorse := _modificatore_polizia_fama(azione)
 	var modo_finale: DiceSystem.RollMode = DiceSystem.RollMode.SVANTAGGIO if (modo == DiceSystem.RollMode.NORMALE and mod_risorse.svantaggio) else modo
-	var roll := DiceSystem.risolvi(azione.rischio_pct, modo_finale, modificatore + mod_risorse.modificatore, _rng)
+	var roll := DiceSystem.risolvi(_rischio_con_difficolta(azione.rischio_pct), modo_finale, modificatore + mod_risorse.modificatore, _rng)
 
 	var risultato := {
 		"turno": turno,
@@ -640,7 +670,7 @@ func applica_traccia(
 	tempo_figlia_ore -= costo
 	azioni_uniche_usate[_chiave_traccia(riga)] = true
 
-	var roll := DiceSystem.risolvi(riga.rischio_pct, modo, modificatore, _rng)
+	var roll := DiceSystem.risolvi(_rischio_con_difficolta(riga.rischio_pct), modo, modificatore, _rng)
 
 	var risultato := {
 		"turno": turno,
@@ -814,7 +844,7 @@ func applica_cash_in(
 	tempo_figlia_ore -= costo
 	azioni_uniche_usate["cashin"] = true
 
-	var roll := DiceSystem.risolvi(CASH_IN_RISCHIO_PCT, modo, modificatore, _rng)
+	var roll := DiceSystem.risolvi(_rischio_con_difficolta(CASH_IN_RISCHIO_PCT), modo, modificatore, _rng)
 
 	var risultato := {
 		"turno": turno,
@@ -902,7 +932,7 @@ func applica_sottotrama(
 	tempo_figlia_ore -= costo
 	azioni_uniche_usate[_chiave_sottotrama(sub)] = true
 
-	var roll := DiceSystem.risolvi(sub.rischio_pct, modo, modificatore, _rng)
+	var roll := DiceSystem.risolvi(_rischio_con_difficolta(sub.rischio_pct), modo, modificatore, _rng)
 
 	var risultato := {
 		"turno": turno,
