@@ -959,6 +959,52 @@ func applica_sottotrama(
 	return risultato
 
 
+## --- Bivi (design doc 12.2, scheletro tecnico) ---------------------------
+##
+## Batch tecnico: SOLO il meccanismo generico. I bivi stessi (pool, trigger,
+## opzioni) vivono in BivioSystem — qui solo l'applicazione/persistenza per
+## questa run, sullo stesso principio delle altre scelte una tantum del
+## gioco (azioni_uniche_usate), ma con una struttura dedicata invece di
+## riusare quella, perché un bivio non è un tentativo con dado/esito
+## successo-fallimento: è una scelta pura, sempre "riuscita".
+var bivi_scelti: Dictionary = {}  ## bivio.id -> indice opzione scelta (int)
+
+
+## True se questo bivio non è già stato risolto in questa run — un bivio,
+## una volta scelto, resta fissato per il resto della run (le opzioni non
+## scelte sono precluse, come da design doc).
+func bivio_disponibile(bivio_id: String) -> bool:
+	return not bivi_scelti.has(bivio_id)
+
+
+## Indice dell'opzione scelta per questo bivio, o -1 se non ancora risolto.
+func opzione_scelta(bivio_id: String) -> int:
+	return bivi_scelti.get(bivio_id, -1)
+
+
+## Applica la scelta di un'opzione per un bivio: registra l'indice scelto
+## (precludendo per sempre le altre opzioni in questa run) e restituisce
+## l'opzione applicata. Non consuma un turno: un bivio è una scelta di
+## configurazione della run, non un'azione col proprio costo/rischio.
+func applica_bivio(bivio: BivioSystem.Bivio, indice_opzione: int) -> Dictionary:
+	if not bivio_disponibile(bivio.id):
+		return {"rifiutata": true, "motivo": "Bivio già risolto in questa run."}
+	if indice_opzione < 0 or indice_opzione >= bivio.opzioni.size():
+		return {"rifiutata": true, "motivo": "Indice opzione fuori range (0-%d)." % (bivio.opzioni.size() - 1)}
+
+	bivi_scelti[bivio.id] = indice_opzione
+	var scelta: BivioSystem.Opzione = bivio.opzioni[indice_opzione]
+
+	var risultato := {
+		"bivio_id": bivio.id,
+		"opzione_indice": indice_opzione,
+		"opzione_nome": scelta.nome,
+		"opzione_descrizione": scelta.descrizione,
+	}
+	storico.append(risultato)
+	return risultato
+
+
 func _controlla_fine_partita() -> void:
 	if is_over:
 		return

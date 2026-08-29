@@ -1205,3 +1205,41 @@ godot --headless --path . -- --test-save-read
   - **Nessuna decisione bloccante**: il testo del task era già
     sufficientemente specifico (compreso il chiarimento esplicito
     sull'assenza di server) da non richiedere di fermarsi.
+- **Batch tecnico — Task 3: scheletro tecnico dei bivi (design doc 12.2)**:
+  fatto. Come richiesto esplicitamente, SOLO il meccanismo generico —
+  nessun bivio narrativo reale.
+  - Nuovo `scripts/core/bivio_system.gd` (`class_name BivioSystem`): dati
+    puri, separati dalla logica di applicazione (stesso principio di
+    `ActionDatabase`/`TrackDatabase`). `Opzione` (nome, descrizione),
+    `Bivio` (id, trigger testuale, `Array[Opzione]`),
+    `get_bivi_segnaposto()` → 3 bivi (2-3 opzioni ciascuno, come
+    richiesto), OGNI testo marcato `[SEGNAPOSTO]` esplicitamente. I
+    trigger testuali ("inizio run", "dopo un aggancio a una traccia",
+    "dopo certi eventi") ricalcano gli esempi del design doc 12.2 ma
+    NON sono agganciati a nulla — nessun sistema li innesca
+    automaticamente, sono scelte manuali per ora.
+  - `GameState`: `bivi_scelti: Dictionary` (bivio.id -> indice opzione),
+    `bivio_disponibile(id)`, `opzione_scelta(id)`, `applica_bivio(bivio,
+    indice)` — un bivio è sempre "riuscito" (nessun dado: è una scelta
+    pura), non consuma un turno (design doc: i trigger sono momenti
+    puntuali dentro il flusso di gioco, non un'azione a sé), e una volta
+    risolto preclude PER SEMPRE tutte le opzioni (anche quella scelta:
+    non è ririsolvibile) per il resto della run — coerente col resto del
+    "una tantum" già usato altrove nel progetto, ma con una struttura
+    dedicata (`bivi_scelti`, non `azioni_uniche_usate`) perché un bivio
+    non ha successo/fallimento da tracciare.
+  - **Presentazione testuale** (come richiesto, "anche solo testo per
+    ora"): nuova sezione `[BIVI]` nel loop testuale (`--play`), comando
+    `bivio <id> <indice>`. **Non fatto, fuori scope per "lavoro
+    tecnico"**: nessuna UI grafica per i bivi in `GameUI` — quando/come
+    interromperli nel flusso della UI reale (modale? inline? a quale
+    trigger esatto?) sono decisioni di UI/UX, non solo tecniche.
+  - **Verificato**: nuovo `--test-bivi` — 3 bivi caricati con 2-3 opzioni
+    ciascuno, un bivio non risolto è disponibile senza opzione scelta,
+    un indice fuori range viene rifiutato SENZA consumare il bivio, la
+    scelta valida non consuma un turno, un bivio risolto preclude ogni
+    opzione (anche quella già scelta — non ririsolvibile) per il resto
+    della run, bivi diversi restano indipendenti, una nuova run riparte
+    con tutti i bivi disponibili (nessuna persistenza tra run in questo
+    scheletro — non richiesta dal task). Verificato anche end-to-end nel
+    loop testuale. Nessuna regressione sulle altre suite.

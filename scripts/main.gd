@@ -42,6 +42,10 @@ extends Control
 ##                          Profilo Persistente per la data odierna
 ##                          (nessun server/classifica condivisa)
 ##   --test-seed-del-giorno -> auto-test headless del Seed del Giorno
+##   --test-bivi          -> auto-test headless dello scheletro tecnico
+##                          dei bivi (design doc 12.2) — solo bivi
+##                          segnaposto, nessun contenuto narrativo reale.
+##                          In --play, comando 'bivio <id> <indice>'
 ##
 ## Esempi:
 ##   godot --path .                          (gioco con la UI)
@@ -102,6 +106,9 @@ func _ready() -> void:
 		get_tree().quit()
 	elif altri_args.has("--test-seed-del-giorno"):
 		_run_test_seed_del_giorno()
+		get_tree().quit()
+	elif altri_args.has("--test-bivi"):
+		_run_test_bivi()
 		get_tree().quit()
 	elif altri_args.is_empty():
 		_run_ui(seed_arg, difficolta_arg, usa_seed_del_giorno)
@@ -657,6 +664,53 @@ func _run_test_seed_del_giorno() -> void:
 	print("TUTTI I TEST SEED DEL GIORNO OK")
 
 
+func _run_test_bivi() -> void:
+	print("=== Batch tecnico: auto-test headless dello scheletro dei bivi (design doc 12.2) ===")
+
+	var bivi := BivioSystem.get_bivi_segnaposto()
+	assert(bivi.size() == 3, "attesi 3 bivi segnaposto")
+	for b in bivi:
+		assert(b.opzioni.size() == 2 or b.opzioni.size() == 3, "ogni bivio deve avere 2-3 opzioni")
+	print("OK: %d bivi segnaposto caricati, ciascuno con 2-3 opzioni." % bivi.size())
+
+	var stato := GameState.new(1)
+	var bivio: BivioSystem.Bivio = bivi[0]
+
+	assert(stato.bivio_disponibile(bivio.id))
+	assert(stato.opzione_scelta(bivio.id) == -1)
+	print("OK: un bivio non ancora risolto è disponibile e non ha un'opzione scelta.")
+
+	var r_fuori_range := stato.applica_bivio(bivio, 99)
+	assert(r_fuori_range.has("rifiutata"), "un indice fuori range deve essere rifiutato")
+	assert(stato.bivio_disponibile(bivio.id), "un tentativo rifiutato non deve consumare il bivio")
+	print("OK: un indice opzione fuori range viene rifiutato senza consumare il bivio.")
+
+	var turno_prima := stato.turno
+	var r := stato.applica_bivio(bivio, 1)
+	assert(not r.has("rifiutata"))
+	assert(r.opzione_indice == 1)
+	assert(r.opzione_nome == bivio.opzioni[1].nome)
+	assert(stato.turno == turno_prima, "un bivio non deve consumare un turno")
+	print("OK: applica_bivio() applica la scelta senza consumare un turno.")
+
+	assert(not stato.bivio_disponibile(bivio.id), "il bivio deve risultare risolto dopo la scelta")
+	assert(stato.opzione_scelta(bivio.id) == 1)
+	var r_ripetuto := stato.applica_bivio(bivio, 0)
+	assert(r_ripetuto.has("rifiutata"), "un bivio già risolto non deve poter essere ririsolto")
+	assert(stato.opzione_scelta(bivio.id) == 1, "la scelta originale non deve cambiare dopo un tentativo rifiutato")
+	print("OK: un bivio risolto preclude tutte le opzioni (anche quella già scelta) per il resto della run.")
+
+	var bivio2: BivioSystem.Bivio = bivi[1]
+	assert(stato.bivio_disponibile(bivio2.id), "bivi diversi devono restare indipendenti l'uno dall'altro")
+	print("OK: risolvere un bivio non influenza la disponibilità degli altri bivi nella stessa run.")
+
+	var stato_nuovo := GameState.new(2)
+	assert(stato_nuovo.bivio_disponibile(bivio.id), "una nuova run (nuovo GameState) deve ripartire con tutti i bivi disponibili")
+	print("OK: i bivi sono per-run (nessuna persistenza tra run diverse in questo scheletro tecnico).")
+
+	print("TUTTI I TEST BIVI OK")
+
+
 ## Difficoltà crescente (design doc 12.5): "sbloccabili DOPO il primo
 ## traguardo 100+100" letto come un gate binario (non un percorso
 ## sequenziale alla Ascension/Slay the Spire, che il design doc cita solo
@@ -767,8 +821,9 @@ func _run_play_loop(seed_arg: int = -1, difficolta_arg: int = 0, usa_seed_del_gi
 		_stampa_tracce(tracce, stato, azioni.size())
 		_stampa_sottotrame(sottotrame, stato, azioni.size() + tracce.size())
 		_stampa_sinergia(stato)
+		_stampa_bivi(stato)
 		print("")
-		print("Scrivi il numero di un'azione, riga di traccia o sottotrama, 'spostati' per un evento di spostamento, 'cashin' per la sinergia (se disponibile), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
+		print("Scrivi il numero di un'azione, riga di traccia o sottotrama, 'spostati' per un evento di spostamento, 'cashin' per la sinergia (se disponibile), 'bivio <id> <indice>' per risolvere un bivio (vedi sopra), 'donare <ore>' per la donazione finale (unica, irreversibile), oppure 'esci' per interrompere la run.")
 		print("> ")
 
 		var input := OS.read_string_from_stdin().strip_edges()
@@ -792,6 +847,28 @@ func _run_play_loop(seed_arg: int = -1, difficolta_arg: int = 0, usa_seed_del_gi
 				print("   Nessun imprevisto. Durata: %.1fh." % esito.durata_totale_ore)
 			print("")
 			_gestisci_evento_casuale(stato, r.get("evento_casuale"))
+			continue
+
+		if input.begins_with("bivio "):
+			var parti := input.split(" ", false)
+			if parti.size() < 3 or not parti[2].is_valid_int():
+				print("Uso: 'bivio <id> <indice>', es. 'bivio bivio_inizio_run_segnaposto 0'.")
+				print("")
+				continue
+			var bivio := BivioSystem.get_bivio(parti[1])
+			if bivio == null:
+				print("Bivio non trovato: %s" % parti[1])
+				print("")
+				continue
+			var r := stato.applica_bivio(bivio, int(parti[2]))
+			print("")
+			if r.has("rifiutata"):
+				print("Bivio non risolvibile: %s" % r.motivo)
+				print("")
+				continue
+			print("-> Bivio '%s' risolto: %s" % [bivio.id, r.opzione_nome])
+			print("   %s" % r.opzione_descrizione)
+			print("")
 			continue
 
 		if input == "cashin":
@@ -1061,3 +1138,18 @@ func _stampa_sinergia(stato: GameState) -> void:
 		for coppia in malus:
 			parti.append("%s + %s" % [coppia[0], coppia[1]])
 		print("  Tensione tematica attiva: %s" % ", ".join(parti))
+
+
+## Design doc 12.2, scheletro tecnico (Batch tecnico): mostra i bivi ancora
+## risolvibili in questa run. Tutti i bivi qui sono SEGNAPOSTO (vedi
+## BivioSystem) — nessun contenuto narrativo reale.
+func _stampa_bivi(stato: GameState) -> void:
+	print("[BIVI — scheletro tecnico, contenuto segnaposto]")
+	for bivio in BivioSystem.get_bivi_segnaposto():
+		if not stato.bivio_disponibile(bivio.id):
+			var scelta: BivioSystem.Opzione = bivio.opzioni[stato.opzione_scelta(bivio.id)]
+			print("  %s [RISOLTO: %s]" % [bivio.id, scelta.nome])
+			continue
+		print("  %s — %s" % [bivio.id, bivio.trigger])
+		for i in bivio.opzioni.size():
+			print("    %d) %s" % [i, bivio.opzioni[i].nome])
