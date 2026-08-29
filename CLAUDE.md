@@ -200,6 +200,23 @@ godot --headless --path . -- --test-save-read
 # Il Profilo Persistente vive fuori dal repo, nella cartella dati utente di
 # Godot (percorso reale stampato da --test-save-write); su Linux tipicamente:
 #   ~/.local/share/godot/app_userdata/Il ladro di sabbia/profilo_persistente.json
+
+# Export standalone Linux (batch tecnico): richiede gli export template
+# Godot 4.7.2.stable installati in
+# ~/.local/share/godot/export_templates/4.7.2.stable/ (scaricabili da
+# https://github.com/godotengine/godot/releases/tag/4.7.2-stable,
+# Godot_v4.7.2-stable_export_templates.tpz, da estrarre in quella cartella).
+# Preset "Linux" già configurato in export_presets.cfg (tracciato da git).
+mkdir -p build/linux
+godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
+
+# Smoke test sull'eseguibile ESPORTATO (non nell'editor) — usare --play,
+# non i flag --test-*: assert() viene rimosso nelle build release, quindi
+# --test-* su un export release "passa" sempre anche se le verifiche
+# interne non girano davvero (vedi CLAUDE.md, "Task 7"). Per verificare
+# davvero i --test-* fuori dall'editor, esportare con --export-debug
+# invece di --export-release (stesso identico comando, preset "debug").
+./build/linux/il_ladro_di_sabbia.x86_64 --headless -- --play --seed=12345
 ```
 
 ## Stato di avanzamento
@@ -1401,3 +1418,76 @@ godot --headless --path . -- --test-save-read
     batch): la suite di regressione ora include anche questo controllo
     — coerente con lo scopo dichiarato di quel comando ("verifica
     generale dello stato del progetto").
+- **Batch tecnico — Task 7: verifica di export standalone**: fatto.
+  - **Export template mancanti, scaricati e installati**: la macchina
+    non aveva alcun export template Godot installato
+    (`~/.local/share/godot/export_templates/` vuota). Scaricato
+    `Godot_v4.7.2-stable_export_templates.tpz` (~1,2GB, dai release
+    GitHub ufficiali di Godot, stessa versione esatta del motore usato
+    in questo progetto — la corrispondenza di versione è obbligatoria,
+    Godot rifiuta l'export con template di versione diversa) e installato
+    in `~/.local/share/godot/export_templates/4.7.2.stable/`.
+  - **Nuovo `export_presets.cfg`** (in radice, ora TRACCIATO da git — vedi
+    sotto): un preset "Linux" (piattaforma `Linux/X11`, architettura
+    x86_64), scritto a mano seguendo lo schema noto di Godot 4.x (nessun
+    modo da riga di comando per generare un preset dall'interno
+    dell'editor — normalmente si aggiunge da Project > Export nella GUI).
+    Nessun valore locale/sensibile: i campi `ssh_remote_deploy/*` sono i
+    placeholder di default di Godot stesso (`"user@host_ip"`), non un
+    valore reale di questa macchina.
+  - **⚠️ Decisione tecnica presa senza fermarmi, da confermare**:
+    `export_presets.cfg` era nel `.gitignore` fin dall'inizio del
+    progetto (probabilmente ereditato dallo script di setup della Fase
+    13/changelog "12", non documentato altrove il motivo). L'ho rimosso
+    dal `.gitignore` e committato: è configurazione di progetto
+    riproducibile, senza segreti, e il task chiedeva esplicitamente di
+    "configurare" il preset — se fosse rimasto ignorato, la
+    configurazione sarebbe esistita solo su questo checkout locale e
+    sparita al primo `git clone` pulito. `export.cfg` (voce diversa,
+    ancora ignorata, probabilmente un file legacy Godot 3 mai realmente
+    usato in questo progetto Godot 4) lasciato invariato — non l'ho
+    indagato oltre, fuori scope. Aggiunta anche una nuova voce `build/`
+    al `.gitignore`: gli eseguibili esportati (70+ MB ciascuno) non
+    vanno mai committati, si rigenerano dal sorgente.
+  - **Export reale eseguito e verificato FUORI dall'editor**:
+    `godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64`
+    produce un vero eseguibile ELF 64-bit (`file` conferma: "ELF 64-bit
+    LSB executable, x86-64... stripped") + il `.pck` con le risorse.
+    Smoke test: `./build/linux/il_ladro_di_sabbia.x86_64 --headless --
+    --play --seed=777`, eseguito come processo INDIPENDENTE (non tramite
+    l'editor Godot), produce un output byte-per-byte IDENTICO a
+    `godot --headless --path . -- --play --seed=777` per diversi turni di
+    gioco — prova che l'export non altera in alcun modo la logica.
+  - **⚠️ Scoperta importante durante la verifica — `assert()` disattivato
+    nelle build "release"**: rilanciando `--test-difficolta` (e le altre
+    suite `--test-*`) sull'eseguibile `--export-release`, TUTTI i test
+    riportano ancora "TUTTI I TEST X OK" in fondo, ma le singole righe di
+    verifica sparivano silenziosamente — non un fallimento visibile, un
+    **falso positivo silenzioso**: in Godot, `assert()` (incluse
+    eventuali espressioni/effetti collaterali al suo interno, come i
+    `print()` di debug annidati nelle mie funzioni di test) viene
+    RIMOSSO dal bytecode nelle esportazioni "release" (comportamento
+    standard, non un bug del progetto) — quindi le mie funzioni
+    `_run_test_*()`, che si basano su `assert()` per verificare le
+    condizioni, NON verificano più nulla in una build release: il
+    messaggio finale "TUTTI I TEST OK" verrebbe stampato comunque anche
+    se una condizione fosse falsa, perché il controllo stesso non viene
+    mai eseguito. **Confermato e isolato con un secondo export**:
+    `godot --headless --export-debug "Linux" build/linux-debug/...`
+    (stesso identico progetto, preset "debug" invece di "release") — lì
+    tutte le righe di verifica ricompaiono correttamente, identiche
+    all'editor. **Implicazione pratica per il futuro**: i flag `--test-*`
+    (e quindi anche `tools/regression_suite.py`, Task 5) sono affidabili
+    SOLO nell'editor o in un export DEBUG — mai in un export release, che
+    va verificato solo con smoke test "comportamentali" come `--play`
+    (che non usa `assert()` per la logica di gioco vera, solo `print()`),
+    non con i flag `--test-*`. Documentato qui perché non era un fatto
+    noto prima di questa verifica, e chiunque in futuro lanci `--test-*`
+    su un build distribuito ai giocatori otterrebbe un falso senso di
+    sicurezza.
+  - **Verificato anche sull'export debug**: tutti gli 8 flag `--test-*`
+    esistenti (`--test-ui`, `--test-sinergie`, `--test-fase10`,
+    `--test-difficolta`, `--test-seed-del-giorno`, `--test-bivi`,
+    `--test-rete-contatti`, `--test-save-write`/`--test-save-read`)
+    rilanciati sull'eseguibile debug esportato: tutti PASS, nessuna
+    differenza rispetto all'editor.
