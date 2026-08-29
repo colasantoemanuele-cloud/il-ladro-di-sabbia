@@ -125,6 +125,20 @@ ora risolte e confermate dall'autore.
 ## Comandi utili
 
 ```bash
+# COMANDO DI RIFERIMENTO per una verifica generale dello stato del
+# progetto (batch tecnico post-Fase-10): lancia in sequenza TUTTE le
+# verifiche esistenti (knapsack deterministico, Monte Carlo, salvataggio,
+# UI, sinergie, Fase 10, difficoltà, seed del giorno, bivi, rete di
+# contatti) e stampa un report aggregato PASS/FAIL con i numeri chiave
+# (i quattro tetti economici, media Monte Carlo, probabilità tripletta
+# storica). Usare questo comando prima di ogni commit importante o dopo
+# essersi allontanati a lungo dal progetto, invece di rilanciare a mano
+# le singole verifiche sparse sotto. Uscita 0 se tutto passa, 1 altrimenti
+# (utile in CI/script). --simulate=N (default 500) controlla la
+# dimensione del Monte Carlo; --godot=PATH se "godot" non è nel PATH.
+python3 tools/regression_suite.py
+python3 tools/regression_suite.py --simulate=2000   # numero "ufficiale" da report di fase, più lento
+
 # Rigenerare data/azioni.json dall'Excel (dopo ogni modifica al foglio "Azioni")
 python3 tools/extract_azioni.py
 
@@ -1306,3 +1320,39 @@ godot --headless --path . -- --test-save-read
     JSON completo e ha effetto in un `GameState` NUOVO e DIVERSO**
     (simula "run 1 sblocca, run 2 ne beneficia"). Nessuna regressione
     sulle altre suite né su `--play`.
+- **Batch tecnico — Task 5: suite di regressione unica**: fatto. Nuovo
+  `tools/regression_suite.py` — vedi anche "Comandi utili" in cima a
+  questo file, dove è documentato come comando di riferimento.
+  - Esegue in sequenza: `tools/balance_ceiling.py` (knapsack, estrae i 4
+    tetti via regex dall'output), `--simulate=N` (Monte Carlo, estrae
+    media `greedy` e probabilità della tripletta storica), `--test-save-
+    write` + `--test-save-read` (in sequenza, come richiedono — il
+    secondo dipende dal file scritto dal primo), `--test-ui`,
+    `--test-sinergie`, `--test-fase10`, più i 4 test nuovi di questo
+    stesso batch tecnico (`--test-difficolta`, `--test-seed-del-giorno`,
+    `--test-bivi`, `--test-rete-contatti`) — **estensione non
+    esplicitamente richiesta dal task**: il task elencava l'elenco
+    "storico" di verifiche (knapsack/Monte Carlo/salvataggio/UI/
+    sinergie/Fase 10), ma "verifica generale dello stato del progetto"
+    doveva includere anche ciò che i Task 1-4 di questo stesso batch
+    hanno appena aggiunto, altrimenti il comando sarebbe stato incompleto
+    fin dal giorno in cui è stato scritto.
+  - **PASS/FAIL non si fida del solo exit code**: un `assert()` fallito
+    in GDScript non sempre fa uscire Godot con codice diverso da 0 (in
+    build release); il criterio è la presenza del marker di
+    completamento (`"TUTTI I TEST X OK"`) NELL'output E l'assenza di
+    `"Assertion failed"`/`"SCRIPT ERROR"`/`"Parse Error"` — entrambe le
+    condizioni verificate esplicitamente con un mini-test del parser
+    stesso (output finto con/senza marker, con un errore nascosto dopo
+    un marker presente per errore).
+  - `--simulate=N` di default a **500** (non 2000-3000 come nei report
+    "ufficiali" di fine fase): scelta tecnica di velocità per un comando
+    pensato per essere rilanciato spesso, non un numero di validazione
+    definitivo — parametrizzabile con `--simulate=N` sulla riga di
+    comando per chi vuole i numeri "ufficiali".
+  - **Verificato**: lanciato con `--simulate=100` (veloce) — 10/10 PASS,
+    numeri estratti corretti e coerenti con quelli già confermati nelle
+    fasi precedenti (core=42,23, +tracce=67,58, +sottotrame=109,26,
+    +sinergie=265,55 anni). Verificato anche il codice di uscita (0 con
+    tutto PASS) e la logica di rilevamento FAIL con input sintetici
+    (marker assente, marker presente ma con un errore dopo).
