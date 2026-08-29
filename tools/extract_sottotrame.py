@@ -35,8 +35,10 @@ PREREQUISITI = {
 }
 
 
-def main() -> None:
-    wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
+## Estrae le sottotrame dal workbook già aperto, senza scrivere su disco:
+## riusata da main() e da tools/check_data_consistency.py (unica fonte di
+## verità sul parsing di questa sezione del foglio Endgame).
+def estrai_sottotrame(wb) -> list:
     ws = wb["Endgame"]
 
     sottotrame = []
@@ -52,6 +54,13 @@ def main() -> None:
             "nota": row[4].value,
             "prerequisito": PREREQUISITI.get(nome),
         })
+
+    return sottotrame
+
+
+def main() -> None:
+    wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
+    sottotrame = estrai_sottotrame(wb)
 
     output = {
         "_meta": {

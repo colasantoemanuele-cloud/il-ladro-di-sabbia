@@ -139,6 +139,11 @@ ora risolte e confermate dall'autore.
 python3 tools/regression_suite.py
 python3 tools/regression_suite.py --simulate=2000   # numero "ufficiale" da report di fase, più lento
 
+# Controllo di coerenza tra l'Excel (fonte di verità) e i tre data/*.json:
+# segnala SOLO, non corregge — se trova discrepanze, rilanciare lo script
+# di estrazione pertinente sotto. Incluso anche in regression_suite.py.
+python3 tools/check_data_consistency.py
+
 # Rigenerare data/azioni.json dall'Excel (dopo ogni modifica al foglio "Azioni")
 python3 tools/extract_azioni.py
 
@@ -1356,3 +1361,43 @@ godot --headless --path . -- --test-save-read
     +sinergie=265,55 anni). Verificato anche il codice di uscita (0 con
     tutto PASS) e la logica di rilevamento FAIL con input sintetici
     (marker assente, marker presente ma con un errore dopo).
+- **Batch tecnico — Task 6: controllo di coerenza tra documenti**: fatto.
+  Nuovo `tools/check_data_consistency.py`, confronta il foglio Excel
+  (fonte di verità) con `data/azioni.json`, `data/tracce.json`,
+  `data/sottotrame.json` — azioni/righe/sottotrame mancanti nel JSON,
+  extra nel JSON (rimosse dall'Excel senza rigenerare), e per ogni voce
+  presente in entrambi confronta campo per campo (tolleranza 1e-6 sui
+  float). Non corregge nulla, solo segnala — coerente con l'istruzione
+  esplicita.
+  - **Scelta tecnica**: invece di scrivere un secondo parser Excel
+    indipendente (rischio di segnalare differenze spurie per un bug
+    proprio, non una vera discrepanza), ho refactorizzato
+    `tools/extract_azioni.py`/`extract_tracce.py`/`extract_sottotrame.py`
+    estraendo la logica di parsing in funzioni riusabili
+    (`estrai_azioni(wb)`, `estrai_tracce(wb)`, `estrai_sottotrame(wb)`)
+    che il checker importa e chiama direttamente — un'unica fonte di
+    verità su "come si legge l'Excel", condivisa tra chi genera i JSON e
+    chi li verifica. **Refactor confermato behavior-preserving**: ho
+    confrontato l'output di ciascuno dei tre script (JSON scritto +
+    stdout) PRIMA e DOPO il refactor (via `git stash`), byte per byte —
+    identici in tutti e tre i casi. `main()` di ciascuno script continua
+    a funzionare esattamente come prima, nessuna modifica al formato
+    JSON o al comportamento da riga di comando.
+  - **⚠️ Nessuna discrepanza trovata in questo momento**: rilanciato
+    subito dopo la scrittura, i tre JSON risultano tutti allineati
+    all'Excel (62 azioni, 14 righe di traccia + 3 tracce bonus, 10
+    sottotrame, 0 discrepanze in ciascun dataset) — atteso, dato che
+    ogni sessione precedente ha sempre rigenerato i JSON subito dopo
+    ogni modifica all'Excel. Nessuna correzione da segnalare.
+  - **Verificato che il rilevamento funzioni davvero** (non solo "non
+    trova nulla perché non guarda bene"): test con una copia modificata
+    di `data/azioni.json` (un valore alterato + una riga rimossa,
+    ripristinata subito dopo) — lo script ha segnalato correttamente
+    entrambe le discrepanze con dettaglio preciso (nome azione, campo,
+    valore Excel vs valore JSON) ed è uscito con codice 1; con i file
+    ripristinati, di nuovo 0 discrepanze e codice 0. `git status`
+    confermato pulito su `data/azioni.json` dopo il test.
+  - **Aggiunto anche a `tools/regression_suite.py`** (Task 5, stesso
+    batch): la suite di regressione ora include anche questo controllo
+    — coerente con lo scopo dichiarato di quel comando ("verifica
+    generale dello stato del progetto").

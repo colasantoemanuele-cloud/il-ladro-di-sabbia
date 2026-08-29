@@ -25,8 +25,12 @@ HEADER_ROW = 5
 FIRST_DATA_ROW = 6
 
 
-def main() -> None:
-    wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
+## Estrae le azioni dal workbook già aperto, senza scrivere nulla su disco:
+## riusata sia da main() (scrittura reale) sia da tools/check_data_consistency.py
+## (confronto Excel vs JSON già scritto, senza duplicare la logica di
+## parsing — un'unica fonte di verità su COME si legge il foglio Azioni).
+## Restituisce (lista azioni, salario_mediano, ore_anno).
+def estrai_azioni(wb) -> tuple:
     ws = wb["Azioni"]
 
     salario_mediano = ws["B2"].value
@@ -61,6 +65,13 @@ def main() -> None:
             "unica_per_run": row[8].value == "VERO",
             "fonte_nota": row[9].value,
         })
+
+    return actions, salario_mediano, ore_anno
+
+
+def main() -> None:
+    wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
+    actions, salario_mediano, ore_anno = estrai_azioni(wb)
 
     output = {
         "_meta": {

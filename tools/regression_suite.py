@@ -77,6 +77,22 @@ class Risultato:
         self.numeri = numeri
 
 
+def check_coerenza_dati() -> Risultato:
+    nome = "Coerenza Excel vs data/*.json (tools/check_data_consistency.py)"
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "check_data_consistency.py")],
+            capture_output=True, text=True, timeout=DEFAULT_TIMEOUT, cwd=ROOT,
+        )
+    except subprocess.TimeoutExpired:
+        return Risultato(nome, False, "timeout")
+
+    out = proc.stdout
+    if proc.returncode == 0:
+        return Risultato(nome, True)
+    return Risultato(nome, False, _ultime_righe(out + proc.stderr, 12))
+
+
 def check_knapsack() -> Risultato:
     try:
         proc = subprocess.run(
@@ -160,6 +176,7 @@ def main() -> None:
     checks = []
     t0 = time.time()
 
+    checks.append(check_coerenza_dati())
     checks.append(check_knapsack())
     checks.append(check_monte_carlo(godot_bin, simulate_n))
     checks.append(check_salvataggio(godot_bin))

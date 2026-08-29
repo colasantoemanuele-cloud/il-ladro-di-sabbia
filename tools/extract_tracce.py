@@ -31,8 +31,11 @@ TRACCE_BONUS_LAST_ROW = 36
 RANGO_RE = re.compile(r"Rango\s+(\d+)\s*-\s*(.+)")
 
 
-def main() -> None:
-    wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
+## Estrae tracce normali/bonus dal workbook già aperto, senza scrivere su
+## disco: riusata da main() e da tools/check_data_consistency.py (unica
+## fonte di verità sul parsing del foglio Endgame). Restituisce (tracce
+## normali, tracce bonus).
+def estrai_tracce(wb) -> tuple:
     ws = wb["Endgame"]
 
     tracce_normali = []
@@ -65,6 +68,13 @@ def main() -> None:
             "traccia": nome,
             "descrizione": descrizione,
         })
+
+    return tracce_normali, tracce_bonus
+
+
+def main() -> None:
+    wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
+    tracce_normali, tracce_bonus = estrai_tracce(wb)
 
     output = {
         "_meta": {
