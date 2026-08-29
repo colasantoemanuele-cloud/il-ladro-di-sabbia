@@ -100,6 +100,14 @@ var _karma_inizio_run_catturato: bool = false
 ## — vuoto se nessun patto è in sospeso.
 var patto_in_sospeso: Dictionary = {}
 
+## Rete di contatti (design doc 12.3, scheletro tecnico — vedi
+## scripts/core/contact_network.gd): id dei ContactNetwork.Contatto
+## sbloccati nel Profilo Persistente, assegnati dal chiamante DOPO il
+## costruttore (stesso pattern di `karma`, non passato a _init() perché
+## GameState non deve dipendere da PlayerProfile). Vuoto = nessun effetto,
+## comportamento identico a prima che questo sistema esistesse.
+var contatti_attivi: Array[String] = []
+
 
 func _init(seed_iniziale: int = -1, livello_difficolta_iniziale: int = 0) -> void:
 	seed_run = seed_iniziale if seed_iniziale >= 0 else randi()
@@ -133,10 +141,16 @@ func _rischio_con_difficolta(rischio_base: float) -> float:
 var azioni_uniche_usate: Dictionary = {}
 
 
-## True se l'azione può ancora essere scelta in questa run: sempre vero per
-## le azioni ripetibili, falso per un'azione "Unica per run" già tentata.
+## True se l'azione può ancora essere scelta in questa run: falso per
+## un'azione "Unica per run" già tentata, o per un'azione resa visibile
+## SOLO da un contatto della Rete (design doc 12.3) non ancora sbloccato —
+## nessuna delle 62 azioni reali è collegata a un contatto oggi (solo i
+## contatti segnaposto lo sono, con bersagli inesistenti), quindi questo
+## secondo controllo è "trasparente" finché non esisteranno contatti reali.
 func azione_disponibile(azione: ActionData) -> bool:
-	return not (azione.unica_per_run and azioni_uniche_usate.has(azione.nome))
+	if azione.unica_per_run and azioni_uniche_usate.has(azione.nome):
+		return false
+	return ContactNetwork.azione_visibile(azione.nome, contatti_attivi)
 
 
 ## Applica costo/effetto di un'azione in modo deterministico (nessun tiro di
@@ -468,14 +482,22 @@ func applica_azione_con_dado(
 		return _patto_in_sospeso_blocca()
 
 	var evento_info := _avanza_turno()
-	var costo := ActionVariance.costo_variato(azione.costo_tempo_figlia_ore, _rng)
+	# Rete di contatti (design doc 12.3, scheletro tecnico): riduzione
+	# costo/rischio, se un contatto sbloccato bersaglia questa azione.
+	# Nessuna delle 62 azioni reali è bersagliata oggi (solo i contatti
+	# segnaposto lo sono, con nomi inesistenti) — trasparente finché non
+	# esisteranno contatti reali, vedi ContactNetwork.
+	var mod_contatto := ContactNetwork.modificatore_per_azione(azione.nome, contatti_attivi)
+	var costo_nominale: float = azione.costo_tempo_figlia_ore * (1.0 - float(mod_contatto.riduzione_costo))
+	var costo := ActionVariance.costo_variato(costo_nominale, _rng)
 	tempo_figlia_ore -= costo
 	if azione.unica_per_run:
 		azioni_uniche_usate[azione.nome] = true
 
 	var mod_risorse := _modificatore_polizia_fama(azione)
 	var modo_finale: DiceSystem.RollMode = DiceSystem.RollMode.SVANTAGGIO if (modo == DiceSystem.RollMode.NORMALE and mod_risorse.svantaggio) else modo
-	var roll := DiceSystem.risolvi(_rischio_con_difficolta(azione.rischio_pct), modo_finale, modificatore + mod_risorse.modificatore, _rng)
+	var rischio_con_contatto := clampf(azione.rischio_pct - float(mod_contatto.riduzione_rischio), 0.0, 1.0)
+	var roll := DiceSystem.risolvi(_rischio_con_difficolta(rischio_con_contatto), modo_finale, modificatore + mod_risorse.modificatore, _rng)
 
 	var risultato := {
 		"turno": turno,

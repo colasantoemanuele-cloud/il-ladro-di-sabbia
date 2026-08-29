@@ -46,6 +46,11 @@ extends Control
 ##                          dei bivi (design doc 12.2) — solo bivi
 ##                          segnaposto, nessun contenuto narrativo reale.
 ##                          In --play, comando 'bivio <id> <indice>'
+##   --test-rete-contatti -> auto-test headless dello scheletro tecnico
+##                          della Rete di contatti (design doc 12.3) —
+##                          solo contatti segnaposto, nessun contenuto
+##                          narrativo reale, nessun effetto sulle 62
+##                          azioni vere
 ##
 ## Esempi:
 ##   godot --path .                          (gioco con la UI)
@@ -109,6 +114,9 @@ func _ready() -> void:
 		get_tree().quit()
 	elif altri_args.has("--test-bivi"):
 		_run_test_bivi()
+		get_tree().quit()
+	elif altri_args.has("--test-rete-contatti"):
+		_run_test_rete_contatti()
 		get_tree().quit()
 	elif altri_args.is_empty():
 		_run_ui(seed_arg, difficolta_arg, usa_seed_del_giorno)
@@ -711,6 +719,111 @@ func _run_test_bivi() -> void:
 	print("TUTTI I TEST BIVI OK")
 
 
+func _run_test_rete_contatti() -> void:
+	print("=== Batch tecnico: auto-test headless dello scheletro della Rete di contatti (design doc 12.3) ===")
+
+	var contatti := ContactNetwork.get_contatti_segnaposto()
+	assert(contatti.size() == 3, "attesi 3 contatti segnaposto")
+	print("OK: %d contatti segnaposto caricati." % contatti.size())
+
+	# --- Trigger: sottotrama completata ---
+	var c_sottotrama := ContactNetwork.get_contatto("contatto_segnaposto_sottotrama")
+	var sub: SubplotData = null
+	for candidato: SubplotData in SubplotDatabase.get_all():
+		if candidato.nome == c_sottotrama.trigger_parametro:
+			sub = candidato
+			break
+	assert(sub != null, "sottotrama trigger '%s' non trovata in SubplotDatabase" % c_sottotrama.trigger_parametro)
+	var trovato_successo_sub := false
+	for seed_t in range(10, 300):
+		var s := GameState.new(seed_t)
+		var r := s.applica_sottotrama(sub)
+		if r.get("successo", false):
+			assert(s.azione_completata_con_successo(c_sottotrama.trigger_parametro))
+			var profilo_test := PlayerProfile.new()
+			var nuovi := ContactNetwork.valuta_sblocchi(s, profilo_test)
+			assert(nuovi.has(c_sottotrama.id), "il contatto deve sbloccarsi dopo il successo della sottotrama trigger")
+			assert(profilo_test.contatto_sbloccato(c_sottotrama.id))
+			trovato_successo_sub = true
+			break
+	assert(trovato_successo_sub, "nessun successo trovato per la sottotrama trigger in 300 tentativi")
+	print("OK: trigger SOTTOTRAMA_COMPLETATA sblocca il contatto quando la sottotrama riesce.")
+
+	# --- Trigger: rango di traccia raggiunto ---
+	var c_traccia := ContactNetwork.get_contatto("contatto_segnaposto_traccia")
+	var s2 := GameState.new(20)
+	var profilo2 := PlayerProfile.new()
+	assert(ContactNetwork.valuta_sblocchi(s2, profilo2).is_empty(), "senza il rango richiesto il contatto non deve sbloccarsi")
+	var parti := c_traccia.trigger_parametro.split("|")
+	s2.tracce_raggiunte[parti[0]] = int(parti[1])
+	var nuovi2 := ContactNetwork.valuta_sblocchi(s2, profilo2)
+	assert(nuovi2.has(c_traccia.id))
+	print("OK: trigger TRACCIA_RANGO_RAGGIUNTO sblocca il contatto quando il rango è raggiunto.")
+
+	# --- Idempotenza: un contatto già sbloccato non viene ri-segnalato ---
+	var nuovi2_bis := ContactNetwork.valuta_sblocchi(s2, profilo2)
+	assert(nuovi2_bis.is_empty(), "un contatto già sbloccato non deve essere ri-segnalato come nuovo")
+	print("OK: valuta_sblocchi() è idempotente — un contatto sbloccato non si ri-sblocca.")
+
+	# --- Effetto: riduzione costo/rischio, aggregazione, nessun effetto se inattivo ---
+	var bersaglio := c_sottotrama.bersaglio_effetto
+	var mod_senza := ContactNetwork.modificatore_per_azione(bersaglio, [])
+	assert(mod_senza.riduzione_costo == 0.0 and mod_senza.riduzione_rischio == 0.0)
+	var mod_con: Array[String] = [c_sottotrama.id]
+	var mod := ContactNetwork.modificatore_per_azione(bersaglio, mod_con)
+	assert(is_equal_approx(mod.riduzione_costo, c_sottotrama.valore_effetto))
+	print("OK: modificatore_per_azione() restituisce 0 senza il contatto attivo, il valore atteso con il contatto attivo.")
+
+	# --- Effetto: sblocco azione invisibile ---
+	var c_sblocco := ContactNetwork.get_contatto("contatto_segnaposto_sblocco")
+	assert(not ContactNetwork.azione_visibile(c_sblocco.bersaglio_effetto, []), "senza il contatto, l'azione bersaglio deve restare invisibile")
+	assert(ContactNetwork.azione_visibile(c_sblocco.bersaglio_effetto, [c_sblocco.id]), "col contatto attivo, l'azione bersaglio deve diventare visibile")
+	print("OK: azione_visibile() nasconde/mostra il bersaglio SBLOCCO_AZIONE in base al contatto.")
+
+	# --- Nessuna delle 62 azioni reali è toccata (regressione di sicurezza) ---
+	var tutte_azioni := ActionDatabase.get_all()
+	var nessuna_reale_bersagliata := true
+	for a: ActionData in tutte_azioni:
+		for c in contatti:
+			if c.bersaglio_effetto == a.nome:
+				nessuna_reale_bersagliata = false
+	assert(nessuna_reale_bersagliata, "nessun contatto segnaposto deve bersagliare un'azione reale del gioco")
+	var s3 := GameState.new(30)
+	var azione_test: ActionData = tutte_azioni[0]
+	assert(s3.azione_disponibile(azione_test), "senza contatti attivi un'azione reale deve restare disponibile come sempre")
+	s3.contatti_attivi = [c_sblocco.id, c_traccia.id, c_sottotrama.id]
+	assert(s3.azione_disponibile(azione_test), "con QUALUNQUE contatto segnaposto attivo, un'azione reale deve restare disponibile come sempre")
+	print("OK: nessuna delle 62 azioni reali è bersagliata dai contatti segnaposto (nessun effetto sul gioco reale).")
+
+	# --- Persistenza tra run diverse (il punto richiesto esplicitamente dal task) ---
+	# Run 1: profilo vuoto, un GameState sblocca il contatto sottotrama.
+	var profilo_run1 := PlayerProfile.new()
+	assert(not profilo_run1.contatto_sbloccato(c_sottotrama.id))
+	profilo_run1.sblocca_contatto(c_sottotrama.id)
+	# Simula "chiudi il gioco, riapri": round-trip completo attraverso JSON,
+	# non solo to_dict()/from_dict() in memoria (--test-save-write/read
+	# copre già il round-trip vero tra PROCESSI separati per gli altri
+	# campi; qui basta provare che la serializzazione stessa sia fedele).
+	var salvato := JSON.stringify(profilo_run1.to_dict())
+	var profilo_run2 := PlayerProfile.from_dict(JSON.parse_string(salvato))
+	assert(profilo_run2.contatto_sbloccato(c_sottotrama.id), "il contatto sbloccato deve sopravvivere alla serializzazione JSON")
+
+	# Run 2: un GameState NUOVO (run diversa) nasce con contatti_attivi
+	# popolato dal profilo appena ricaricato — esattamente il collegamento
+	# che main.gd fa in _run_ui().
+	var stato_run2 := GameState.new(40)
+	var contatti_run2: Array[String] = []
+	for id in profilo_run2.rete_contatti_sbloccati:
+		contatti_run2.append(str(id))
+	stato_run2.contatti_attivi = contatti_run2
+	var mod_run2 := ContactNetwork.modificatore_per_azione(c_sottotrama.bersaglio_effetto, stato_run2.contatti_attivi)
+	assert(is_equal_approx(mod_run2.riduzione_costo, c_sottotrama.valore_effetto),
+		"l'effetto del contatto sbloccato in una run precedente deve essere attivo in una run NUOVA e diversa")
+	print("OK: uno sblocco ottenuto in una run persiste (via PlayerProfile) e ha effetto in una run successiva diversa.")
+
+	print("TUTTI I TEST RETE DI CONTATTI OK")
+
+
 ## Difficoltà crescente (design doc 12.5): "sbloccabili DOPO il primo
 ## traguardo 100+100" letto come un gate binario (non un percorso
 ## sequenziale alla Ascension/Slay the Spire, che il design doc cita solo
@@ -741,7 +854,12 @@ func _run_ui(seed_arg: int = -1, difficolta_arg: int = 0, usa_seed_del_giorno: b
 			print("Seed del giorno %s: %d tentativi precedenti oggi (record %.2f anni)." % [
 				SeedDelGiorno.data_di_oggi_stringa(), precedenti.size(), _record_tentativi(precedenti)
 			])
-	ui.avvia(GameState.new(seed_arg, livello), profilo, usa_seed_del_giorno)
+	var stato := GameState.new(seed_arg, livello)
+	var contatti: Array[String] = []
+	for id in profilo.rete_contatti_sbloccati:
+		contatti.append(str(id))
+	stato.contatti_attivi = contatti
+	ui.avvia(stato, profilo, usa_seed_del_giorno)
 
 
 func _record_tentativi(tentativi: Array) -> float:

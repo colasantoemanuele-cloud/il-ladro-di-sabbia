@@ -690,4 +690,8 @@ func _fine_partita() -> void:
 			profilo.traguardo_100_100_raggiunto = true
 		if _e_seed_del_giorno:
 			profilo.registra_punteggio_seed_del_giorno(SeedDelGiorno.data_di_oggi_stringa(), p)
+		var nuovi_contatti := ContactNetwork.valuta_sblocchi(stato, profilo)
+		if not nuovi_contatti.is_empty():
+			testo += "\n\n[b]Rete di contatti:[/b] nuovo/i contatto/i sbloccato/i: %s" % ", ".join(nuovi_contatti)
+			lbl_messaggio.text = testo
 		profilo.save()

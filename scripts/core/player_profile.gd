@@ -20,7 +20,10 @@ const DEFAULT_PATH := "user://profilo_persistente.json"
 var karma: float = 0.0
 
 ## Rete di contatti sbloccati (design doc 12.3): amici/amici di amici/nemici,
-## l'albero di sblocco permanente. Vuoto finché il sistema non esiste.
+## l'albero di sblocco permanente. Dal batch tecnico post-Fase-10, lo
+## SCHELETRO esiste (vedi scripts/core/contact_network.gd): contiene gli id
+## dei ContactNetwork.Contatto sbloccati PERMANENTEMENTE (mai rimossi).
+## Vuoto finché nessun contatto (per ora solo segnaposto) viene sbloccato.
 var rete_contatti_sbloccati: Array = []
 
 ## Achievement/traguardi raggiunti tra le run. Vuoto finché non esistono.
@@ -101,6 +104,18 @@ func registra_punteggio_seed_del_giorno(data_str: String, punteggio: Dictionary)
 func tentativi_seed_del_giorno(data_str: String = "") -> Array:
 	var chiave := data_str if data_str != "" else SeedDelGiorno.data_di_oggi_stringa()
 	return storico_seed_del_giorno.get(chiave, [])
+
+
+## Rete di contatti (design doc 12.3, scheletro tecnico — vedi
+## scripts/core/contact_network.gd). Sblocco permanente: una volta
+## sbloccato, un contatto non viene mai rimosso.
+func contatto_sbloccato(id: String) -> bool:
+	return rete_contatti_sbloccati.has(id)
+
+
+func sblocca_contatto(id: String) -> void:
+	if not rete_contatti_sbloccati.has(id):
+		rete_contatti_sbloccati.append(id)
 
 
 func save(path: String = DEFAULT_PATH) -> bool:

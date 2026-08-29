@@ -1243,3 +1243,66 @@ godot --headless --path . -- --test-save-read
     con tutti i bivi disponibili (nessuna persistenza tra run in questo
     scheletro — non richiesta dal task). Verificato anche end-to-end nel
     loop testuale. Nessuna regressione sulle altre suite.
+- **Batch tecnico — Task 4: scheletro tecnico della Rete di contatti
+  (design doc 12.3)**: fatto. Come richiesto esplicitamente, SOLO il
+  meccanismo generico — nessun contatto narrativo reale.
+  - **Scope ridotto rispetto al design doc 12.3 completo, seguendo la
+    descrizione più specifica del task**: il design doc parla di tre
+    categorie (Amici/Amici di amici/Nemici); il task descrive UN
+    contatto con un trigger e UNO tra tre effetti (riduzione costo,
+    riduzione rischio, sblocco azione). Ho seguito il task, non il
+    design doc completo — i "Nemici" (rischio ricorrente, nuove leve
+    narrative) non sono modellati: sono contenuto/design, non
+    meccanismo generico riducibile a un tipo di effetto.
+  - Nuovo `scripts/core/contact_network.gd` (`class_name ContactNetwork`):
+    dati puri (`Contatto`: id, nome, trigger, effetto, bersaglio, valore)
+    + funzioni di valutazione. 3 contatti segnaposto, ogni testo marcato
+    `[SEGNAPOSTO]`. **Scelta tecnica importante per la sicurezza del
+    gioco reale**: i `bersaglio_effetto` dei 3 contatti puntano a nomi
+    di azione INESISTENTI nel foglio Azioni (mai una delle 62 azioni
+    vere) — così il meccanismo si aggancia davvero a `GameState`
+    (`applica_azione_con_dado`, `azione_disponibile`) senza avere ALCUN
+    effetto sul gioco reale finché l'autore non definirà contatti veri
+    con bersagli reali. Verificato esplicitamente con un test dedicato
+    (nessuna delle 62 azioni è bersagliata, un'azione reale resta
+    disponibile anche con tutti e 3 i contatti segnaposto attivi).
+  - Due tipi di trigger: `SOTTOTRAMA_COMPLETATA` (riusa
+    `GameState.azione_completata_con_successo()`, già esistente dalla
+    Fase 9b) e `TRACCIA_RANGO_RAGGIUNTO` (legge `tracce_raggiunte`).
+  - `PlayerProfile`: il campo `rete_contatti_sbloccati` (esistente dalla
+    Fase 7, sempre vuoto) ora è l'elenco reale degli id dei contatti
+    sbloccati permanentemente, con `contatto_sbloccato(id)` e
+    `sblocca_contatto(id)` (idempotente, mai rimosso).
+    `ContactNetwork.valuta_sblocchi(stato, profilo)` va chiamato a fine
+    run: valuta tutti i trigger non ancora soddisfatti contro lo stato
+    finale, sblocca e persiste i nuovi, restituisce la lista per
+    segnalarli al giocatore.
+  - `GameState.contatti_attivi: Array[String]` (assegnato dal chiamante
+    DOPO il costruttore, stesso pattern di `karma` — GameState non deve
+    dipendere da `PlayerProfile`). `applica_azione_con_dado()` applica
+    riduzione costo/rischio via `ContactNetwork.modificatore_per_azione()`
+    prima della varianza roguelite; `azione_disponibile()` nasconde
+    un'azione bersagliata da un contatto SBLOCCO_AZIONE non ancora
+    sbloccato.
+  - **Collegato in `main.gd`/`GameUI`**: `_run_ui()` popola
+    `stato.contatti_attivi` da `profilo.rete_contatti_sbloccati`
+    all'avvio; `GameUI._fine_partita()` chiama `valuta_sblocchi()` e
+    segnala eventuali nuovi contatti nel messaggio finale prima di
+    salvare il profilo. **Non fatto, fuori scope per "lavoro tecnico"**:
+    nessuna UI grafica per esplorare/visualizzare la rete di contatti
+    (schermata dedicata, albero di sblocco visuale) — decisione di
+    UI/UX, non solo tecnica. `--play` non popola/non persiste
+    `contatti_attivi` (stessa scelta di scope preesistente dalla Fase 7
+    per tutto ciò che riguarda il Profilo Persistente in modalità debug).
+  - **Verificato**: nuovo `--test-rete-contatti` — 3 contatti caricati,
+    entrambi i tipi di trigger sbloccano correttamente (con ricerca di
+    seed per un successo reale di sottotrama, non solo un mock),
+    `valuta_sblocchi()` è idempotente, `modificatore_per_azione()`
+    aggrega correttamente (0 se il contatto non è attivo), `azione_
+    visibile()` nasconde/mostra il bersaglio SBLOCCO_AZIONE, **nessuna
+    delle 62 azioni reali è toccata** (verifica di sicurezza esplicita),
+    e soprattutto — il punto richiesto dal task — **uno sblocco ottenuto
+    in una run (profilo + `sblocca_contatto`) sopravvive a un round-trip
+    JSON completo e ha effetto in un `GameState` NUOVO e DIVERSO**
+    (simula "run 1 sblocca, run 2 ne beneficia"). Nessuna regressione
+    sulle altre suite né su `--play`.
