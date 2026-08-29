@@ -34,11 +34,20 @@ extends Control
 ##                          limitato a 0 finché il Profilo Persistente non
 ##                          ha traguardo_100_100_raggiunto = true.
 ##   --test-difficolta    -> auto-test headless della difficoltà crescente
+##   --seed-del-giorno    -> forza il seed derivato dalla data corrente
+##                          (design doc 12.6, con --play o in UI) invece
+##                          di uno casuale — sovrascrive --seed= se
+##                          presenti entrambi. A fine run il punteggio
+##                          viene registrato nello storico locale del
+##                          Profilo Persistente per la data odierna
+##                          (nessun server/classifica condivisa)
+##   --test-seed-del-giorno -> auto-test headless del Seed del Giorno
 ##
 ## Esempi:
 ##   godot --path .                          (gioco con la UI)
 ##   godot --headless --path . -- --play
 ##   godot --headless --path . -- --play --seed=12345
+##   godot --headless --path . -- --play --seed-del-giorno
 ##   godot --headless --path . -- --simulate=5000
 ##   godot --headless --path . -- --test-ui
 ##   godot --headless --path . -- --test-save-write
@@ -61,12 +70,17 @@ func _ready() -> void:
 		else:
 			altri_args.append(a)
 
+	var usa_seed_del_giorno := altri_args.has("--seed-del-giorno")
+	if usa_seed_del_giorno:
+		altri_args.erase("--seed-del-giorno")
+		seed_arg = SeedDelGiorno.seed_di_oggi()
+
 	if not simulate_arg.is_empty():
 		var n := int(simulate_arg.split("=")[1])
 		_run_simulation(n)
 		get_tree().quit()
 	elif altri_args.has("--play"):
-		_run_play_loop(seed_arg, difficolta_arg)
+		_run_play_loop(seed_arg, difficolta_arg, usa_seed_del_giorno)
 		get_tree().quit()
 	elif altri_args.has("--test-ui"):
 		_run_test_ui()
@@ -86,8 +100,11 @@ func _ready() -> void:
 	elif altri_args.has("--test-difficolta"):
 		_run_test_difficolta()
 		get_tree().quit()
+	elif altri_args.has("--test-seed-del-giorno"):
+		_run_test_seed_del_giorno()
+		get_tree().quit()
 	elif altri_args.is_empty():
-		_run_ui(seed_arg, difficolta_arg)
+		_run_ui(seed_arg, difficolta_arg, usa_seed_del_giorno)
 		# niente quit(): la UI resta aperta e interattiva finché l'utente non chiude la finestra
 	else:
 		print("Argomento non riconosciuto: %s" % ", ".join(altri_args))
@@ -588,6 +605,58 @@ func _run_test_difficolta() -> void:
 	print("TUTTI I TEST DIFFICOLTÀ OK")
 
 
+func _run_test_seed_del_giorno() -> void:
+	print("=== Batch tecnico: auto-test headless del Seed del Giorno ===")
+
+	var data_str := "2026-08-29"
+	var s1 := SeedDelGiorno.seed_da_data(data_str)
+	var s2 := SeedDelGiorno.seed_da_data(data_str)
+	assert(s1 == s2, "stessa data deve dare sempre lo stesso seed")
+	assert(s1 >= 0, "il seed derivato dalla data deve essere sempre non negativo")
+	print("OK: SeedDelGiorno.seed_da_data() è deterministico e non negativo (data %s -> seed %d)." % [data_str, s1])
+
+	var s_domani := SeedDelGiorno.seed_da_data("2026-08-30")
+	assert(s_domani != s1, "giorni diversi devono (con probabilità overwhelming) dare seed diversi")
+	print("OK: date diverse danno seed diversi (%d vs %d)." % [s1, s_domani])
+
+	var oggi := SeedDelGiorno.data_di_oggi_stringa()
+	assert(oggi.length() == 10 and oggi[4] == "-" and oggi[7] == "-", "formato atteso YYYY-MM-DD, trovato %s" % oggi)
+	assert(SeedDelGiorno.seed_di_oggi() == SeedDelGiorno.seed_da_data(oggi))
+	print("OK: seed_di_oggi() usa la data odierna nel formato YYYY-MM-DD (%s)." % oggi)
+
+	# Due run con lo stesso seed del giorno devono essere identiche (stessa
+	# proprietà già garantita da GameState per qualunque seed — verificata
+	# qui specificamente per il path SeedDelGiorno, non ridondante: prova
+	# che seed_da_data() produce davvero un intero utilizzabile da
+	# GameState, non solo un valore plausibile).
+	var stato_a := GameState.new(s1)
+	var stato_b := GameState.new(s1)
+	var azione := ActionDatabase.get_by_index(0)
+	var ra := stato_a.applica_azione_con_dado(azione)
+	var rb := stato_b.applica_azione_con_dado(azione)
+	assert(ra.costo_tempo_figlia_ore == rb.costo_tempo_figlia_ore and ra.successo == rb.successo)
+	print("OK: il seed derivato è un seed valido per GameState, riproducibile turno per turno.")
+
+	# Storico locale nel Profilo Persistente.
+	var profilo := PlayerProfile.new()
+	assert(profilo.tentativi_seed_del_giorno(data_str).is_empty())
+	var punteggio_finto := {"punteggio_totale_anni": 42.0, "padre_anni": 20.0, "figlia_anni": 22.0, "vittoria_100_100": false}
+	profilo.registra_punteggio_seed_del_giorno(data_str, punteggio_finto)
+	profilo.registra_punteggio_seed_del_giorno(data_str, punteggio_finto)
+	var tentativi: Array = profilo.tentativi_seed_del_giorno(data_str)
+	assert(tentativi.size() == 2, "due registrazioni devono accumularsi, non sovrascriversi")
+	assert(tentativi[0].totale_anni == 42.0)
+	assert(tentativi[0].has("timestamp_unix"))
+	print("OK: PlayerProfile.registra_punteggio_seed_del_giorno() accumula lo storico per data, non sovrascrive.")
+
+	# Round-trip su disco (nessun processo separato qui: il round-trip vero
+	# tra processi è già coperto da --test-save-write/read).
+	assert(PlayerProfile.from_dict(profilo.to_dict()).tentativi_seed_del_giorno(data_str).size() == 2)
+	print("OK: storico_seed_del_giorno sopravvive a to_dict()/from_dict() (serializzazione JSON).")
+
+	print("TUTTI I TEST SEED DEL GIORNO OK")
+
+
 ## Difficoltà crescente (design doc 12.5): "sbloccabili DOPO il primo
 ## traguardo 100+100" letto come un gate binario (non un percorso
 ## sequenziale alla Ascension/Slay the Spire, che il design doc cita solo
@@ -606,13 +675,26 @@ func _livello_difficolta_effettivo(richiesto: int, profilo: PlayerProfile) -> in
 	return richiesto
 
 
-func _run_ui(seed_arg: int = -1, difficolta_arg: int = 0) -> void:
+func _run_ui(seed_arg: int = -1, difficolta_arg: int = 0, usa_seed_del_giorno: bool = false) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ui := GameUI.new()
 	add_child(ui)
 	var profilo := PlayerProfile.load()
 	var livello := _livello_difficolta_effettivo(difficolta_arg, profilo)
-	ui.avvia(GameState.new(seed_arg, livello), profilo)
+	if usa_seed_del_giorno:
+		var precedenti: Array = profilo.tentativi_seed_del_giorno()
+		if not precedenti.is_empty():
+			print("Seed del giorno %s: %d tentativi precedenti oggi (record %.2f anni)." % [
+				SeedDelGiorno.data_di_oggi_stringa(), precedenti.size(), _record_tentativi(precedenti)
+			])
+	ui.avvia(GameState.new(seed_arg, livello), profilo, usa_seed_del_giorno)
+
+
+func _record_tentativi(tentativi: Array) -> float:
+	var migliore := 0.0
+	for t in tentativi:
+		migliore = maxf(migliore, t.totale_anni)
+	return migliore
 
 
 func _run_simulation(n: int) -> void:
@@ -654,7 +736,7 @@ func _stampa_report_batch(s: Dictionary) -> void:
 	])
 
 
-func _run_play_loop(seed_arg: int = -1, difficolta_arg: int = 0) -> void:
+func _run_play_loop(seed_arg: int = -1, difficolta_arg: int = 0, usa_seed_del_giorno: bool = false) -> void:
 	print("=== IL LADRO DI SABBIA — prototipo testuale ===")
 	print("La figlia ha 168 ore di vita, tu (il padre) ne hai 24.")
 	print("Scegli azioni per raccogliere sabbia prima che uno dei due countdown arrivi a zero.")
@@ -662,8 +744,12 @@ func _run_play_loop(seed_arg: int = -1, difficolta_arg: int = 0) -> void:
 
 	# --play e' uno strumento di debug/test (non usa il Profilo Persistente,
 	# vedi CLAUDE.md): il livello di difficolta' viene applicato SENZA il
-	# gate del traguardo 100+100 che si applica invece alla UI reale.
+	# gate del traguardo 100+100 che si applica invece alla UI reale, e il
+	# Seed del Giorno forza solo il valore del seed, senza registrare nulla
+	# nello storico (il Profilo Persistente resta non toccato da --play).
 	var stato := GameState.new(seed_arg, difficolta_arg)
+	if usa_seed_del_giorno:
+		print("Seed del giorno (%s): %d" % [SeedDelGiorno.data_di_oggi_stringa(), stato.seed_run])
 	print("Seed di questa run: %d (rilancia con --play --seed=%d per riprodurla)" % [stato.seed_run, stato.seed_run])
 	if difficolta_arg > 0:
 		print("Difficoltà forzata (debug, nessun gate): livello %d (Sabbia-Padre iniziale %.1fh, rischio +%.0f%%)" % [

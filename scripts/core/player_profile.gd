@@ -45,6 +45,15 @@ var traguardo_100_100_raggiunto: bool = false
 ## mondo maledetto) non sono ancora implementati.
 var stato_mondo_senza_sabbia: String = "normale"
 
+## Storico dei punteggi ottenuti col Seed del Giorno (design doc 12.6,
+## vedi scripts/core/seed_del_giorno.gd). Nessun server/classifica
+## condivisa (chiarito dall'autore): solo storico LOCALE, per confrontare
+## i propri tentativi sullo stesso seed. Chiave = data "YYYY-MM-DD",
+## valore = Array di Dictionary {totale_anni, padre_anni, figlia_anni,
+## vittoria_100_100, timestamp_unix}, un elemento per run completata con
+## quel seed (non solo il migliore: lo storico è l'intera cronologia).
+var storico_seed_del_giorno: Dictionary = {}
+
 
 func to_dict() -> Dictionary:
 	return {
@@ -54,6 +63,7 @@ func to_dict() -> Dictionary:
 		"livello_difficolta": livello_difficolta,
 		"traguardo_100_100_raggiunto": traguardo_100_100_raggiunto,
 		"stato_mondo_senza_sabbia": stato_mondo_senza_sabbia,
+		"storico_seed_del_giorno": storico_seed_del_giorno,
 	}
 
 
@@ -65,7 +75,32 @@ static func from_dict(d: Dictionary) -> PlayerProfile:
 	p.livello_difficolta = int(d.get("livello_difficolta", 0))
 	p.traguardo_100_100_raggiunto = bool(d.get("traguardo_100_100_raggiunto", false))
 	p.stato_mondo_senza_sabbia = d.get("stato_mondo_senza_sabbia", "normale")
+	p.storico_seed_del_giorno = d.get("storico_seed_del_giorno", {})
 	return p
+
+
+## Registra un punteggio nello storico del Seed del Giorno per la data
+## data (di norma SeedDelGiorno.data_di_oggi_stringa()). `punteggio` è il
+## Dictionary restituito da GameState.calcola_punteggio(), più un
+## timestamp aggiunto qui.
+func registra_punteggio_seed_del_giorno(data_str: String, punteggio: Dictionary) -> void:
+	if not storico_seed_del_giorno.has(data_str):
+		storico_seed_del_giorno[data_str] = []
+	storico_seed_del_giorno[data_str].append({
+		"totale_anni": punteggio.punteggio_totale_anni,
+		"padre_anni": punteggio.padre_anni,
+		"figlia_anni": punteggio.figlia_anni,
+		"vittoria_100_100": punteggio.vittoria_100_100,
+		"timestamp_unix": Time.get_unix_time_from_system(),
+	})
+
+
+## Tentativi già registrati per la data data (default: oggi) — utile per
+## mostrare "i tuoi tentativi precedenti su questo seed" prima di
+## rigiocarlo.
+func tentativi_seed_del_giorno(data_str: String = "") -> Array:
+	var chiave := data_str if data_str != "" else SeedDelGiorno.data_di_oggi_stringa()
+	return storico_seed_del_giorno.get(chiave, [])
 
 
 func save(path: String = DEFAULT_PATH) -> bool:

@@ -1166,3 +1166,42 @@ godot --headless --path . -- --test-save-read
     grafico del livello in `GameUI` (solo il flag `--difficolta=` e la
     lettura/scrittura da profilo) — costruire un widget di selezione
     prima di una run è una decisione di UI/UX, non solo tecnica.
+- **Batch tecnico — Task 2: seed del giorno (design doc 12.6)**: fatto.
+  Nuovo `scripts/core/seed_del_giorno.gd` (`class_name SeedDelGiorno`):
+  `data_di_oggi_stringa()` (formato `YYYY-MM-DD` da `Time.get_date_dict_
+  from_system()`), `seed_da_data(stringa)` (hash deterministico della
+  data — `String.hash()` di Godot è un djb2 non randomizzato per
+  processo, stessa stringa dà sempre lo stesso intero, mascherato a 31
+  bit per restare non negativo, coerente col contratto di
+  `GameState._init(seed_iniziale)`), `seed_di_oggi()`.
+  - **Chiarimento dell'autore applicato alla lettera**: "classifica solo
+    locale (nessun server esiste)" — NON costruito nulla che assomigli a
+    una classifica condivisa tra giocatori (il design doc 12.6 parla di
+    "classifica punteggio" in modo ambiguo, ma qui la richiesta era già
+    esplicita: solo storico locale dei propri tentativi).
+  - `PlayerProfile`: nuovo campo `storico_seed_del_giorno: Dictionary`
+    (chiave = data, valore = Array di record punteggio+timestamp),
+    nuovi metodi `registra_punteggio_seed_del_giorno(data, punteggio)`
+    (accumula, non sovrascrive) e `tentativi_seed_del_giorno(data =
+    oggi)`.
+  - **Flag `--seed-del-giorno`** (stesso pattern di `--seed=`/
+    `--difficolta=`, sovrascrive `--seed=` se entrambi presenti): con
+    `--play` forza solo il valore del seed (nessuna registrazione,
+    `--play` non tocca mai il Profilo Persistente, scelta di scope
+    preesistente dalla Fase 7); con la UI reale, `GameUI.avvia()` prende
+    un terzo parametro opzionale `e_seed_del_giorno` e a fine run
+    registra il punteggio nello storico se true. `_run_ui()` stampa
+    anche il record dei tentativi precedenti di oggi, se ce ne sono già,
+    prima di iniziare.
+  - **Verificato**: nuovo `--test-seed-del-giorno` — stessa data ->
+    stesso seed (deterministico, non negativo), date diverse -> seed
+    diversi, formato data corretto, il seed prodotto è davvero
+    utilizzabile da `GameState` (due `GameState` con lo stesso seed
+    derivato danno lo stesso esito sulla stessa azione), lo storico
+    accumula (non sovrascrive) ed è verificato sopravvivere a
+    `to_dict()`/`from_dict()`. Nessuna regressione su `--test-ui`,
+    `--test-sinergie`, `--test-fase10`, `--test-difficolta`,
+    `--test-save-write/read`.
+  - **Nessuna decisione bloccante**: il testo del task era già
+    sufficientemente specifico (compreso il chiarimento esplicito
+    sull'assenza di server) da non richiedere di fermarsi.
