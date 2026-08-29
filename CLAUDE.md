@@ -990,16 +990,24 @@ godot --headless --path . -- --test-save-read
     L'chen (l'organizzazione criminale PRINCIPALE/attuale di Sirio).
     Sostituiti in tutto il design doc ovunque il riferimento fosse
     chiaramente al personaggio specifico (circa 25 paragrafi tra sezioni
-    2-11). **Casi lasciati intenzionalmente ambigui, non forzati**:
-    "il vecchio boss"/"la vecchia organizzazione"/"la vecchia rete"
+    2-11). **Correzione post-sessione (confermata dall'autore)**: "il
+    vecchio boss"/"la vecchia organizzazione"/"la vecchia rete"
     (sottotrame 6.1 "Il tesoro del vecchio boss" e 6.10 "La cassa di
-    guerra della vecchia organizzazione", più il mentore criminale di
-    Sirio in 6.1) — non è chiaro se sia la STESSA L'chen (solo con un
-    boss precedente, ora morto) o un'organizzazione DIVERSA dal passato
-    di Sirio: lasciati come "vecchio boss"/"vecchia organizzazione" senza
-    rinominarli L'chen, per non forzare un'equivalenza non confermata.
-    Anche "un rivale dell'organizzazione" (5.3, testo di un'azione
-    corretta) lasciato generico per lo stesso motivo. **NON toccati**:
+    guerra della vecchia organizzazione") erano state inizialmente
+    lasciate ambigue (non era chiaro se fossero la STESSA L'chen vista
+    dal passato di Sirio o un'organizzazione diversa). L'autore ha
+    confermato: è sempre L'chen — "il vecchio boss" è il mentore
+    criminale defunto di Sirio, predecessore dell'attuale vertice
+    dell'organizzazione; "la vecchia organizzazione" è L'chen vista dal
+    passato di Sirio, non un'entità diversa. Reso esplicito nel design
+    doc alla prima occorrenza in ciascuna sottotrama ("il vecchio boss
+    di L'chen" in 6.1, "la sua vecchia organizzazione, L'chen" in 6.10)
+    e nella descrizione della traccia Criminale (7.1, "soppianti il
+    vecchio boss di L'chen"), così resta chiaro anche leggendo una
+    sezione isolata. **Ancora lasciato generico, non toccato da questa
+    correzione**: "un rivale dell'organizzazione" (5.3, testo di
+    un'azione corretta) — non menzionato dall'autore, resta ambiguo per
+    lo stesso motivo originale. **NON toccati**:
     "Tempo-Figlia"/"Sabbia-Padre" (nomi di meccaniche/variabili, non
     riferimenti narrativi al personaggio) restano tali in tutto il
     documento, inclusa la prosa che li definisce.
@@ -1093,9 +1101,9 @@ godot --headless --path . -- --test-save-read
     (il contenuto aggiunto riguarda l'origine storica degli Eterni, non
     il trigger dell'evento "mondo senza sabbia"), quindi non l'ho marcato
     risolto pur non essendo tra le due eccezioni esplicitamente elencate.
-    **Notato ma non toccato**: la riga "'Il tesoro del vecchio boss'
-    incompatibile con la regola della sabbia" è ancora marcata RIMANDATO
-    nella tabella, benché il design doc (sezione 11.1) la segnali già
-    RISOLTO da una fase precedente — incongruenza preesistente, non
-    introdotta ora, segnalata invece di corretta silenziosamente perché
-    fuori dallo scope esplicito di questa sessione.
+    **Correzione post-sessione**: la riga "'Il tesoro del vecchio boss'
+    incompatibile con la regola della sabbia", segnalata come
+    incongruente (RIMANDATO nella tabella nonostante il design doc,
+    sezione 11.1, la desse già RISOLTO da una fase precedente), è stata
+    corretta su richiesta esplicita dell'autore: ora RISOLTO anche in
+    Elementi mancanti, allineata al design doc.
