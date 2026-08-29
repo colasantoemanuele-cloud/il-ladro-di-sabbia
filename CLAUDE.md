@@ -976,3 +976,126 @@ godot --headless --path . -- --test-save-read
     verifica il bonus contro `valore_rango2_traccia` invece della somma
     Rango1+Rango2, con lo stesso margine di varianza ±20%),
     `--test-fase10`, `--test-ui`, `--test-save-write/read` tutti PASS.
+- **Sessione narrativa (post-Fase 10): nomi propri, Dolce Volpe, origine
+  Eterni, patti, revisione del mondo senza sabbia**: fatto. **Solo
+  documentazione — nessuna modifica al codice.** I nomi propri e i nuovi
+  contenuti narrativi vivono per ora SOLO nel design doc (e in questo
+  file): il codice (`GameState`, UI, loop testuale) continua a usare
+  "Sirio"/"Sara"/ecc. mai — resta genericamente "il padre"/"la figlia" nei
+  commenti e "[PLACEHOLDER STREGATTO]" come marcatore letterale, invariato.
+  Applicare i nomi propri al codice (testi UI, eventuali costanti) è
+  esplicitamente fuori scope per questo passaggio.
+  - **Nomi propri** (design doc sezione 3): Sirio (protagonista/padre),
+    Sara (figlia neonata), Serena (madre defunta), Ledune (la metropoli),
+    L'chen (l'organizzazione criminale PRINCIPALE/attuale di Sirio).
+    Sostituiti in tutto il design doc ovunque il riferimento fosse
+    chiaramente al personaggio specifico (circa 25 paragrafi tra sezioni
+    2-11). **Casi lasciati intenzionalmente ambigui, non forzati**:
+    "il vecchio boss"/"la vecchia organizzazione"/"la vecchia rete"
+    (sottotrame 6.1 "Il tesoro del vecchio boss" e 6.10 "La cassa di
+    guerra della vecchia organizzazione", più il mentore criminale di
+    Sirio in 6.1) — non è chiaro se sia la STESSA L'chen (solo con un
+    boss precedente, ora morto) o un'organizzazione DIVERSA dal passato
+    di Sirio: lasciati come "vecchio boss"/"vecchia organizzazione" senza
+    rinominarli L'chen, per non forzare un'equivalenza non confermata.
+    Anche "un rivale dell'organizzazione" (5.3, testo di un'azione
+    corretta) lasciato generico per lo stesso motivo. **NON toccati**:
+    "Tempo-Figlia"/"Sabbia-Padre" (nomi di meccaniche/variabili, non
+    riferimenti narrativi al personaggio) restano tali in tutto il
+    documento, inclusa la prosa che li definisce.
+  - **Lo Stregatto → Dolce Volpe** (nome proprio: Dolce Volpe / Dessert
+    Fox): "Stregatto" mantenuto come nome dell'archetipo/categoria
+    narrativa (prima introdotto in 3.5, poi ribadito in apertura di 9),
+    "Dolce Volpe" usato come nome proprio in tutti i riferimenti
+    successivi del documento (headings 3.5 e 9 aggiornati a "... (Dolce
+    Volpe)" per rintracciabilità). Aggiornati anche i riferimenti sparsi
+    nelle sezioni 7.2/7.4/8.4/10 che davano ancora "lo Stregatto".
+  - **Monologo della rottura della quarta parete** (nuova sezione 9.2,
+    testo integrale fornito dall'autore, trascritto verbatim inclusi gli
+    apostrofi diritti dei dialoghi): sostituisce qualunque placeholder
+    precedente nel design doc — NON il placeholder nel CODICE
+    (`[PLACEHOLDER STREGATTO]`), che resta invariato, essendo questo
+    passaggio solo documentazione.
+  - **Revisione di continuità (sezione 8.3, non un'aggiunta)**: la
+    rottura della quarta parete in chiave di orrore cosmico, prima
+    attribuita agli Eterni che parlavano direttamente al giocatore, è
+    ora messa in scena TRAMITE Dolce Volpe. Gli Eterni restano
+    un'entità narrativa distinta con una propria lore (origine, sotto),
+    ma non parlano più in prima persona al giocatore — testo precedente
+    di 8.3 RIMOSSO, non lasciato come alternativa.
+  - **Origine degli Eterni** (nuova lore, sezione 8.1): un tempo
+    sacerdoti della Mesopotamia; in cambio della capacità di assorbire
+    sabbia altrui SENZA consenso — l'unica eccezione alla regola
+    fondamentale del mondo (sezione 4.2, ora con una nota di
+    cross-reference) — compirono un rituale che evocò gli Uomini del
+    Mare (demoni, non il popolo storico), che distrussero le civiltà
+    mesopotamiche ed egizie. Il giocatore arriva a scoprirla (non resta
+    un segreto mai svelato). **Catena di scoperta** (sezione 8.2, collega
+    sistemi già esistenti — nessuna nuova logica inventata): completare
+    "La cripta della setta degli eterni" (6.5) lascia un frammento
+    permanente → sblocca la nuova azione rara "Consultare uno studioso
+    clandestino" → la rivelazione completa richiede ANCHE Fede >= 90 in
+    Religiosa o Occulto nella STESSA run. **Solo testo/contenuto per
+    ora**: la nuova azione è documentata nel design doc, non aggiunta al
+    foglio Excel/`data/azioni.json` né implementata la logica di sblocco
+    — prossimo passo naturale quando si tornerà a toccare il codice.
+  - **Due patti concreti** (nuova sezione 9.3, narrativi, NON
+    implementati meccanicamente — il codice ha solo il meccanismo
+    generico di Fase 10, sezione 9.1, informalmente "il Patto delle 26
+    Ore" nella terminologia dell'autore): **Il Patto della Grazia a
+    Termine** (Karma azzerato a 0 subito; prezzo condizionale — se la run
+    successiva non porta a Sara almeno 75 anni di sabbia senza crimini,
+    il Karma crolla a -100 alla fine di quella run; richiederebbe un
+    nuovo campo "condizione pendente" nel Profilo Persistente, non
+    esistente, fuori scope) e **Il Patto del Ritorno** (disponibile solo
+    dopo un evento "mondo senza sabbia" in una run precedente; riporta la
+    sabbia come meccanica; prezzo: Sirio uccide Serena e Sara, vive e
+    felici in quel mondo — sezione 10.2 revisionata). Il terzo patto
+    resta esplicitamente aperto, non inventato.
+  - **Revisione del mondo senza sabbia** (sezione 10.2, SOSTITUISCE la
+    versione precedente, non un'aggiunta — vecchio testo rimosso):
+    Serena e Sara sono vive e vivono una vita serena e felice nel mondo
+    dove la sabbia non esiste più, non la stessa tragedia che si ripete
+    identica come descritto in precedenza. Collegata esplicitamente al
+    Patto del Ritorno: il suo prezzo (uccidere Serena e Sara) ha senso
+    narrativo solo perché in quel mondo sono vive. Sezione 10.3
+    aggiornata di conseguenza: "come uscirne" ora punta esplicitamente al
+    Patto del Ritorno invece di una frase generica scollegata dai nuovi
+    patti.
+  - **Nome della casata, sottotrama 6.7**: Sabbiedoro — sostituito il
+    placeholder "[dinastia da nominare]" nel titolo e "manca ancora un
+    nome proprio" nello stato. **Non toccato**: il nome della sottotrama
+    in `data/sottotrame.json`/Excel resta "Il crollo della casata [nome
+    da assegnare]" — nessuna modifica al codice in questo passaggio,
+    andrà aggiornato quando si toccherà di nuovo l'estrazione dati.
+  - **Loading screen di Serena legati al Karma** (nuova sottosezione in
+    3.3): 4 fasce di esempio (Karma neutro, lievemente negativo,
+    molto negativo <-50, molto positivo >+50) con una frase ciascuna —
+    schema di riferimento, non l'elenco finale delle frasi (da scrivere
+    in una fase futura).
+  - **Finali multipli a tre esiti** (sezione 4.5, aggiornata): schema
+    pulito / ambiguo / sporco-estremo invece di un finale per singola
+    sfumatura di moralità — testo integrale dei tre finali da scrivere in
+    una fase futura, qui solo lo schema.
+  - **Scope del flavor text** (nuova nota in sezione 5.2): nessun flavor
+    text per le 60 azioni core generiche (il nome basta); riservato solo
+    alle 10 sottotrame endgame e alle 17 azioni "una tantum", da
+    scrivere in una fase futura.
+  - **Elementi mancanti**: sezione "Contenuti narrativi non scritti"
+    aggiornata — nomi propri, patti (parzialmente), nome casata, nuova
+    voce "Origine degli Eterni" tutti marcati RISOLTO/PARZIALMENTE
+    RISOLTO (nuovo stato aggiunto alla legenda). Lasciati aperti (per
+    istruzione esplicita): "perché solo gli umani scambiano sabbia"
+    (non ha una riga dedicata nella tabella, resta aperta solo nel
+    design doc 11.1) e il terzo patto. **Lasciato aperto anche se non
+    esplicitamente richiesto**: "Cosa fa scattare l'intervento degli
+    Eterni" resta RIMANDATO — non è stato affrontato in questa sessione
+    (il contenuto aggiunto riguarda l'origine storica degli Eterni, non
+    il trigger dell'evento "mondo senza sabbia"), quindi non l'ho marcato
+    risolto pur non essendo tra le due eccezioni esplicitamente elencate.
+    **Notato ma non toccato**: la riga "'Il tesoro del vecchio boss'
+    incompatibile con la regola della sabbia" è ancora marcata RIMANDATO
+    nella tabella, benché il design doc (sezione 11.1) la segnali già
+    RISOLTO da una fase precedente — incongruenza preesistente, non
+    introdotta ora, segnalata invece di corretta silenziosamente perché
+    fuori dallo scope esplicito di questa sessione.
