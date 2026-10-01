@@ -3,9 +3,6 @@ extends RefCounted
 ## Auto-test headless della demo: godot --headless --path . -- --demo-test
 ## Usa assert(): valido solo nell'editor o in un export debug.
 
-const PERCORSO_TEST := "user://mondo_persistente_test.json"
-
-
 static func _attendi(app: Node, secondi: float) -> void:
 	await app.get_tree().create_timer(secondi).timeout
 
@@ -37,7 +34,7 @@ static func _premi(app: Node, radice: Node, testo: String, attesa_max: float = 5
 
 ## Chiude tutti i modali aperti (dadi, eventi, occasioni) scegliendo sempre la
 ## prima risposta possibile.
-static func _svuota_modali(app: Node, ui: MondoUI) -> void:
+static func _svuota_modali(app: Node, ui: ImperoUI) -> void:
 	for i in 20:
 		if ui._modale == null:
 			return
@@ -54,7 +51,6 @@ static func _svuota_modali(app: Node, ui: MondoUI) -> void:
 static func esegui(app: App) -> void:
 	print("=== TEST DEMO ===")
 	_test_testi()
-	_test_mondo()
 	await _test_audio(app)
 	await _test_titolo(app)
 	await _test_ui(app)
@@ -62,94 +58,14 @@ static func esegui(app: App) -> void:
 
 
 static func _test_testi() -> void:
-	for a: ActionData in ActionDatabase.get_all():
-		assert(TestiDemo.esito_azione(a.nome, true) != "Fatto.", "esito mancante: " + a.nome)
-		assert(TestiDemo.esito_azione(a.nome, false) != "Non è andata.", "esito mancante: " + a.nome)
 	var parole := TestiDemo.INTRO.split(" ", false).size()
 	assert(parole <= 120, "intro oltre 120 parole")
 	for t in TestiDemo.TUTORIAL:
 		assert(str(t.testo).split(" ", false).size() <= 60, "tutorial oltre 60 parole: " + str(t.titolo))
 	assert(TestiDemo.CITAZIONI.size() == 8)
-	assert(MondoRun.dati().luoghi.size() >= 20 and MondoRun.dati().contatti.size() >= 10)
-	print("OK: testi e dati del mondo.")
-
-
-static func _test_mondo() -> void:
-	var m := MondoRun.new(GameState.new(31337))
-	assert(m.luogo == "ospedale")
-	assert(not m.luoghi_noti.has("bisca"), "la bisca si scopre, non è nota all'inizio")
-	assert(m.contatti_noti.has("gaetano") and m.contatti_noti.has("rocco") and not m.contatti_noti.has("shen"))
-
-	# il viaggio costa le stesse ore a padre e figlia
-	var p0 := m.stato.sabbia_padre_ore
-	var f0 := m.stato.tempo_figlia_ore
-	var v := m.viaggia("porto")
-	assert(not v.has("rifiutata"))
-	assert(is_equal_approx(f0 - m.stato.tempo_figlia_ore, p0 - m.stato.sabbia_padre_ore), "il viaggio deve costare uguale a entrambi")
-	assert(m.viaggia("porto").has("rifiutata"), "non si va dove si è già")
-	assert(m.viaggia("bisca").has("rifiutata"), "non si va in un posto che non si conosce")
-	print("OK: viaggio (%.2fh) costa uguale a Sirio e a Sara." % v.ore)
-
-	# solo le azioni del luogo
-	assert(m.esegui_azione("Piccolo furto (scippo)").has("rifiutata"), "lo scippo non si fa al porto")
-	var p1 := m.stato.sabbia_padre_ore
-	var r := m.esegui_azione("Turno di lavoro onesto (8h, salario mediano)")
-	assert(not r.has("rifiutata"))
-	var rr: Dictionary = r.risultati[0].r
-	var atteso: float = p1 - rr.costo_tempo_figlia_ore + rr.effetto_sabbia_padre_ore
-	assert(absf(m.stato.sabbia_padre_ore - atteso) < 0.001, "il padre paga le ore del turno e incassa la paga")
-	print("OK: il turno costa %.1fh anche a Sirio, rende %.1fh." % [rr.costo_tempo_figlia_ore, rr.effetto_sabbia_padre_ore])
-
-	# fame e sonno
-	m.ore_sveglio = 40.0
-	m.ore_digiuno = 0.0
-	assert(m.malus_bisogni().modificatore == -2)
-	m.ore_digiuno = 80.0
-	assert(m.malus_bisogni().modo == DiceSystem.RollMode.SVANTAGGIO)
-	assert(m.malus_bisogni().modificatore == -4, "malus massimo -4")
-	m.ore_sveglio = 0.0
-	m.ore_digiuno = 0.0
-	assert(m.malus_bisogni().modificatore == 0)
-	print("OK: fame e sonno.")
-
-	# telefono: le strade si aprono solo con i meriti
-	var ha_lavoro1 := false
-	for o in m.opzioni_contatto("gaetano"):
-		if o.id == "lavoro1":
-			ha_lavoro1 = true
-	assert(ha_lavoro1 == bool(rr.successo), "Gaetano offre il posto solo dopo un turno riuscito")
-	var esito := m.scegli_opzione("rocco", "bisca")
-	assert(m.luoghi_noti.has("bisca") and not esito.notifiche.is_empty())
-	for o in m.opzioni_contatto("rocco"):
-		assert(o.id != "bisca", "un'opzione una tantum sparisce dopo l'uso")
-	print("OK: telefono, sblocchi e strade su merito.")
-
-	# donazione: anche un'ora, ma solo in ospedale
-	assert(not m.dona(1.0).get("successo", false), "si dona in ospedale")
-	m.viaggia("ospedale")
-	if not m.stato.is_over:
-		var d := m.dona(1.0)
-		assert(d.successo and m.stato.is_over and is_equal_approx(m.stato.donated_ore, 1.0))
-	print("OK: donazione di un'ora.")
-
-	# obiettivi persistenti
-	var pers := MondoPersistente.new()
-	var note := m.valuta_obiettivi(pers)
-	assert(pers.contatti.has("anselmo") and not note.is_empty(), "donare sblocca Padre Anselmo per le prossime run")
-	pers.salva(PERCORSO_TEST)
-	var ricaricato := MondoPersistente.carica(PERCORSO_TEST)
-	assert(ricaricato.contatti.has("anselmo") and ricaricato.run_giocate == 1)
-	var m2 := MondoRun.new(GameState.new(1), ricaricato)
-	assert(m2.contatti_noti.has("anselmo"), "il contatto sbloccato c'è nella run successiva")
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(PERCORSO_TEST))
-	print("OK: sblocchi permanenti tra una run e l'altra.")
-
-	# orologio del mondo
-	var m3 := MondoRun.new(GameState.new(5))
-	assert(m3.ora_testo() == "Lunedì 23:00")
-	m3._passa_tempo(2.0)
-	assert(m3.ora_testo() == "Martedì 01:00" and m3.giorno() == 2 and m3.messaggi_non_letti() == 1)
-	print("OK: orologio e messaggi del giorno.")
+	for testo in [TestiDemo.INTRO] + TestiDemo.CITAZIONI:
+		assert(not str(testo).contains("—"), "trattino lungo")
+	print("OK: testi.")
 
 
 static func _test_audio(app: App) -> void:
@@ -179,64 +95,76 @@ static func _test_titolo(app: App) -> void:
 	print("OK: scelta del seed.")
 
 
-static func _test_ui(app: App) -> void:
-	var mondo := MondoRun.new(GameState.new(31337))
-	var ui := MondoUI.new()
-	app.add_child(ui)
-	ui.avvia(mondo, null, null, app.audio, false)
-	await _attendi(app, 0.2)
-	assert(ui._modale != null, "il bivio iniziale deve comparire")
-	assert(await _premi(app, ui._modale, "A PASSI PICCOLI"))
-	assert(ui._modale == null)
-	# in ospedale si vede solo cio che si fa in ospedale
+static func _titoli_carte(ui: ImperoUI) -> Array:
 	var testi: Array = []
 	for c in ui._griglia.get_children():
 		if c is CartaUI and not c.is_queued_for_deletion():
 			testi.append(c._lbl_titolo.text)
-	assert(testi.has("Visitare la figlia in ospedale") and testi.has("Donare a Sara"), "carte dell'ospedale: %s" % str(testi))
-	assert(not testi.has("Turno di lavoro onesto (8h, salario mediano)"), "il lavoro non si fa in ospedale")
+	return testi
+
+
+static func _premi_carta(ui: ImperoUI, titolo: String) -> bool:
+	for c in ui._griglia.get_children():
+		if c is CartaUI and not c.is_queued_for_deletion() and c._lbl_titolo.text == titolo:
+			c.premuta.emit()
+			return true
+	return false
+
+
+static func _test_ui(app: App) -> void:
+	var s := ImperoState.new(31337)
+	var ui := ImperoUI.new()
+	app.add_child(ui)
+	ui.avvia(s, null, null, app.audio, false)
+	await _attendi(app, 0.2)
+	assert(ui._modale == null)
+	var testi := _titoli_carte(ui)
+	assert(testi.has("Stare con Sara") and testi.has("Donare a Sara"), "carte dell'ospedale: %s" % str(testi))
+	assert(not testi.has("Turno al porto"), "il lavoro non si fa in ospedale")
 	print("OK: carte contestuali (%s)." % ", ".join(testi))
 
-	# visita a Sara: dado e diario
-	var turno := mondo.stato.turno
-	for c in ui._griglia.get_children():
-		if c is CartaUI and c._lbl_titolo.text == "Visitare la figlia in ospedale":
-			c.premuta.emit()
+	# una fascia passa: costa sei ore a entrambi
+	var sirio := s.sirio
+	assert(_premi_carta(ui, "Stare con Sara"))
 	await _svuota_modali(app, ui)
-	assert(mondo.stato.turno == turno + 1)
+	assert(s.fascia == 1 and is_equal_approx(s.sirio, sirio - 6.0))
+	print("OK: una fascia costa sei ore a Sirio e a Sara.")
 
-	# telefono: Rocco indica la bisca
+	# telefono: Rocco apre l'usura
 	ui._apri_telefono()
 	await _attendi(app, 0.1)
 	assert(await _premi(app, ui._pannello, "Rocco Ferrante"))
-	assert(await _premi(app, ui._pannello, "Dove si gioca forte?"))
-	await _svuota_modali(app, ui)
-	assert(mondo.luoghi_noti.has("bisca"))
+	assert(await _premi(app, ui._pannello, "Chi presta ore"))
+	assert(s.giri_aperti.has("usura") and s.luoghi_noti.has("bottega_nando"))
+	assert(s.fascia == 1, "il telefono non occupa la fascia")
 	ui._chiudi_pannello()
 	print("OK: telefono.")
 
-	# mappa e viaggio
+	# mappa: guardare un luogo è gratis, agire lì fa viaggiare
 	ui._apri_mappa()
 	await _attendi(app, 0.2)
-	ui._viaggia("piazza")
-	await _attendi(app, 1.2)
+	ui.guarda("bottega_nando")
+	assert(s.luogo == "ospedale" and ui.vista == "bottega_nando")
+	assert(_titoli_carte(ui).has("Prestare a nuovi disperati"), "carte della bottega: %s" % str(_titoli_carte(ui)))
+	assert(_premi_carta(ui, "Prestare a nuovi disperati"))
 	await _svuota_modali(app, ui)
-	assert(mondo.luogo == "piazza" or mondo.stato.is_over)
-	print("OK: viaggio dalla mappa.")
+	assert(s.luogo == "bottega_nando" and s.fascia == 2)
+	print("OK: mappa e primo giro (%d debitori)." % int(s.giri.usura.persone))
 
-	# ritorno in ospedale e donazione di un'ora
-	if not mondo.stato.is_over:
-		ui._viaggia("ospedale")
-		await _attendi(app, 1.2)
-		await _svuota_modali(app, ui)
-	if not mondo.stato.is_over:
-		ui._apri_donazione()
-		await _attendi(app, 0.1)
-		assert(await _premi(app, ui._modale, "UN'ORA"))
-		assert(await _premi(app, ui._modale, "DONO"))
-		await _attendi(app, 0.3)
-		assert(mondo.stato.donation_made and is_equal_approx(mondo.stato.donated_ore, 1.0))
+	# pannello impero
+	ui._apri_impero()
+	await _attendi(app, 0.1)
+	assert(ui._pannello != null)
+	ui._chiudi_pannello()
+
+	# donazione di un'ora dall'ospedale
+	ui.guarda("ospedale")
+	assert(_premi_carta(ui, "Donare a Sara"))
+	await _attendi(app, 0.1)
+	assert(await _premi(app, ui._modale, "UN'ORA"))
+	assert(await _premi(app, ui._modale, "DONO"))
 	await _attendi(app, 0.3)
+	assert(s.is_over and s.fine == "dono" and is_equal_approx(s.donato, 1.0))
 	assert(ui._fine_mostrata, "la schermata finale deve comparire")
 	ui.queue_free()
 	print("OK: donazione di un'ora e fine.")
@@ -254,33 +182,32 @@ static func foto(app: App, cartella: String) -> void:
 	t.avvia(PlayerProfile.new(), ImpostazioniDemo.new(), app.audio)
 	await _attendi(app, 0.5)
 	await _scatta(app, cartella, "titolo")
-	t._apri_nuova_partita()
-	await _attendi(app, 0.2)
-	await _scatta(app, cartella, "nuova_partita")
 	t.queue_free()
-	var mondo := MondoRun.new(GameState.new(31337))
-	var ui := MondoUI.new()
+	var s := ImperoState.new(1000)
+	var ui := ImperoUI.new()
 	app.add_child(ui)
-	ui.avvia(mondo, null, MondoPersistente.new(), app.audio, false)
+	ui.avvia(s, null, ImperoPersistente.new(), app.audio, false)
 	await _attendi(app, 0.4)
-	await _scatta(app, cartella, "bivio")
-	await _premi(app, ui._modale, "A PASSI PICCOLI")
-	await _attendi(app, 0.3)
 	await _scatta(app, cartella, "ospedale")
-	mondo.scegli_opzione("rocco", "bisca")
-	mondo.viaggia("porto")
+	for i in 44:
+		ImperoBot.passo(s, ImperoBot.STRATEGIE.usuraio, false)
+	ui.vista = "bottega_nando"
 	ui._aggiorna()
 	await _attendi(app, 0.3)
-	await _scatta(app, cartella, "porto")
-	for c in ui._griglia.get_children():
-		if c is CartaUI and c._lbl_titolo.text.begins_with("Turno di lavoro onesto"):
-			c.premuta.emit()
-	await _attendi(app, 2.0)
-	await _scatta(app, cartella, "dado")
-	await _svuota_modali(app, ui)
+	await _scatta(app, cartella, "bottega")
+	if not s.is_over:
+		s.sirio = maxf(s.sirio, 200.0)
+		ui.esegui("cresci:usura")
+		await _attendi(app, 1.6)
+		await _scatta(app, cartella, "dado")
+		await _svuota_modali(app, ui)
+	ui._apri_impero()
+	await _attendi(app, 0.3)
+	await _scatta(app, cartella, "impero")
+	ui._chiudi_pannello()
 	ui._apri_telefono()
 	await _attendi(app, 0.2)
-	await _premi(app, ui._pannello, "Gaetano Ruggiero")
+	await _premi(app, ui._pannello, "Rocco Ferrante")
 	await _attendi(app, 0.3)
 	await _scatta(app, cartella, "telefono")
 	ui._chiudi_pannello()
@@ -288,16 +215,15 @@ static func foto(app: App, cartella: String) -> void:
 	await _attendi(app, 0.4)
 	await _scatta(app, cartella, "mappa")
 	ui._chiudi_pannello()
-	ui._apri_taccuino("stato")
+	ui._apri_taccuino("mosse")
 	await _attendi(app, 0.3)
 	await _scatta(app, cartella, "taccuino")
 	ui._chiudi_pannello()
-	mondo.viaggia("ospedale")
-	ui._aggiorna()
+	ui.guarda("ospedale")
 	ui._apri_donazione()
 	await _attendi(app, 0.3)
 	await _scatta(app, cartella, "donazione")
-	await _premi(app, ui._modale, "UN'ORA")
+	await _premi(app, ui._modale, "TUTTO TRANNE")
 	await _premi(app, ui._modale, "DONO")
 	await _attendi(app, 0.6)
 	await _scatta(app, cartella, "fine")

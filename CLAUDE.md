@@ -18,7 +18,15 @@ Dettaglio narrativo ed economico completo: `Il_ladro_di_sabbia_design_doc.docx`
 `Il_ladro_di_sabbia_elementi_mancanti.docx`, numeri in
 `ladro_di_sabbia_bilanciamento.xlsx`.
 
-**Scope attuale**: loop core (62 azioni — 60 originali + 2 aggiunte in Fase
+**Direzione attuale (Fase 14, approvata dall'autore)**: il gioco è
+diventato l'"impero di sabbia" (`docs/progetto_impero.md`): Sara ha 21
+giorni, il tempo avanza a fasce di 6 ore, la sabbia si guadagna con giri di
+persone che crescono in modo composto. Motore nuovo `ImperoState`, dati in
+`data/impero.json`. Quello che segue su loop core, Excel e tetto dei 265,55
+anni descrive il motore storico `GameState`, ancora presente e testato
+(`--play`, `--simulate`, `--test-*`) ma non più usato dall'app.
+
+**Scope del motore storico**: loop core (62 azioni — 60 originali + 2 aggiunte in Fase
 10, doppio countdown, dado d20, donazione, punteggio, varianza roguelite) +
 le 7 tracce normali + le 10 sottotrame endgame + le sinergie tra tracce
 (Blocco Fase 9, completo: 9a+9b+9c) + le 5 risorse con effetti reali
@@ -1687,3 +1695,39 @@ godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
     un'ora solo in ospedale, sblocchi permanenti con round-trip su disco,
     orologio e messaggi, scelta del seed, flusso UI completo). Suite
     13/13 PASS.
+- **Fase 14 (l'impero di sabbia, direzione A)**: fatto, su approvazione
+  esplicita dell'autore di tre decisioni: Sara 21 giorni; nuovo motore in
+  `scripts/core/` accanto a `GameState` (che resta come riferimento
+  storico, con tutti i suoi test); Excel e tetto dei 265,55 anni non
+  descrivono più il gioco, i numeri vivono in `data/impero.json`.
+  - **Dati**: `tools/genera_impero.py` → `data/impero.json` (parametri,
+    bisogni in fasce, 5 giri, 16 azioni, 9 grandi mosse, 18 luoghi, 7
+    contatti con dialoghi, messaggi della dottoressa, eventi, 5 obiettivi
+    permanenti, traguardi). Lo script valida i riferimenti, la
+    raggiungibilità di giri e mosse e le regole editoriali.
+  - **Motore** (`ImperoState`, logica pura): quattro fasce al giorno; ogni
+    voce non rapida occupa una fascia e chiama `passa_fascia()` (6 ore a
+    Sirio e a Sara, rata dell'anticipo di Rocco, tributi dei giri meno la
+    paga degli uomini, calore, perdite, crescita dei giri con
+    luogotenente, tradimenti, retate, assalti, scandali, crisi di Sara,
+    messaggi, Dolce Volpe se il Karma di inizio partita è <= -50). Voci
+    rapide (mangiare, conoscere il parroco o il bancario, donare) non
+    occupano la fascia. Agire in un luogo diverso da dove si trova Sirio
+    riduce la resa (`efficienza`, minimo 50%). Il tiro usa `DiceSystem`
+    con il malus di fame e sonno. Sblocchi tra partite in
+    `ImperoPersistente` (`user://impero_persistente.json`, separato dal
+    Profilo Persistente; il Karma resta lì).
+  - **Bilanciamento**: `ImperoBot` gioca 9 strategie;
+    `--demo-bilancio=N` stampa la tabella, `--impero-traccia=strategia`
+    stampa una partita fascia per fascia. Rispetto al prototipo Python
+    alzati anticipo (30 → 40 ore, rata 6) e crescita con luogotenente
+    (7% → 8%). Risultati su 300 partite in `docs/progetto_impero.md`,
+    sezione 12.
+  - **UI**: `ImperoUI` sostituisce `MondoUI` (rimossa con `scripts/mondo/`,
+    `data/mondo.json`, `tools/genera_mondo.py`, `data/esiti_azioni.json`,
+    `tools/genera_esiti.py` e i bivi demo di `TestiDemo`). Intro e
+    tutorial riscritti per il nuovo gioco.
+  - **Verifica**: `--test-impero` (dati, tempo, luoghi, telefono, giri,
+    luogotenenti, bisogni, calore, donazione, sblocchi su disco,
+    determinismo, il bot usuraio rende più del ladro, difficoltà) e
+    `--demo-test` riscritto sul nuovo flusso UI. Suite 14/14 PASS.

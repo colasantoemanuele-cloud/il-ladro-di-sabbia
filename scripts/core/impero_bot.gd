@@ -114,30 +114,37 @@ static func scegli(s: ImperoState, prof: Dictionary) -> Dictionary:
 	return _prova(s, ["lavoretto", "scippo", "turno", "mendicare"] if crim else ["turno", "lavoretto", "mendicare"])
 
 
+## Un passo del bot: telefono, eventuale pasto, una scelta. Restituisce
+## false quando decide di donare (o la partita è finita).
+static func passo(s: ImperoState, prof: Dictionary, puo_donare: bool = true) -> bool:
+	if s.is_over:
+		return false
+	if not s.patto_in_sospeso.is_empty():
+		s.risolvi_patto(false)
+	_telefono(s, prof)
+	if puo_donare and _deve_donare(s, prof):
+		s.dona(maxf(s.sirio * 0.9, 1.0), "ospedale")
+		return false
+	if s.digiuno >= 3:
+		var cibo := _prova(s, ["mangia"])
+		if not cibo.is_empty():
+			s.esegui("mangia", cibo.luogo)
+	var v := scegli(s, prof)
+	if v.is_empty():
+		v = _prova(s, ["mendicare", "dormi"])
+	var e := s.esegui(v.id, v.luogo)
+	if traccia:
+		print("%s %-22s %-14s S=%.0f F=%.0f flusso=%.1f usura=%d uomini=%d pol=%.0f %s" % [s.ora_testo(), v.id, v.luogo, s.sirio, s.sara, s.flusso_lordo(),
+			int(s.giri.usura.persone), s.uomini, s.polizia, "ok" if e.risultati.size() > 0 and e.risultati[0].successo else "ko"])
+	return not s.is_over
+
+
 static func gioca(seme: int, nome: String, persistente: ImperoPersistente = null) -> ImperoState:
 	var prof: Dictionary = STRATEGIE[nome]
 	var s := ImperoState.new(seme, 0, persistente)
 	var passi := 0
-	while not s.is_over and passi < 500:
+	while passo(s, prof) and passi < 500:
 		passi += 1
-		if not s.patto_in_sospeso.is_empty():
-			s.risolvi_patto(false)
-		_telefono(s, prof)
-		if _deve_donare(s, prof):
-			s.luogo = "ospedale"
-			s.dona(maxf(s.sirio * 0.9, 1.0))
-			break
-		if s.digiuno >= 3:
-			var cibo := _prova(s, ["mangia"])
-			if not cibo.is_empty():
-				s.esegui("mangia", cibo.luogo)
-		var v := scegli(s, prof)
-		if v.is_empty():
-			v = _prova(s, ["mendicare", "dormi"])
-		var e := s.esegui(v.id, v.luogo)
-		if traccia:
-			print("%s %-22s %-14s S=%.0f F=%.0f flusso=%.1f giri=%s uomini=%d pol=%.0f %s" % [s.ora_testo(), v.id, v.luogo, s.sirio, s.sara, s.flusso_lordo(),
-				str(s.giri.usura.persone).pad_decimals(0), s.uomini, s.polizia, "ok" if e.risultati.size() > 0 and e.risultati[0].successo else "ko"])
 	return s
 
 

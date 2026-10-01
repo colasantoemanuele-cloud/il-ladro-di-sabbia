@@ -1,9 +1,10 @@
-class_name MondoUI
+class_name ImperoUI
 extends Control
-## Interfaccia di gioco a luoghi. In alto lo stato di Sirio (orologi, fame,
-## sonno, risorse). Al centro il luogo dove si trova e solo cio che si puo fare
-## li. A destra il diario della settimana. In basso telefono, mappa, taccuino.
-## Nessuna regola qui: tutto passa da MondoRun e GameState.
+## Interfaccia dell'impero di sabbia. In alto il tempo e lo stato di Sirio.
+## Al centro il luogo che stai guardando e le cose che si possono fare lì: ogni
+## cosa occupa una fascia di sei ore, poi la città gira. A destra il diario.
+## In basso telefono, mappa, impero, taccuino. Nessuna regola qui: tutto passa
+## da ImperoState.
 
 signal torna_al_titolo
 signal nuova_partita
@@ -11,35 +12,41 @@ signal nuova_partita
 const ALTO := 96
 const BASSO := 84
 const LARGHEZZA_DIARIO := 380
-const SOGLIA_ENDGAME_ORE := 24.0
-const SOGLIA_PULSE_ORE := 4.0
-const SOGLIA_POCHE_ORE := 8.0
+const SOGLIA_ENDGAME_ORE := 72.0
 const SOGLIA_CRITICA := 75.0
 
 const RISORSE := [
-	["polizia", "Polizia", "Attenzione della polizia. Sopra 50 i colpi diventano più difficili."],
-	["rivalita", "Rivalità", "Quanto ti odiano i rivali di L'chen."],
-	["fama", "Fama", "Quanto ti conosce la città. Pesa sui colpi se hai una posizione rispettabile."],
-	["karma", "Karma", "Ti segue da una settimana all'altra. Cambia gli eventi e i patti che ti vengono offerti."],
-	["fede", "Fede", "Fede del Culto o della Setta: serve per salire nelle strade religiose."],
+	["polizia", "Polizia", "Attenzione della polizia. Sale con bische, protezione e usura. Porta retate e rende più difficili i colpi."],
+	["rivalita", "Rivalità", "Quanto ti odiano i rivali. Sale con la protezione e le bische. Porta assalti."],
+	["fama", "Fama", "Quanto si parla di te. Sale col culto. Porta scandali."],
+	["karma", "Karma", "Ti segue da una partita all'altra. Sotto -50 Dolce Volpe si fa viva."],
 ]
 
-var mondo: MondoRun
-var stato: GameState
+const CATEGORIA_TIPO := {
+	"lavoro": "Lavoro", "colpo": "Furto", "recluta": "Crimine organizzato", "corrompi": "Corruzione",
+	"tributo": "Relazioni", "informatore": "Corruzione", "dormi": "Bisogni", "mangia": "Bisogni",
+	"visita": "Altruismo", "dona": "Altruismo", "liquida": "Compravendita", "riscuoti": "Crimine organizzato",
+	"luogotenente": "Crimine organizzato", "mossa": "Grande colpo", "parla": "Relazioni",
+}
+const CATEGORIA_GIRO := {
+	"usura": "Crimine organizzato", "protezione": "Minaccia 1 a 1", "bische": "Azzardo",
+	"culto": "Narrativo", "cooperativa": "Lavoro",
+}
+
+var s: ImperoState
 var profilo: PlayerProfile
-var persistente: MondoPersistente
+var persistente: ImperoPersistente
 var audio: MusicEngine
 var _e_seed_del_giorno := false
 
+var vista := "ospedale"
 var _strato: Control
 var _modale: Control = null
 var _pannello: Control = null
 var _rinfresca_pannello: Callable
 var _coda: Array = []
 var _fine_mostrata := false
-var _controlla_occasione := false
 var _musica := ""
-var _prima: Dictionary = {}
 var _chat: Dictionary = {}
 var _toast_coda: Array[String] = []
 var _toast_attivo := false
@@ -48,46 +55,42 @@ var _avatar: TextureRect
 var _frame := 0
 var _lbl_ora: Label
 var _lbl_luogo: Label
-var _lbl_padre: Label
-var _bar_padre: ProgressBar
-var _lbl_figlia: Label
-var _bar_figlia: ProgressBar
+var _lbl_sirio: Label
+var _bar_sirio: ProgressBar
+var _lbl_sara: Label
+var _bar_sara: ProgressBar
 var _lbl_sonno: Label
 var _lbl_fame: Label
+var _lbl_flusso: Label
 var _val_ris: Dictionary = {}
 var _img_luogo: TextureRect
 var _lbl_nome_luogo: Label
 var _lbl_desc_luogo: Label
+var _lbl_viaggio: Label
 var _griglia: GridContainer
 var _vuoto: Label
 var _diario: VBoxContainer
 var _btn_tel: Button
-var _btn_mappa: Button
-var _btn_taccuino: Button
 var _critico_prima: Dictionary = {}
 var _pulse: Dictionary = {}
 var _toast: Label
 
 
-func avvia(mondo_run: MondoRun, profilo_corrente: PlayerProfile, mondo_persistente: MondoPersistente, motore_audio: MusicEngine, e_seed_del_giorno: bool = false) -> void:
-	mondo = mondo_run
-	stato = mondo.stato
+func avvia(stato: ImperoState, profilo_corrente: PlayerProfile, impero_persistente: ImperoPersistente, motore_audio: MusicEngine, e_seed_del_giorno: bool = false) -> void:
+	s = stato
 	profilo = profilo_corrente
-	persistente = mondo_persistente
+	persistente = impero_persistente
 	audio = motore_audio
 	_e_seed_del_giorno = e_seed_del_giorno
-	if profilo != null:
-		stato.karma = profilo.karma
+	vista = s.luogo
 	theme = Stile.tema()
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_costruisci()
 	_scrivi("Lunedì notte. Sara è nata da un'ora. Serena no.", Stile.SABBIA)
-	_scrivi("Sei in ospedale. Ti restano 24 ore. A lei, una settimana.", Stile.CHIARO)
+	_scrivi("Ti restano poche ore e un anticipo di Rocco. A lei, tre settimane. Le ore si comprano dalle persone: chiama Rocco.", Stile.CHIARO)
 	_aggiorna()
 	_imposta_musica()
-	_coda_bivio(TestiDemo.BIVIO_INIZIO)
-	_esegui_coda()
 
 
 func _s(nome: String) -> void:
@@ -137,7 +140,7 @@ func _costruisci_alto() -> Control:
 	p.custom_minimum_size = Vector2(0, ALTO)
 	p.add_theme_stylebox_override("panel", Stile.box(Color("101022"), Stile.GRIGIO, 3, 8))
 	var riga := HBoxContainer.new()
-	riga.add_theme_constant_override("separation", 18)
+	riga.add_theme_constant_override("separation", 16)
 	p.add_child(riga)
 
 	_avatar = TextureRect.new()
@@ -153,49 +156,57 @@ func _costruisci_alto() -> Control:
 		_avatar.texture = PixelArt.avatar_frame(_frame))
 
 	var dove := VBoxContainer.new()
-	dove.custom_minimum_size = Vector2(230, 0)
+	dove.custom_minimum_size = Vector2(290, 0)
 	dove.alignment = BoxContainer.ALIGNMENT_CENTER
-	_lbl_ora = Stile.etichetta("", 24, Stile.SABBIA)
+	_lbl_ora = Stile.etichetta("", 22, Stile.SABBIA)
 	_lbl_luogo = Stile.etichetta("", 17, Stile.GRIGIO.lightened(0.3))
 	_lbl_luogo.clip_text = true
 	dove.add_child(_lbl_ora)
 	dove.add_child(_lbl_luogo)
 	riga.add_child(dove)
 
-	var orologi := _blocco_orologio("SIRIO", Stile.SABBIA)
-	_lbl_padre = orologi[1]
-	_bar_padre = orologi[2]
-	riga.add_child(orologi[0])
-	var orologi2 := _blocco_orologio("SARA", Stile.ROSSO)
-	_lbl_figlia = orologi2[1]
-	_bar_figlia = orologi2[2]
-	riga.add_child(orologi2[0])
+	var o1 := _blocco_orologio("SIRIO", Stile.SABBIA)
+	_lbl_sirio = o1[1]
+	_bar_sirio = o1[2]
+	riga.add_child(o1[0])
+	var o2 := _blocco_orologio("SARA", Stile.ROSSO)
+	_lbl_sara = o2[1]
+	_bar_sara = o2[2]
+	riga.add_child(o2[0])
+
+	var flusso := VBoxContainer.new()
+	flusso.alignment = BoxContainer.ALIGNMENT_CENTER
+	flusso.custom_minimum_size = Vector2(150, 0)
+	flusso.add_child(Stile.etichetta("RETE / FASCIA", 15, Stile.GRIGIO.lightened(0.3)))
+	_lbl_flusso = Stile.etichetta("", 22, Stile.CHIARO)
+	flusso.add_child(_lbl_flusso)
+	riga.add_child(flusso)
 
 	var bisogni := VBoxContainer.new()
 	bisogni.alignment = BoxContainer.ALIGNMENT_CENTER
-	bisogni.custom_minimum_size = Vector2(170, 0)
+	bisogni.custom_minimum_size = Vector2(150, 0)
 	var r1 := HBoxContainer.new()
-	r1.add_child(_icona(PixelArt.icona_ui("sonno"), 28))
-	_lbl_sonno = Stile.etichetta("", 18, Stile.CHIARO)
+	r1.add_child(_icona(PixelArt.icona_ui("sonno"), 26))
+	_lbl_sonno = Stile.etichetta("", 17, Stile.CHIARO)
 	r1.add_child(_lbl_sonno)
 	var r2 := HBoxContainer.new()
-	r2.add_child(_icona(PixelArt.icona_ui("fame"), 28))
-	_lbl_fame = Stile.etichetta("", 18, Stile.CHIARO)
+	r2.add_child(_icona(PixelArt.icona_ui("fame"), 26))
+	_lbl_fame = Stile.etichetta("", 17, Stile.CHIARO)
 	r2.add_child(_lbl_fame)
 	bisogni.add_child(r1)
 	bisogni.add_child(r2)
 	riga.add_child(bisogni)
 
 	var ris := GridContainer.new()
-	ris.columns = 3
+	ris.columns = 2
 	ris.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ris.add_theme_constant_override("h_separation", 8)
 	ris.add_theme_constant_override("v_separation", 0)
 	for def in RISORSE:
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 2)
-		h.add_child(_icona(PixelArt.icona_risorsa(def[0]), 26))
-		var v := Stile.etichetta("0", 18, Stile.CHIARO)
+		h.add_child(_icona(PixelArt.icona_risorsa(def[0]), 24))
+		var v := Stile.etichetta("0", 17, Stile.CHIARO)
 		v.custom_minimum_size = Vector2(38, 0)
 		h.add_child(v)
 		h.tooltip_text = def[2]
@@ -209,18 +220,20 @@ func _costruisci_alto() -> Control:
 	tocca.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for n in ["normal", "hover", "pressed", "focus"]:
 		tocca.add_theme_stylebox_override(n, StyleBoxEmpty.new())
-	tocca.pressed.connect(func(): _apri_taccuino("stato"))
+	tocca.pressed.connect(func():
+		if _modale == null:
+			_apri_impero())
 	p.add_child(tocca)
 	return p
 
 
 func _blocco_orologio(nome: String, colore: Color) -> Array:
 	var v := VBoxContainer.new()
-	v.custom_minimum_size = Vector2(190, 0)
+	v.custom_minimum_size = Vector2(170, 0)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 2)
 	v.add_child(Stile.etichetta(nome, 15, Stile.GRIGIO.lightened(0.3)))
-	var l := Stile.etichetta("", 26, colore)
+	var l := Stile.etichetta("", 24, colore)
 	v.add_child(l)
 	var b := ProgressBar.new()
 	b.show_percentage = false
@@ -287,8 +300,10 @@ func _costruisci_scena() -> Control:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	m.add_child(col)
-	col.add_child(Stile.etichetta("COSA PUOI FARE QUI", 18, Stile.GRIGIO.lightened(0.2)))
-	_vuoto = Stile.etichetta("Qui non c'è altro da fare. Apri la mappa o il telefono.", 19, Stile.GRIGIO.lightened(0.3))
+	_lbl_viaggio = Stile.etichetta("", 18, Stile.GRIGIO.lightened(0.3))
+	_lbl_viaggio.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(_lbl_viaggio)
+	_vuoto = Stile.etichetta("Qui non c'è niente per te, per ora. Apri la mappa o il telefono.", 19, Stile.GRIGIO.lightened(0.3))
 	_vuoto.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(_vuoto)
 	_griglia = GridContainer.new()
@@ -323,11 +338,10 @@ func _costruisci_basso() -> Control:
 	riga.custom_minimum_size = Vector2(0, BASSO)
 	riga.add_theme_constant_override("separation", 4)
 	_btn_tel = _bottone_nav("TELEFONO", "telefono", _apri_telefono)
-	_btn_mappa = _bottone_nav("MAPPA", "mappa", _apri_mappa)
-	_btn_taccuino = _bottone_nav("TACCUINO", "taccuino", func(): _apri_taccuino("strade"))
 	riga.add_child(_btn_tel)
-	riga.add_child(_btn_mappa)
-	riga.add_child(_btn_taccuino)
+	riga.add_child(_bottone_nav("MAPPA", "mappa", _apri_mappa))
+	riga.add_child(_bottone_nav("IMPERO", "taccuino", _apri_impero))
+	riga.add_child(_bottone_nav("TACCUINO", "taccuino", func(): _apri_taccuino("mosse")))
 	return riga
 
 
@@ -336,7 +350,7 @@ func _bottone_nav(testo: String, icona: String, azione: Callable) -> Button:
 	b.text = "  " + testo
 	b.icon = ImageTexture.create_from_image(PixelArt.ingrandisci(PixelArt.icona_ui(icona).get_image(), 3))
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.add_theme_font_size_override("font_size", 26)
+	b.add_theme_font_size_override("font_size", 24)
 	b.pressed.connect(func():
 		_s("click")
 		if _modale == null:
@@ -355,50 +369,58 @@ func _aggiorna() -> void:
 
 
 func _aggiorna_tel() -> void:
-	var n := mondo.messaggi_non_letti()
-	_btn_tel.text = "  TELEFONO" + ("  (%d)" % n if n > 0 else "")
-	if n > 0:
+	var n := s.messaggi_non_letti()
+	var novita := 0
+	for c in s.contatti_visibili():
+		if s.ha_novita(c.id):
+			novita += 1
+	_btn_tel.text = "  TELEFONO" + ("  (%d)" % (n + novita) if n + novita > 0 else "")
+	if n + novita > 0:
 		Stile.applica_bottone(_btn_tel, Stile.GIALLO)
 	else:
 		for k in ["normal", "hover", "pressed", "disabled"]:
 			_btn_tel.remove_theme_stylebox_override(k)
 
 
+static func ore(v: float) -> String:
+	if absf(v) >= 1000.0:
+		return Stile.ore(v)
+	return "%.1f ore" % v
+
+
 func _aggiorna_alto() -> void:
-	_lbl_ora.text = mondo.ora_testo()
-	_lbl_luogo.text = MondoRun.luogo_dati(mondo.luogo).get("nome", "")
-	_lbl_padre.text = _ore(stato.sabbia_padre_ore)
-	_bar_padre.max_value = maxf(GameState.SABBIA_PADRE_INIZIALE, stato.sabbia_padre_ore)
-	_bar_padre.value = stato.sabbia_padre_ore
-	_lbl_figlia.text = _ore(stato.tempo_figlia_ore)
-	_bar_figlia.max_value = GameState.TEMPO_FIGLIA_INIZIALE
-	_bar_figlia.value = stato.tempo_figlia_ore
-	_pulsa(_lbl_padre, "padre", stato.sabbia_padre_ore < SOGLIA_PULSE_ORE and not stato.is_over)
-	_pulsa(_lbl_figlia, "figlia", stato.tempo_figlia_ore < SOGLIA_PULSE_ORE and not stato.is_over)
-	var sonno := mondo.stato_sonno()
-	var fame := mondo.stato_fame()
+	_lbl_ora.text = s.ora_testo()
+	_lbl_luogo.text = "Sirio è: " + str(ImperoState.luogo_dati(s.luogo).get("nome", ""))
+	_lbl_sirio.text = ore(s.sirio)
+	_bar_sirio.max_value = maxf(100.0, s.sirio)
+	_bar_sirio.value = s.sirio
+	var giorni := s.giorni_sara()
+	_lbl_sara.text = ("%.1f giorni" % giorni) if s.sara < 1000.0 else Stile.ore(s.sara)
+	_bar_sara.max_value = maxf(float(ImperoState.par().giorni) * 24.0, s.sara)
+	_bar_sara.value = s.sara
+	_pulsa(_lbl_sirio, "sirio", s.sirio < 12.0 and not s.is_over)
+	_pulsa(_lbl_sara, "sara", s.sara < 48.0 and not s.is_over)
+	var netto := s.flusso_netto()
+	_lbl_flusso.text = Stile.ore(netto, true)
+	_lbl_flusso.add_theme_color_override("font_color", Stile.VERDE.lightened(0.35) if netto >= 0.0 else Stile.ROSSO)
+	var sonno := s.stato_sonno()
+	var fame := s.stato_fame()
 	_lbl_sonno.text = " " + str(sonno[0])
 	_lbl_fame.text = " " + str(fame[0])
-	_lbl_sonno.add_theme_color_override("font_color", [Stile.CHIARO, Stile.GIALLO, Color("e08030"), Stile.ROSSO][int(sonno[2])])
-	_lbl_fame.add_theme_color_override("font_color", [Stile.CHIARO, Stile.GIALLO, Color("e08030"), Stile.ROSSO][int(fame[2])])
-	var valori := {"polizia": stato.attenzione_polizia, "rivalita": stato.rivalita_criminale, "fama": stato.fama_pubblica,
-		"karma": stato.karma, "fede": maxf(stato.fede_culto, stato.fede_setta)}
+	var colori := [Stile.CHIARO, Stile.GIALLO, Color("e08030"), Stile.ROSSO]
+	_lbl_sonno.add_theme_color_override("font_color", colori[int(sonno[2])])
+	_lbl_fame.add_theme_color_override("font_color", colori[int(fame[2])])
+	var valori := {"polizia": s.polizia, "rivalita": s.rivalita, "fama": s.fama, "karma": s.karma}
 	var critico := {}
 	for k in valori:
 		_val_ris[k].text = "%.0f" % valori[k]
-		var c: bool = valori[k] <= -SOGLIA_CRITICA if k == "karma" else (k != "fede" and valori[k] >= SOGLIA_CRITICA)
+		var c: bool = valori[k] <= -SOGLIA_CRITICA if k == "karma" else valori[k] >= SOGLIA_CRITICA
 		critico[k] = c
 		_val_ris[k].add_theme_color_override("font_color", Stile.ROSSO if c else Stile.CHIARO)
 		if c and not _critico_prima.get(k, false):
 			_scuoti(_val_ris[k].get_parent())
 			_s("critica")
 	_critico_prima = critico
-
-
-func _ore(v: float) -> String:
-	if absf(v) >= 1000.0:
-		return Stile.ore(v)
-	return "%.1f ore" % v
 
 
 func _pulsa(nodo: Control, chiave: String, attivo: bool) -> void:
@@ -426,50 +448,45 @@ func _scuoti(nodo: Control) -> void:
 
 
 func _aggiorna_scena() -> void:
-	var l := MondoRun.luogo_dati(mondo.luogo)
+	var l := ImperoState.luogo_dati(vista)
 	_img_luogo.texture = PixelArt.scena_luogo(l.get("tipo", "casa"))
 	_lbl_nome_luogo.text = str(l.get("nome", "")).to_upper()
 	_lbl_desc_luogo.text = l.get("descrizione", "")
+	if vista == s.luogo:
+		_lbl_viaggio.text = "Sei qui. Ogni cosa occupa sei ore, poi la città gira."
+	else:
+		_lbl_viaggio.text = "Sirio è altrove. Venire qui prende %s della fascia: quello che fai rende il %d%%." % [ore(s.ore_viaggio(vista)), int(s.efficienza(vista) * 100.0)]
 	for c in _griglia.get_children():
 		c.queue_free()
-	var voci := mondo.azioni_qui()
+	var voci := s.voci(vista)
 	_vuoto.visible = voci.is_empty()
 	for voce in voci:
 		_griglia.add_child(_carta(voce))
 
 
+func _categoria(voce: Dictionary) -> String:
+	var tipo: String = voce.tipo
+	if tipo == "cresci":
+		return CATEGORIA_GIRO.get(str(voce.id).split(":")[1], "Crimine organizzato")
+	if tipo == "colpo" and voce.id in ["rapina", "furgone"]:
+		return "Crimine"
+	return CATEGORIA_TIPO.get(tipo, "Narrativo")
+
+
 func _carta(voce: Dictionary) -> CartaUI:
-	var carta: CartaUI
-	match voce.tipo:
-		"azione":
-			var a: ActionData = voce.azione
-			var netto := a.effetto_sabbia_padre_ore - a.costo_tempo_figlia_ore
-			var det := "Dura %s   Rende %s\nPer Sirio, se riesce: %s" % [Stile.ore(a.costo_tempo_figlia_ore), Stile.ore(a.effetto_sabbia_padre_ore, true), Stile.ore(netto, true)]
-			carta = CartaUI.new(a.categoria, a.nome, det, a.rischio_pct)
-			if voce.nota != "":
-				carta.imposta_badge(voce.nota, Stile.GRIGIO.lightened(0.3))
-			elif a.costo_tempo_figlia_ore >= stato.sabbia_padre_ore:
-				carta.imposta_badge("Ti restano %s: rischi di non arrivare in fondo" % Stile.ore(stato.sabbia_padre_ore), Stile.ROSSO)
-			elif a.unica_per_run:
-				carta.imposta_badge("Una sola volta a settimana", Stile.GIALLO)
-		"speciale":
-			var sp: Dictionary = voce.speciale
-			var det2: String = sp.get("descrizione", "")
-			if float(sp.get("ore", 0.0)) > 0.0:
-				det2 += "\nDura %s" % Stile.ore(float(sp.ore))
-			carta = CartaUI.new("Narrativo", sp.testo, det2)
-		"sottotrama":
-			var sub: SubplotData = voce.sottotrama
-			carta = CartaUI.new("Grande colpo", TestiDemo.nome_sottotrama_visibile(sub.nome), "Dura %s   Rende %s" % [Stile.ore(sub.costo_tempo_figlia_ore), Stile.ore(sub.effetto_sabbia_padre_ore, true)], sub.rischio_pct)
-			carta.imposta_badge(voce.nota if voce.nota != "" else "PISTA DEL TACCUINO", Stile.GIALLO)
-		"dona":
-			carta = CartaUI.new("Altruismo", "Donare a Sara", voce.speciale.descrizione)
-			carta.imposta_badge("Puoi donare anche una sola ora", Stile.SABBIA)
-		"cashin":
-			var combo: Array = stato.combo_tracce()
-			var molt: float = GameState.SINERGIA_MOLTIPLICATORI.get(combo.size(), GameState.SINERGIA_MOLTIPLICATORI[4])
-			carta = CartaUI.new("Grande colpo", voce.speciale.testo, "%s\nStrade: %s. Moltiplicatore x%.0f. Se fallisce perdi tutti quei ranghi." % [voce.speciale.descrizione, ", ".join(combo), molt], GameState.CASH_IN_RISCHIO_PCT)
-	carta.abilita(voce.disponibile and not stato.is_over)
+	var det: String = voce.descrizione
+	if voce.rapida:
+		det += "\nSubito, non occupa la fascia."
+	var carta := CartaUI.new(_categoria(voce), voce.nome, det, float(voce.rischio))
+	if voce.nota != "":
+		carta.imposta_badge(voce.nota, Stile.GRIGIO.lightened(0.3))
+	elif voce.tipo == "mossa":
+		carta.imposta_badge("GRANDE MOSSA, UNA SOLA OCCASIONE", Stile.GIALLO)
+	elif voce.tipo == "dona":
+		carta.imposta_badge("Puoi donare anche una sola ora", Stile.SABBIA)
+	elif not voce.rapida and s.sirio <= float(ImperoState.par().ore_fascia) + s.costi_fissi() - s.flusso_lordo():
+		carta.imposta_badge("A Sirio restano %s: la fascia potrebbe essere l'ultima" % ore(s.sirio), Stile.ROSSO)
+	carta.abilita(voce.disponibile and not s.is_over)
 	carta.premuta.connect(_su_voce.bind(voce))
 	return carta
 
@@ -477,7 +494,7 @@ func _carta(voce: Dictionary) -> CartaUI:
 func _imposta_musica() -> void:
 	if audio == null:
 		return
-	var voluta := "endgame" if stato.tempo_figlia_ore < SOGLIA_ENDGAME_ORE else "gameplay"
+	var voluta := "endgame" if s.sara < SOGLIA_ENDGAME_ORE else "gameplay"
 	if voluta != _musica:
 		_musica = voluta
 		audio.suona_musica(voluta)
@@ -486,14 +503,14 @@ func _imposta_musica() -> void:
 func _scrivi(testo: String, colore: Color = Stile.CHIARO) -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
-	box.add_child(Stile.etichetta(mondo.ora_testo(), 14, Stile.GRIGIO.lightened(0.2)))
+	box.add_child(Stile.etichetta(s.ora_testo(), 14, Stile.GRIGIO.lightened(0.2)))
 	var l := Stile.etichetta(testo, 17, colore)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(LARGHEZZA_DIARIO - 40, 0)
 	box.add_child(l)
 	_diario.add_child(box)
 	_diario.move_child(box, 0)
-	while _diario.get_child_count() > 60:
+	while _diario.get_child_count() > 80:
 		var ultimo := _diario.get_child(_diario.get_child_count() - 1)
 		_diario.remove_child(ultimo)
 		ultimo.queue_free()
@@ -526,95 +543,73 @@ func _mostra_toast_successivo() -> void:
 
 # =============================================================== azioni
 
-func _snapshot() -> Dictionary:
-	return {"Polizia": stato.attenzione_polizia, "Rivalità": stato.rivalita_criminale, "Fama": stato.fama_pubblica,
-		"Karma": stato.karma, "Fede del Culto": stato.fede_culto, "Fede della Setta": stato.fede_setta}
-
-
 func _bloccato() -> bool:
-	return _modale != null or stato.is_over
+	return _modale != null or s.is_over
 
 
 func _su_voce(voce: Dictionary) -> void:
 	if _bloccato():
 		return
 	_s("click")
-	_prima = _snapshot()
-	match voce.tipo:
-		"azione":
-			var a: ActionData = voce.azione
-			if a.costo_tempo_figlia_ore >= stato.sabbia_padre_ore:
-				_conferma("Ne vale la pena?", "A Sirio restano %s. Questa azione ne chiede %s. Se va storta, non torna a casa." % [Stile.ore(stato.sabbia_padre_ore), Stile.ore(a.costo_tempo_figlia_ore)], "RISCHIO", func(): _esegui(mondo.esegui_azione(a.nome)))
-			else:
-				_esegui(mondo.esegui_azione(a.nome))
-		"speciale":
-			_esegui(mondo.esegui_speciale(voce.speciale.id))
-		"sottotrama":
-			_esegui(mondo.esegui_sottotrama(voce.sottotrama.nome))
-		"dona":
-			_apri_donazione()
-		"cashin":
-			_esegui(mondo.esegui_cashin())
-
-
-## Punto unico in cui arriva l'esito di ogni scelta del giocatore.
-func _esegui(esito: Dictionary, cerca_occasioni: bool = true) -> void:
-	if esito.has("rifiutata"):
-		_mostra_avviso(str(esito.motivo))
+	if voce.tipo == "dona":
+		_apri_donazione()
 		return
-	_gestisci_esito(esito)
-	if cerca_occasioni:
-		_controlla_occasione = true
+	if voce.tipo == "liquida":
+		_conferma("Vendere tutto", "Vendi la rete in una notte. Se va bene incassi molto, ma da domani non entra più niente.", "VENDI", func(): esegui(voce.id))
+		return
+	if not voce.rapida and s.sirio <= float(ImperoState.par().ore_fascia) + s.costi_fissi() - s.flusso_lordo():
+		_conferma("Ne vale la pena?", "A Sirio restano %s. Una fascia ne costa sei, più gli uomini da pagare. Se la rete non rende abbastanza, non arriva in fondo." % ore(s.sirio), "VAI LO STESSO", func(): esegui(voce.id))
+		return
+	esegui(voce.id)
+
+
+## Esegue una voce nel luogo che stai guardando. Pubblica per i test.
+func esegui(id: String) -> void:
+	var prima := s.fascia
+	var sirio_prima := s.sirio
+	var esito := s.esegui(id, vista)
+	if esito.get("rifiutata", false):
+		_notifica(str(esito.motivo))
+		return
+	if s.fascia > prima:
+		vista = s.luogo
+	_gestisci_esito(esito, s.fascia > prima, sirio_prima)
 	_aggiorna()
 	_esegui_coda()
 
 
-func _gestisci_esito(esito: Dictionary) -> void:
-	var dopo := _snapshot()
-	for t in esito.get("testi", []):
-		if str(t) != "":
-			_scrivi(str(t))
-	var risultati: Array = esito.get("risultati", [])
-	for i in risultati.size():
-		var ris: Dictionary = risultati[i]
-		var r: Dictionary = ris.r
-		var ok := bool(r.get("successo", false))
+func _gestisci_esito(esito: Dictionary, fascia_passata: bool, sirio_prima: float) -> void:
+	for ris in esito.risultati:
+		var ok: bool = ris.successo
 		_scrivi("%s. %s" % [ris.titolo, ris.testo], Stile.VERDE.lightened(0.35) if ok else Stile.ROSSO.lightened(0.2))
-		var righe := PackedStringArray()
-		var costo: float = r.get("costo_tempo_figlia_ore", 0.0)
-		var effetto: float = r.get("effetto_sabbia_padre_ore", 0.0)
-		if costo > 0.0:
-			righe.append("Passano %s per entrambi" % Stile.ore(costo))
-		if effetto != 0.0:
-			righe.append("Sabbia %s" % Stile.ore(effetto, true))
-		if i == risultati.size() - 1:
-			for k in dopo:
-				var d: float = dopo[k] - float(_prima.get(k, dopo[k]))
-				if absf(d) >= 0.5:
-					righe.append("%s %+.0f" % [k, d])
-		if effetto > costo:
-			_s("guadagno")
-		elif costo > 0.0:
-			_s("perdita")
-		var titolo: String = ris.titolo
-		var testo: String = ris.testo
-		var deltas := "\n".join(righe)
-		_coda.append(func(): _mostra_dado(titolo, r.get("roll"), ok, testo, deltas))
-		var ev = r.get("evento_casuale")
-		if ev != null and not ev.is_empty():
+		var righe: Array = ris.righe.duplicate()
+		if ris.roll != null:
+			_s("guadagno" if ok else "perdita")
+			var titolo: String = ris.titolo
+			var testo: String = ris.testo
+			var roll = ris.roll
+			var deltas := "\n".join(righe)
+			_coda.append(func(): _mostra_dado(titolo, roll, ok, testo, deltas))
+		elif not righe.is_empty():
+			_scrivi("  " + ", ".join(righe), Stile.SABBIA)
+	if fascia_passata:
+		var incasso := s.ultimo_incasso
+		if absf(incasso) >= 0.1:
+			_scrivi("La rete ha reso %s. Le sei ore della fascia le paghi tu." % Stile.ore(incasso, true), Stile.GRIGIO.lightened(0.4))
+		_scrivi("Sirio: %s in questa fascia." % Stile.ore(s.sirio - sirio_prima, true), Stile.GRIGIO.lightened(0.4))
+	for ev in esito.eventi:
+		if ev.tipo == "patto":
+			_coda.append(func(): _mostra_patto(ev))
+		elif ev.grave:
+			_scrivi(str(ev.testo), Stile.ROSSO)
 			_coda.append(func(): _mostra_evento(ev))
-		if ok and str(ris.titolo).contains(": ") and r.has("roll") and stato.bivio_disponibile(TestiDemo.BIVIO_AGGANCIO) and not stato.tracce_raggiunte.is_empty():
-			_coda_bivio(TestiDemo.BIVIO_AGGANCIO)
-	_prima = dopo
-	for n in esito.get("notifiche", []):
+		else:
+			_scrivi(str(ev.testo), Stile.SABBIA)
+	for n in esito.notifiche:
 		_notifica(str(n))
-	while not mondo.notifiche.is_empty():
-		_notifica(mondo.notifiche.pop_front())
-
-
-func _coda_bivio(id: String) -> void:
-	if stato.bivio_disponibile(id):
-		_coda.append(func(): _mostra_bivio(id))
+	var nuovi := s.messaggi_non_letti()
+	if fascia_passata and nuovi > 0 and s.fascia % 4 == 0:
+		_notifica("Un messaggio della dottoressa Venti.")
 
 
 func _esegui_coda() -> void:
@@ -630,18 +625,8 @@ func _esegui_coda() -> void:
 func _dopo_coda() -> void:
 	_aggiorna()
 	_imposta_musica()
-	if stato.is_over:
+	if s.is_over:
 		_mostra_fine()
-		return
-	if _controlla_occasione:
-		_controlla_occasione = false
-		var oc := mondo.cerca_occasione(false)
-		if not oc.is_empty():
-			_mostra_occasione(oc)
-			return
-	if stato.sabbia_padre_ore < SOGLIA_POCHE_ORE and stato.bivio_disponibile(TestiDemo.BIVIO_POCHE_ORE):
-		_coda_bivio(TestiDemo.BIVIO_POCHE_ORE)
-		_esegui_coda()
 
 
 # =============================================================== modali
@@ -690,10 +675,6 @@ func _testo(testo: String, dimensione: int = 20, colore: Color = Stile.CHIARO) -
 	return l
 
 
-func _mostra_avviso(testo: String) -> void:
-	_notifica(testo)
-
-
 func _conferma(titolo: String, testo: String, si: String, azione: Callable) -> void:
 	var v := _nuovo_modale(680.0)
 	v.add_child(Stile.etichetta(titolo.to_upper(), Stile.TITOLI, Stile.ROSSO))
@@ -727,11 +708,10 @@ func _mostra_dado(titolo: String, roll, successo: bool, testo: String, deltas: S
 	dado.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	dado.texture = PixelArt.dado_frame(0)
 	dado.pivot_offset = Vector2(75, 75)
-	dado.visible = roll != null
 	v.add_child(dado)
 	var lbl_tiro := _testo(_descrivi_tiro(roll), 18)
 	lbl_tiro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var critico: bool = roll != null and (roll.successo_critico or roll.fallimento_critico)
+	var critico: bool = roll.successo_critico or roll.fallimento_critico
 	var lbl_esito := Stile.etichetta(("SUCCESSO" if successo else "FALLIMENTO") + (" CRITICO" if critico else ""), 34, Stile.VERDE.lightened(0.3) if successo else Stile.ROSSO)
 	lbl_esito.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var lbl_testo := _testo(testo)
@@ -748,30 +728,27 @@ func _mostra_dado(titolo: String, roll, successo: bool, testo: String, deltas: S
 		_chiudi_modale())
 	v.add_child(btn)
 	var numero := -1
-	if roll != null and not roll.senza_tiro:
+	if not roll.senza_tiro:
 		numero = roll.naturale
 	var tw := create_tween()
-	if roll != null:
-		_s("dado")
-		for i in 11:
-			tw.tween_callback(func(): dado.texture = PixelArt.dado_frame(i % 5))
-			tw.tween_interval(0.08)
-		tw.tween_callback(func():
-			dado.texture = PixelArt.dado_frame(5, numero, Color("3d7a5a") if successo else Stile.ROSSO)
-			dado.scale = Vector2(1.3, 1.3)
-			create_tween().tween_property(dado, "scale", Vector2.ONE, 0.2))
+	_s("dado")
+	for i in 11:
+		tw.tween_callback(func(): dado.texture = PixelArt.dado_frame(i % 5))
+		tw.tween_interval(0.08)
+	tw.tween_callback(func():
+		dado.texture = PixelArt.dado_frame(5, numero, Color("3d7a5a") if successo else Stile.ROSSO)
+		dado.scale = Vector2(1.3, 1.3)
+		create_tween().tween_property(dado, "scale", Vector2.ONE, 0.2))
 	for n in [lbl_tiro, lbl_esito, lbl_testo, lbl_delta]:
 		tw.tween_property(n, "modulate:a", 1.0, 0.18)
 	tw.tween_callback(func(): btn.disabled = false)
 
 
 func _descrivi_tiro(roll) -> String:
-	if roll == null:
-		return ""
 	if roll.senza_tiro:
 		return "Nessun tiro: l'esito era scritto."
 	var mod := ""
-	var m := mondo.malus_bisogni()
+	var m := s.malus()
 	if int(m.modificatore) < 0:
 		mod = "  (fame e sonno: %d)" % int(m.modificatore)
 	if roll.dadi.size() == 1:
@@ -779,110 +756,74 @@ func _descrivi_tiro(roll) -> String:
 	return "Dadi %s, tenuto %d, modificatore %+d: %d contro %d%s" % [str(roll.dadi), roll.naturale, roll.modificatore, roll.totale, roll.cd, mod]
 
 
+const TITOLI_EVENTO := {"retata": "RETATA", "assalto": "ASSALTO", "scandalo": "SCANDALO",
+	"tradimento": "TRADIMENTO", "crisi": "SARA", "debito": "ROCCO"}
+
+
 func _mostra_evento(ev: Dictionary) -> void:
-	if ev.get("tipo", "") == "patto_stregatto_proposto":
-		_mostra_patto(ev)
-		return
-	var nome: String = ev.get("azione", "Evento")
-	var ok := bool(ev.get("successo", false))
-	var eff: float = ev.get("effetto_sabbia_padre_ore", 0.0)
-	_scrivi("Imprevisto: %s" % nome, Stile.GIALLO)
-	_mostra_dado("Imprevisto: " + nome, ev.get("roll"), ok, TestiDemo.esito_azione(nome, ok), ("Sabbia %s" % Stile.ore(eff, true)) if eff != 0.0 else "")
+	_s("critica")
+	var v := _nuovo_modale(720.0)
+	v.add_child(Stile.etichetta(TITOLI_EVENTO.get(ev.tipo, "IMPREVISTO"), Stile.TITOLI, Stile.ROSSO))
+	v.add_child(_testo(str(ev.testo)))
+	var b := _grande("CONTINUA", Stile.GRIGIO)
+	b.pressed.connect(func():
+		_s("click")
+		_chiudi_modale())
+	v.add_child(b)
 
 
 func _mostra_patto(ev: Dictionary) -> void:
 	_s("critica")
 	var v := _nuovo_modale(860.0)
 	v.add_child(Stile.etichetta("DOLCE VOLPE", Stile.TITOLI, Stile.ROSSO))
-	v.add_child(_testo(str(ev.get("testo", ""))))
-	var prezzo: float = ev.get("prezzo_ore", 0.0)
+	v.add_child(_testo(str(ev.testo)))
+	var prezzo: float = s.patto_in_sospeso.get("prezzo", 0.0)
 	var riga := HBoxContainer.new()
 	riga.add_theme_constant_override("separation", 14)
 	v.add_child(riga)
-	var si := _grande("ACCETTO\nPrezzo %s, Karma +%.0f" % [Stile.ore(prezzo), GameState.STREGATTO_KARMA_EFFETTO], Stile.ROSSO, 120.0)
+	var si := _grande("ACCETTO\nPrezzo %s, Karma +%.0f" % [Stile.ore(prezzo), float(ImperoState.par().patto.karma)], Stile.ROSSO, 120.0)
 	var no := _grande("RIFIUTO\nIl Karma resta com'è", Stile.GRIGIO, 120.0)
 	riga.add_child(si)
 	riga.add_child(no)
 	si.pressed.connect(func():
 		_s("click")
-		var r := stato.risolvi_patto_stregatto(true)
-		_scrivi(Narrativa.patto_accettato(r.get("prezzo_ore", prezzo), r.get("karma_ottenuto", 0.0), stato.karma), Stile.ROSSO)
+		var karma_prima := s.karma
+		var r := s.risolvi_patto(true)
+		_scrivi(Narrativa.patto_accettato(r.get("prezzo", prezzo), s.karma - karma_prima, s.karma), Stile.ROSSO)
 		_chiudi_modale())
 	no.pressed.connect(func():
 		_s("click")
-		stato.risolvi_patto_stregatto(false)
+		s.risolvi_patto(false)
 		_scrivi(Narrativa.patto_rifiutato(), Stile.GRIGIO.lightened(0.3))
 		_chiudi_modale())
-
-
-func _mostra_bivio(id: String) -> void:
-	var bivio := TestiDemo.bivio(id)
-	var v := _nuovo_modale(940.0)
-	v.add_child(Stile.etichetta(bivio.trigger.to_upper(), Stile.TITOLI, Stile.SABBIA))
-	v.add_child(_testo(TestiDemo.TESTO_BIVIO.get(id, "")))
-	var riga := HBoxContainer.new()
-	riga.add_theme_constant_override("separation", 14)
-	v.add_child(riga)
-	for i in bivio.opzioni.size():
-		var o: BivioSystem.Opzione = bivio.opzioni[i]
-		var b := _grande("%s\n\n%s" % [o.nome.to_upper(), o.descrizione], [Stile.VERDE, Stile.ROSSO, Stile.GRIGIO][i % 3], 190.0)
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.add_theme_font_size_override("font_size", 18)
-		b.pressed.connect(func():
-			_s("click")
-			_prima = _snapshot()
-			stato.applica_bivio(bivio, i)
-			TestiDemo.applica_effetti_bivio(stato, id, i)
-			_prima = _snapshot()
-			_scrivi("%s: %s." % [bivio.trigger, o.nome], Stile.SABBIA)
-			_chiudi_modale())
-		riga.add_child(b)
-
-
-func _mostra_occasione(oc: Dictionary) -> void:
-	_s("critica")
-	var v := _nuovo_modale(880.0)
-	v.add_child(Stile.etichetta(str(oc.titolo).to_upper(), Stile.TITOLI, Stile.GIALLO))
-	v.add_child(_testo(str(oc.testo)))
-	var riga := HBoxContainer.new()
-	riga.add_theme_constant_override("separation", 14)
-	v.add_child(riga)
-	var scelte: Array = oc.scelte
-	for i in scelte.size():
-		var b := _grande(str(scelte[i].testo).to_upper(), [Stile.SABBIA, Stile.ROSSO, Stile.GRIGIO][i % 3], 110.0)
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.pressed.connect(func():
-			_s("click")
-			_modale.queue_free()
-			_modale = null
-			_prima = _snapshot()
-			_scrivi("%s: %s." % [oc.titolo, scelte[i].testo], Stile.GIALLO)
-			_esegui(mondo.risolvi_occasione(oc.id, i), false))
-		riga.add_child(b)
 
 
 # =============================================================== donazione
 
 func _apri_donazione() -> void:
-	var massimo := stato.sabbia_padre_ore
+	var massimo := s.sirio
 	var valore := [minf(1.0, massimo)]
 	var v := _nuovo_modale(760.0)
 	v.add_child(Stile.etichetta("DONARE A SARA", Stile.TITOLI, Stile.ROSSO))
-	v.add_child(_testo("Quanta della tua sabbia vuoi darle? Puoi donare anche una sola ora. Si fa una volta sola: dopo, la settimana finisce.", 19))
+	v.add_child(_testo("Quanta della tua sabbia vuoi darle? Anche un'ora sola. Si fa una volta: dopo, la partita finisce. Prima doni, più rischi di lasciare ore sul tavolo. Più aspetti, più rischi una crisi.", 19))
 	var lbl := Stile.etichetta("", 44, Stile.SABBIA)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(lbl)
 	var info := Stile.etichetta("", 18, Stile.GRIGIO.lightened(0.3))
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(info)
 	var aggiorna := func():
 		lbl.text = Stile.ore(valore[0])
-		info.text = "Sirio resterebbe con %s. Sara arriverebbe a %s." % [Stile.ore(massimo - valore[0]), Stile.ore(stato.tempo_figlia_ore + valore[0])]
+		info.text = "Sirio resterebbe con %s. Sara arriverebbe a %s." % [Stile.ore(massimo - valore[0]), Stile.ore(s.sara + valore[0])]
 	aggiorna.call()
+	var passi := [-10.0, -1.0, 1.0, 10.0]
+	if massimo > 500.0:
+		passi = [-100.0, -10.0, 10.0, 100.0]
 	var riga := HBoxContainer.new()
 	riga.add_theme_constant_override("separation", 8)
 	v.add_child(riga)
-	for passo in [-10.0, -1.0, 1.0, 10.0]:
+	for passo in passi:
 		var b := _grande("%+.0f" % passo, Stile.GRIGIO, 80.0)
 		b.pressed.connect(func():
 			_s("click")
@@ -892,14 +833,18 @@ func _apri_donazione() -> void:
 	var riga2 := HBoxContainer.new()
 	riga2.add_theme_constant_override("separation", 8)
 	v.add_child(riga2)
-	for def in [["UN'ORA", 1.0], ["METÀ", 0.5], ["TUTTO", -1.0]]:
+	for def in [["UN'ORA", 1.0], ["METÀ", 0.5], ["TUTTO TRANNE UN GIORNO", 0.9], ["TUTTO", -1.0]]:
 		var b := _grande(def[0], Stile.SABBIA, 72.0)
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.add_theme_font_size_override("font_size", 17)
 		b.pressed.connect(func():
 			_s("click")
 			if def[1] < 0.0:
 				valore[0] = massimo
 			elif def[1] == 0.5:
 				valore[0] = snappedf(massimo * 0.5, 0.1)
+			elif def[1] == 0.9:
+				valore[0] = maxf(minf(1.0, massimo), massimo - 24.0)
 			else:
 				valore[0] = minf(1.0, massimo)
 			aggiorna.call())
@@ -916,15 +861,20 @@ func _apri_donazione() -> void:
 		_chiudi_modale())
 	dona.pressed.connect(func():
 		_s("click")
-		var esito := mondo.dona(valore[0])
 		_modale.queue_free()
 		_modale = null
-		if not esito.get("successo", false):
-			_mostra_avviso(str(esito.get("motivo", "")))
-			_esegui_coda()
-			return
-		_scrivi("Hai donato %s a Sara." % Stile.ore(valore[0]), Stile.SABBIA)
-		_esegui_coda())
+		dona_ore(valore[0]))
+
+
+## Pubblica per i test.
+func dona_ore(quante: float) -> void:
+	var esito := s.dona(quante, "ospedale")
+	if not esito.get("successo", false):
+		_notifica(str(esito.get("motivo", "")))
+		_esegui_coda()
+		return
+	_scrivi("Hai donato %s a Sara." % Stile.ore(quante), Stile.SABBIA)
+	_esegui_coda()
 
 
 # =============================================================== pannelli
@@ -968,14 +918,14 @@ func _chiudi_pannello() -> void:
 
 
 func _scroll_in(v: VBoxContainer) -> VBoxContainer:
-	var s := ScrollContainer.new()
-	s.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	v.add_child(s)
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(sc)
 	var c := VBoxContainer.new()
 	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	c.add_theme_constant_override("separation", 10)
-	s.add_child(c)
+	sc.add_child(c)
 	return c
 
 
@@ -983,6 +933,15 @@ func _svuota(n: Node) -> void:
 	for c in n.get_children():
 		n.remove_child(c)
 		c.queue_free()
+
+
+func _scheda(bordo: Color) -> VBoxContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", Stile.box(Color("14142a"), bordo, 3, 12))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	p.add_child(v)
+	return v
 
 
 # ------------------------------------------------------------- telefono
@@ -1007,7 +966,7 @@ func _apri_telefono() -> void:
 	var selezionato := [""]
 	var mostra_lista := func():
 		_svuota(lista)
-		var n := mondo.messaggi_non_letti()
+		var n := s.messaggi_non_letti()
 		var bm := _riga_telefono("Messaggi", "%d non letti" % n if n > 0 else "Nessuno nuovo", n > 0)
 		bm.pressed.connect(func():
 			_s("click")
@@ -1015,22 +974,19 @@ func _apri_telefono() -> void:
 			_rinfresca_pannello.call())
 		lista.add_child(bm)
 		lista.add_child(Stile.etichetta("RUBRICA", 17, Stile.GRIGIO.lightened(0.3)))
-		for c in mondo.contatti_visibili():
-			var novita := false
-			for o in mondo.opzioni_contatto(c.id):
-				if not o.get("ripetibile", false):
-					novita = true
-			var b := _riga_telefono(c.nome, c.ruolo, novita)
+		for c in s.contatti_visibili():
+			var b := _riga_telefono(c.nome, c.ruolo, s.ha_novita(c.id))
 			var cid: String = c.id
 			b.pressed.connect(func():
 				_s("click")
 				selezionato[0] = cid
 				_rinfresca_pannello.call())
 			lista.add_child(b)
+		lista.add_child(_testo("Telefonare non occupa la fascia.", 16, Stile.GRIGIO.lightened(0.2)))
 	var mostra_schermo := func():
 		_svuota(destra)
 		if selezionato[0] == "":
-			destra.add_child(_testo("Scegli un contatto. Chi conosci decide cosa puoi fare a Ledune. Il pallino giallo indica qualcuno che ha qualcosa di nuovo da dirti.", 19, Stile.GRIGIO.lightened(0.3)))
+			destra.add_child(_testo("A Ledune la sabbia si cede solo di propria volontà. Un impero è fatto di persone che te la cedono ogni giorno. Chi conosci decide in quali giri puoi entrare. Il pallino giallo indica chi ha qualcosa di nuovo da dirti.", 19, Stile.GRIGIO.lightened(0.3)))
 		elif selezionato[0] == "@messaggi":
 			_vista_messaggi(destra)
 		else:
@@ -1055,13 +1011,13 @@ func _riga_telefono(titolo: String, sotto: String, novita: bool) -> Button:
 func _vista_messaggi(destra: VBoxContainer) -> void:
 	destra.add_child(Stile.etichetta("MESSAGGI", 22, Stile.SABBIA))
 	var c := _scroll_in(destra)
-	if mondo.messaggi.is_empty():
+	if s.messaggi.is_empty():
 		c.add_child(_testo("Nessun messaggio.", 19, Stile.GRIGIO))
-	for i in range(mondo.messaggi.size() - 1, -1, -1):
-		var m: Dictionary = mondo.messaggi[i]
-		var nome: String = MondoRun.contatto_dati(m.da).get("nome", m.da)
+	for i in range(s.messaggi.size() - 1, -1, -1):
+		var m: Dictionary = s.messaggi[i]
+		var nome: String = ImperoState.contatto_dati(m.da).get("nome", m.da)
 		c.add_child(_fumetto(nome + "\n" + str(m.testo), false, not m.letto))
-	mondo.segna_letti()
+		m.letto = true
 	_aggiorna_tel()
 
 
@@ -1084,7 +1040,7 @@ func _fumetto(testo: String, mio: bool, evidenza: bool = false) -> Control:
 
 
 func _vista_chat(destra: VBoxContainer, cid: String) -> void:
-	var c := MondoRun.contatto_dati(cid)
+	var c := ImperoState.contatto_dati(cid)
 	destra.add_child(Stile.etichetta("%s  ·  %s" % [c.nome, c.ruolo], 22, Stile.SABBIA))
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1101,7 +1057,7 @@ func _vista_chat(destra: VBoxContainer, cid: String) -> void:
 			bolle.add_child(_testo(str(voce[1]), 17, Stile.GIALLO))
 		else:
 			bolle.add_child(_fumetto(str(voce[1]), bool(voce[0])))
-	var opzioni := mondo.opzioni_contatto(cid)
+	var opzioni := s.opzioni_contatto(cid)
 	if opzioni.is_empty():
 		bolle.add_child(_testo("Non avete altro da dirvi, per ora.", 17, Stile.GRIGIO.lightened(0.2)))
 	for o in opzioni:
@@ -1113,28 +1069,34 @@ func _vista_chat(destra: VBoxContainer, cid: String) -> void:
 		b.add_theme_font_size_override("font_size", 19)
 		Stile.applica_bottone(b, Stile.SABBIA)
 		var oid: String = o.id
-		b.pressed.connect(func(): _su_opzione(cid, oid, str(o.testo)))
+		b.pressed.connect(func(): scegli_opzione(cid, oid))
 		bolle.add_child(b)
 	scroll.call_deferred("set_v_scroll", 100000)
 
 
-func _su_opzione(cid: String, oid: String, testo: String) -> void:
+## Pubblica per i test.
+func scegli_opzione(cid: String, oid: String) -> void:
 	if _bloccato():
 		return
 	_s("click")
-	_prima = _snapshot()
-	var esito := mondo.scegli_opzione(cid, oid)
-	if esito.has("rifiutata"):
-		_mostra_avviso(str(esito.motivo))
+	var testo := ""
+	for o in s.opzioni_contatto(cid):
+		if o.id == oid:
+			testo = o.testo
+	var esito := s.scegli_opzione(cid, oid)
+	if esito.get("rifiutata", false):
+		_notifica(str(esito.motivo))
 		return
+	if not _chat.has(cid):
+		_chat[cid] = [[false, str(ImperoState.contatto_dati(cid).saluto)]]
 	_chat[cid].append([true, testo])
 	_chat[cid].append([false, str(esito.get("risposta", ""))])
-	for ris in esito.risultati:
-		_chat[cid].append(["", "%s: %s" % [ris.titolo, "riuscito" if ris.r.successo else "andato male"]])
 	for n in esito.notifiche:
 		_chat[cid].append(["", str(n)])
-	_scrivi("Telefonata con %s." % MondoRun.contatto_dati(cid).nome, Stile.GRIGIO.lightened(0.3))
-	_esegui(esito)
+	_scrivi("Telefonata con %s." % ImperoState.contatto_dati(cid).nome, Stile.GRIGIO.lightened(0.3))
+	for n in esito.notifiche:
+		_notifica(str(n))
+	_aggiorna()
 
 
 # ------------------------------------------------------------- mappa
@@ -1163,44 +1125,42 @@ func _apri_mappa() -> void:
 	info.add_theme_constant_override("separation", 12)
 	scheda.add_child(info)
 	var pin: Dictionary = {}
-	var selezionato := [mondo.luogo]
+	var selezionato := [vista]
 	var mostra_info := func():
 		_svuota(info)
-		var l := MondoRun.luogo_dati(selezionato[0])
+		var l := ImperoState.luogo_dati(selezionato[0])
 		info.add_child(_testo(str(l.nome).to_upper(), 24, Stile.SABBIA))
 		info.add_child(_testo(str(l.descrizione), 18))
-		var n_azioni: int = l.get("azioni", []).size()
-		if n_azioni > 0:
-			info.add_child(_testo("Qui puoi fare %d cose, se hai i contatti giusti." % n_azioni, 17, Stile.GRIGIO.lightened(0.3)))
-		if selezionato[0] == mondo.luogo:
-			info.add_child(_testo("Sei qui.", 20, Stile.ROSSO))
+		var n := 0
+		for voce in s.voci(selezionato[0]):
+			if voce.disponibile:
+				n += 1
+		info.add_child(_testo("Ci sono %d cose che puoi fare." % n if n > 0 else "Per ora non c'è niente per te.", 17, Stile.GRIGIO.lightened(0.3)))
+		if selezionato[0] == s.luogo:
+			info.add_child(_testo("Sirio è qui.", 20, Stile.ROSSO))
 		else:
-			var ore := mondo.stima_viaggio(selezionato[0])
-			var mezzo := "in macchina" if mondo.auto and mondo.benzina > 0 else "a piedi e coi mezzi"
-			info.add_child(_testo("Circa %s %s. Costa a Sirio e a Sara." % [Stile.ore(ore), mezzo], 18, Stile.CHIARO))
-			var vai := _grande("VAI", Stile.ROSSO)
-			var dest: String = selezionato[0]
-			vai.pressed.connect(func(): _viaggia(dest))
-			info.add_child(vai)
-		if mondo.auto:
-			info.add_child(_testo("Benzina per %d viaggi." % mondo.benzina, 16, Stile.GRIGIO.lightened(0.3)))
+			info.add_child(_testo("Arrivarci prende %s della fascia: quello che fai lì rende il %d%%." % [ore(s.ore_viaggio(selezionato[0])), int(s.efficienza(selezionato[0]) * 100.0)], 18))
+		var vai := _grande("GUARDA COSA C'È", Stile.ROSSO)
+		var dest: String = selezionato[0]
+		vai.pressed.connect(func(): guarda(dest))
+		info.add_child(vai)
 	var disponi := func():
-		var s := area.size
-		var scala := minf(s.x / 160.0, s.y / 100.0)
+		var dim_area := area.size
+		var scala := minf(dim_area.x / 160.0, dim_area.y / 100.0)
 		var dim := Vector2(160, 100) * scala
-		var origine := (s - dim) * 0.5
+		var origine := (dim_area - dim) * 0.5
 		img.position = origine
 		img.size = dim
 		for id in pin:
-			var l := MondoRun.luogo_dati(id)
+			var l := ImperoState.luogo_dati(id)
 			var p: Vector2 = origine + Vector2(float(l.pos[0]) / 100.0 * dim.x, float(l.pos[1]) / 100.0 * dim.y)
 			pin[id].position = p - Vector2(40, 52)
-	for l in mondo.luoghi_visibili():
+	for l in s.luoghi_visibili():
 		var nodo := VBoxContainer.new()
 		nodo.custom_minimum_size = Vector2(80, 80)
 		nodo.add_theme_constant_override("separation", 0)
 		var b := TextureButton.new()
-		b.texture_normal = PixelArt.pin_luogo(str(l.tipo), l.id == mondo.luogo)
+		b.texture_normal = PixelArt.pin_luogo(str(l.tipo), l.id == s.luogo)
 		b.ignore_texture_size = true
 		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		b.custom_minimum_size = Vector2(80, 52)
@@ -1210,8 +1170,8 @@ func _apri_mappa() -> void:
 			selezionato[0] = lid
 			mostra_info.call())
 		nodo.add_child(b)
-		var qui: bool = l.id == mondo.luogo
-		var nome := Stile.etichetta(("SEI QUI\n" if qui else "") + str(l.nome), 13, Stile.ROSSO if qui else Stile.CHIARO)
+		var qui: bool = l.id == s.luogo
+		var nome := Stile.etichetta(("SIRIO\n" if qui else "") + str(l.nome), 13, Stile.ROSSO if qui else Stile.CHIARO)
 		nome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		nome.add_theme_color_override("font_shadow_color", Color.BLACK)
 		nome.add_theme_constant_override("shadow_offset_x", 1)
@@ -1228,31 +1188,81 @@ func _apri_mappa() -> void:
 	_rinfresca_pannello = Callable()
 
 
-func _viaggia(dest: String) -> void:
-	_chiudi_pannello()
+## Guarda un luogo: non costa niente. Il viaggio si paga quando ci fai qualcosa.
+func guarda(dest: String) -> void:
 	_s("click")
-	var nome: String = MondoRun.luogo_dati(dest).nome
-	var v := _nuovo_modale(600.0)
-	var l := _testo("In viaggio verso %s..." % nome, 24, Stile.SABBIA)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(l)
-	var tw := create_tween()
-	tw.tween_interval(0.7)
-	tw.tween_callback(func():
-		_modale.queue_free()
-		_modale = null
-		_prima = _snapshot()
-		var r := mondo.viaggia(dest)
-		if r.has("rifiutata"):
-			_mostra_avviso(str(r.motivo))
-			return
-		_scrivi("%s (%s)" % [r.testo, Stile.ore(r.ore)], Stile.CHIARO)
-		var blocco := mondo.cerca_occasione(true)
-		if not blocco.is_empty():
-			_coda.append(func(): _mostra_occasione(blocco))
-		_controlla_occasione = true
-		_aggiorna()
-		_esegui_coda())
+	_chiudi_pannello()
+	vista = dest
+	_aggiorna()
+
+
+# ------------------------------------------------------------- impero
+
+func _apri_impero() -> void:
+	var v := _apri_pannello("IL TUO IMPERO")
+	var c := _scroll_in(v)
+	_rinfresca_pannello = func():
+		_svuota(c)
+		_scheda_impero(c)
+	_rinfresca_pannello.call()
+
+
+func _scheda_impero(c: VBoxContainer) -> void:
+	var p := ImperoState.par()
+	var conti := _scheda(Stile.SABBIA)
+	conti.add_child(Stile.etichetta("CONTI DI UNA FASCIA", 22, Stile.SABBIA))
+	var righe := ["La rete rende %s" % Stile.ore(s.flusso_lordo(), true)]
+	if s.uomini > 0:
+		righe.append("%d uomini da pagare: %s" % [s.uomini, Stile.ore(-s.uomini * float(p.paga_uomo), true)])
+	if s.rate_debito > 0:
+		righe.append("Rata a Rocco: %s (ne mancano %d)" % [Stile.ore(-float(p.anticipo.rata), true), s.rate_debito])
+	righe.append("Sei ore che passano: %s" % Stile.ore(-float(p.ore_fascia), true))
+	righe.append("Netto: %s a fascia" % Stile.ore(s.flusso_netto(), true))
+	conti.add_child(_testo("\n".join(righe), 19))
+	if s.informatore:
+		conti.add_child(_testo("Hai un informatore in questura: la polizia ti scalda più piano.", 17, Stile.GRIGIO.lightened(0.3)))
+	c.add_child(conti.get_parent())
+
+	for g in ImperoState.dati().giri:
+		var d: Dictionary = ImperoState.dati().giri[g]
+		var aperto := s.giri_aperti.has(g)
+		var st: Dictionary = s.giri[g]
+		var box := _scheda(Stile.VERDE if aperto and st.persone > 0.0 else Stile.GRIGIO)
+		if not aperto:
+			box.add_child(Stile.etichetta("???", 22, Stile.GRIGIO.lightened(0.3)))
+			box.add_child(_testo("Un giro che non conosci ancora. Qualcuno a Ledune sa come entrarci.", 17, Stile.GRIGIO.lightened(0.3)))
+			c.add_child(box.get_parent())
+			continue
+		box.add_child(Stile.etichetta(str(d.nome).to_upper(), 22, Stile.SABBIA))
+		box.add_child(_testo(str(d.descrizione), 17, Stile.GRIGIO.lightened(0.4)))
+		var info := "%d %s.  Rendono %s a fascia.  Controllo %d%%." % [int(st.persone), d.persone, Stile.ore(s.tributo(g)), int(float(st.controllo) * 100.0)]
+		box.add_child(_testo(info, 19))
+		var dettagli: Array[String] = ["Si allarga a %s." % ImperoState.luogo_dati(d.sede).nome]
+		if st.luogotenente:
+			dettagli.append("Ha un luogotenente: cresce da solo, trattiene la sua parte.")
+		var per: int = int(d.uomini_per)
+		if per > 0:
+			dettagli.append("Ogni uomo tiene in riga %d %s: oltre %d non rendono." % [per, d.persone, s.uomini * per + per])
+		var calore: Array[String] = []
+		if float(d.polizia) > 0.0:
+			calore.append("polizia")
+		if float(d.rivali) > 0.0:
+			calore.append("rivali")
+		if float(d.fama) > 0.0:
+			calore.append("fama")
+		if not calore.is_empty():
+			dettagli.append("Scalda: %s." % ", ".join(calore))
+		box.add_child(_testo(" ".join(dettagli), 17, Stile.GRIGIO.lightened(0.3)))
+		c.add_child(box.get_parent())
+
+	var cal := _scheda(Stile.ROSSO)
+	cal.add_child(Stile.etichetta("CALORE", 22, Stile.ROSSO))
+	var pc: Dictionary = p.calore
+	cal.add_child(_testo("Polizia %.0f: retata %.1f%% a fascia.\nRivali %.0f: assalto %.1f%% a fascia.\nFama %.0f: scandalo %.1f%% a fascia.\nUomini: %d." % [
+		s.polizia, minf(100.0, s.polizia / float(pc.retata) * 100.0), s.rivalita, minf(100.0, s.rivalita / float(pc.assalto) * 100.0),
+		s.fama, minf(100.0, s.fama / float(pc.scandalo) * 100.0), s.uomini], 19))
+	cal.add_child(_testo("La polizia si raffredda in questura, i rivali al bar Aurora. Con tre uomini un assalto si può respingere.", 17, Stile.GRIGIO.lightened(0.3)))
+	c.add_child(cal.get_parent())
 
 
 # ------------------------------------------------------------- taccuino
@@ -1265,7 +1275,7 @@ func _apri_taccuino(scheda: String) -> void:
 	var contenuto := _scroll_in(v)
 	var corrente := [scheda]
 	var bottoni := {}
-	for def in [["strade", "Strade"], ["piste", "Piste"], ["stato", "Stato"], ["obiettivi", "Obiettivi"], ["opzioni", "Opzioni"]]:
+	for def in [["mosse", "Grandi mosse"], ["stato", "Stato"], ["obiettivi", "Obiettivi"], ["opzioni", "Opzioni"]]:
 		var b := Button.new()
 		b.text = def[1]
 		b.custom_minimum_size = Vector2(0, 64)
@@ -1286,10 +1296,8 @@ func _apri_taccuino(scheda: String) -> void:
 					bottoni[id].remove_theme_stylebox_override(k)
 		_svuota(contenuto)
 		match corrente[0]:
-			"strade":
-				_scheda_strade(contenuto)
-			"piste":
-				_scheda_piste(contenuto)
+			"mosse":
+				_scheda_mosse(contenuto)
 			"stato":
 				_scheda_stato(contenuto)
 			"obiettivi":
@@ -1299,68 +1307,33 @@ func _apri_taccuino(scheda: String) -> void:
 	_rinfresca_pannello.call()
 
 
-func _scheda_strade(c: VBoxContainer) -> void:
-	c.add_child(_testo("Le strade sono carriere lunghe. Non si scelgono da un elenco: te le offre qualcuno, quando hai dimostrato di valere. Due strade al rango più alto si possono incassare insieme, a casa.", 18, Stile.GRIGIO.lightened(0.3)))
-	var chi := {"Lavoro": "gaetano", "Criminale": "shen", "Politica": "conti", "Azzardo": "marisa", "Bancaria": "bassi", "Religiosa (indulgenze)": "anselmo", "Occulto (setta satanica)": "morgana"}
-	for nome in TrackDatabase.get_nomi_tracce_normali():
-		var rango: int = stato.tracce_raggiunte.get(nome, 0)
-		var cid: String = chi.get(nome, "")
-		var noto: bool = mondo.contatti_noti.has(cid)
-		var stato_testo := "Rango %d su 2" % rango
-		for r in [1, 2]:
-			if stato.azioni_uniche_usate.has("%s|%d" % [nome, r]) and rango < r:
-				stato_testo += ", porta chiusa al rango %d" % r
-		var chi_testo: String = ("Te la può aprire: %s" % MondoRun.contatto_dati(cid).nome) if noto else "Non conosci ancora chi può aprirtela."
-		var p := PanelContainer.new()
-		p.add_theme_stylebox_override("panel", Stile.box(Color("14142a"), Stile.VERDE if rango > 0 else Stile.GRIGIO, 3, 12))
-		var v := VBoxContainer.new()
-		p.add_child(v)
-		v.add_child(Stile.etichetta(str(nome).split(" (")[0].to_upper(), 22, Stile.SABBIA))
-		v.add_child(_testo(stato_testo, 18))
-		v.add_child(_testo(chi_testo, 17, Stile.GRIGIO.lightened(0.3)))
-		c.add_child(p)
-	var combo: Array = stato.combo_tracce()
-	if not combo.is_empty():
-		c.add_child(_testo("Puoi giocare insieme: %s. Torna a casa per mettere insieme i pezzi." % ", ".join(combo), 19, Stile.GIALLO))
-	var malus: Array = stato.malus_attivi()
-	if not malus.is_empty():
-		var parti: Array[String] = []
-		for coppia in malus:
-			parti.append("%s e %s" % [coppia[0], coppia[1]])
-		c.add_child(_testo("Tensione tra le tue strade: " + ", ".join(parti) + ".", 18, Stile.ROSSO))
-
-
-func _scheda_piste(c: VBoxContainer) -> void:
-	if mondo.piste.is_empty():
-		c.add_child(_testo("Nessuna pista. Le storie grosse di Ledune si scoprono parlando con le persone giuste e girando per la città.", 19, Stile.GRIGIO.lightened(0.3)))
+func _scheda_mosse(c: VBoxContainer) -> void:
+	if s.piste.is_empty():
+		c.add_child(_testo("Nessuna grande mossa in vista. Le occasioni grosse di Ledune arrivano a chi ha già qualcosa: un giro avviato, uomini, gli amici giusti.", 19, Stile.GRIGIO.lightened(0.3)))
 		return
-	for nome in mondo.piste:
-		var dove := ""
-		for l in MondoRun.dati().luoghi:
-			if l.get("sottotrame", []).has(nome):
-				dove = l.nome
-		var tentata: bool = stato.azioni_uniche_usate.has("sottotrama:%s" % nome)
-		var p := PanelContainer.new()
-		p.add_theme_stylebox_override("panel", Stile.box(Color("14142a"), Stile.GRIGIO if tentata else Stile.GIALLO, 3, 12))
-		var v := VBoxContainer.new()
-		p.add_child(v)
-		v.add_child(Stile.etichetta(TestiDemo.nome_sottotrama_visibile(nome).to_upper(), 21, Stile.SABBIA))
-		v.add_child(_testo("Dove: %s" % dove, 18))
-		v.add_child(_testo("Già tentata" if tentata else "Da tentare. Una sola occasione.", 17, Stile.GRIGIO.lightened(0.3)))
-		c.add_child(p)
+	for m in s.piste:
+		var md: Dictionary = ImperoState.dati().mosse[m]
+		var tentata := s.mosse_tentate.has(m)
+		var box := _scheda(Stile.GRIGIO if tentata else Stile.GIALLO)
+		box.add_child(Stile.etichetta(str(md.nome).to_upper(), 21, Stile.SABBIA))
+		box.add_child(_testo("Dove: %s. Rischio %d%%." % [ImperoState.luogo_dati(md.luogo).nome, int(float(md.rischio) * 100.0)], 18))
+		var voce := s.voce_per_id("mossa:" + m)
+		var stato_m := "Già tentata." if tentata else ("Pronta." if not voce.is_empty() and voce.disponibile else str(voce.get("nota", "Non ancora.")) + ".")
+		box.add_child(_testo(stato_m, 17, Stile.GRIGIO.lightened(0.3)))
+		c.add_child(box.get_parent())
 
 
 func _scheda_stato(c: VBoxContainer) -> void:
-	var sonno := mondo.stato_sonno()
-	var fame := mondo.stato_fame()
-	var m := mondo.malus_bisogni()
+	var sonno := s.stato_sonno()
+	var fame := s.stato_fame()
+	var m := s.malus()
 	c.add_child(Stile.etichetta("BISOGNI", 22, Stile.SABBIA))
-	c.add_child(_testo("Sveglio da %s: %s.   Ultimo pasto %s fa: %s." % [Stile.ore(mondo.ore_sveglio), sonno[0], Stile.ore(mondo.ore_digiuno), fame[0]], 19))
+	c.add_child(_testo("Sveglio da %d fasce: %s.   Ultimo pasto %d fasce fa: %s." % [s.sveglio, sonno[0], s.digiuno, fame[0]], 19))
 	var effetto := "Nessun effetto sui tiri." if int(m.modificatore) == 0 else "Malus ai tiri: %d%s." % [int(m.modificatore), " e svantaggio" if m.modo == DiceSystem.RollMode.SVANTAGGIO else ""]
-	c.add_child(_testo(effetto + " Una notte in bianco o un giorno senza mangiare si reggono. Due cominciano a pesare. Si dorme a casa, si mangia a casa, in piazza o alla stazione.", 18, Stile.GRIGIO.lightened(0.3)))
+	c.add_child(_testo(effetto + " Si dorme a casa. Si mangia a casa, all'osteria, in piazza, alla stazione o all'Aurora: mangiare non occupa la fascia.", 18, Stile.GRIGIO.lightened(0.3)))
 	c.add_child(HSeparator.new())
 	c.add_child(Stile.etichetta("RISORSE", 22, Stile.SABBIA))
-	var valori := {"polizia": stato.attenzione_polizia, "rivalita": stato.rivalita_criminale, "fama": stato.fama_pubblica, "karma": stato.karma, "fede": maxf(stato.fede_culto, stato.fede_setta)}
+	var valori := {"polizia": s.polizia, "rivalita": s.rivalita, "fama": s.fama, "karma": s.karma}
 	for def in RISORSE:
 		var r := HBoxContainer.new()
 		r.add_theme_constant_override("separation", 10)
@@ -1370,41 +1343,40 @@ func _scheda_stato(c: VBoxContainer) -> void:
 		r.add_child(t)
 		c.add_child(r)
 	c.add_child(HSeparator.new())
-	c.add_child(_testo("Seed %d. Difficoltà %d. Giorno %d di 7." % [stato.seed_run, stato.livello_difficolta, mondo.giorno()], 17, Stile.GRIGIO.lightened(0.3)))
+	c.add_child(_testo("Seed %d. Difficoltà %d. Giorno %d di %d." % [s.seed_run, s.livello_difficolta, s.giorno(), int(ImperoState.par().giorni)], 17, Stile.GRIGIO.lightened(0.3)))
 
 
 func _scheda_obiettivi(c: VBoxContainer) -> void:
-	c.add_child(_testo("Ogni settimana ricomincia da capo. Quello che impari resta: certi traguardi ti lasciano un contatto o un luogo per le settimane successive.", 18, Stile.GRIGIO.lightened(0.3)))
-	for ob in MondoRun.dati().get("obiettivi", []):
+	c.add_child(_testo("Ogni partita ricomincia da capo. Quello che impari resta: certi traguardi ti lasciano un contatto, un luogo o una pista per le partite successive.", 18, Stile.GRIGIO.lightened(0.3)))
+	if persistente != null and persistente.record_anni > 0.0:
+		c.add_child(_testo("Il tuo record: %s donati a Sara." % Stile.ore(persistente.record_anni * ImperoState.ORE_ANNO), 19, Stile.SABBIA))
+	for ob in ImperoState.dati().obiettivi:
 		var fatto: bool = persistente != null and persistente.obiettivi.has(ob.id)
-		var p := PanelContainer.new()
-		p.add_theme_stylebox_override("panel", Stile.box(Color("14142a"), Stile.VERDE if fatto else Stile.GRIGIO, 3, 12))
-		var v := VBoxContainer.new()
-		p.add_child(v)
-		v.add_child(Stile.etichetta(("FATTO  " if fatto else "") + str(ob.testo), 20, Stile.SABBIA if fatto else Stile.CHIARO))
-		v.add_child(_testo(str(ob.get("nota", "")) if fatto else "Ricompensa: ???", 17, Stile.GRIGIO.lightened(0.3)))
-		c.add_child(p)
+		var box := _scheda(Stile.VERDE if fatto else Stile.GRIGIO)
+		box.add_child(Stile.etichetta(("FATTO  " if fatto else "") + str(ob.testo), 20, Stile.SABBIA if fatto else Stile.CHIARO))
+		box.add_child(_testo(str(ob.nota) if fatto else "Ricompensa: ???", 17, Stile.GRIGIO.lightened(0.3)))
+		c.add_child(box.get_parent())
 
 
 func _scheda_opzioni(c: VBoxContainer) -> void:
 	for def in [["Volume generale", "volume_master"], ["Musica", "volume_musica"], ["Effetti", "volume_effetti"]]:
 		c.add_child(Stile.etichetta(def[0], 18, Stile.GRIGIO.lightened(0.3)))
-		var s := HSlider.new()
-		s.custom_minimum_size = Vector2(0, 56)
-		s.min_value = 0.0
-		s.max_value = 1.0
-		s.step = 0.05
-		s.value = audio.get(def[1]) if audio != null else 0.8
+		var sl := HSlider.new()
+		sl.custom_minimum_size = Vector2(0, 56)
+		sl.min_value = 0.0
+		sl.max_value = 1.0
+		sl.step = 0.05
+		sl.value = audio.get(def[1]) if audio != null else 0.8
 		var prop: String = def[1]
-		s.value_changed.connect(func(x):
+		sl.value_changed.connect(func(x):
 			if audio != null:
 				audio.set(prop, x))
-		c.add_child(s)
+		c.add_child(sl)
 	var esci := _grande("TORNA AL TITOLO", Stile.GRIGIO)
 	esci.pressed.connect(func():
 		_s("click")
 		_chiudi_pannello()
-		_conferma("Tornare al titolo", "La settimana in corso va persa. Non si salva a metà.", "ESCI", func(): torna_al_titolo.emit()))
+		_conferma("Tornare al titolo", "La partita in corso va persa. Non si salva a metà.", "ESCI", func(): torna_al_titolo.emit()))
 	c.add_child(esci)
 
 
@@ -1427,29 +1399,29 @@ func _mostra_fine() -> void:
 	if _modale != null:
 		_modale.queue_free()
 		_modale = null
-	var p := stato.calcola_punteggio()
-	var note := _salva(p)
-	var vittoria := stato.donation_made and stato.tempo_figlia_ore > 0.0
+	var p := s.punteggio()
+	var note := _salva()
+	var vittoria := s.fine == "dono" and s.sara > 0.0
 	if audio != null:
 		audio.jingle("vittoria" if vittoria else "sconfitta")
 	var titolo := "DONAZIONE COMPIUTA"
-	if stato.end_reason == GameState.EndReason.FIGLIA_MORTA:
+	if s.fine == "sara":
 		titolo = "SARA NON CE L'HA FATTA"
-	elif stato.end_reason == GameState.EndReason.PADRE_MORTO:
+	elif s.fine == "sirio":
 		titolo = "SIRIO SI SPEGNE"
 	var v := _nuovo_modale(900.0)
 	v.add_child(Stile.etichetta(titolo, Stile.TITOLI, Stile.SABBIA if vittoria else Stile.ROSSO))
-	v.add_child(_testo(Narrativa.epilogo(stato.donation_made, stato.tempo_figlia_ore > 0.0, stato.sabbia_padre_ore > 0.0, stato.karma)))
+	v.add_child(_testo(Narrativa.epilogo(s.fine == "dono", s.sara > 0.0, s.sirio > 0.0, s.karma)))
 	v.add_child(HSeparator.new())
-	v.add_child(Stile.etichetta("Sirio: %.2f anni     Sara: %.2f anni     Totale: %.2f anni" % [p.padre_anni, p.figlia_anni, p.punteggio_totale_anni], 21, Stile.SABBIA))
-	if p.vittoria_100_100:
-		v.add_child(_testo("Cento anni a testa. Succede di rado, e non assolve nessuno.", 19, Stile.GIALLO))
+	if vittoria:
+		v.add_child(Stile.etichetta("Sara: %s di vita.  %s." % [Stile.ore(s.sara), p.traguardo], 24, Stile.SABBIA))
+		v.add_child(_testo("Picco della rete: %s a fascia. Giorno %d di %d." % [Stile.ore(s.picco_flusso), s.giorno(), int(ImperoState.par().giorni)], 18, Stile.GRIGIO.lightened(0.3)))
 	for n in note:
 		v.add_child(_testo(str(n), 18, Stile.GIALLO))
 	var riga := HBoxContainer.new()
 	riga.add_theme_constant_override("separation", 14)
 	v.add_child(riga)
-	var nuova := _grande("NUOVA SETTIMANA", Stile.ROSSO)
+	var nuova := _grande("NUOVA PARTITA", Stile.ROSSO)
 	var tit := _grande("TITOLO", Stile.GRIGIO)
 	riga.add_child(nuova)
 	riga.add_child(tit)
@@ -1461,20 +1433,20 @@ func _mostra_fine() -> void:
 		torna_al_titolo.emit())
 
 
-func _salva(p: Dictionary) -> Array:
+func _salva() -> Array:
 	var note: Array = []
 	if persistente != null:
-		for n in mondo.valuta_obiettivi(persistente):
-			note.append("Per le prossime settimane: " + str(n))
+		for n in s.valuta_obiettivi(persistente):
+			note.append("Per le prossime partite: " + str(n))
 		persistente.salva()
 	if profilo == null:
 		return note
-	profilo.karma = stato.karma
-	profilo.livello_difficolta = stato.livello_difficolta
+	var p := s.punteggio()
+	profilo.karma = s.karma
+	profilo.livello_difficolta = s.livello_difficolta
 	if p.vittoria_100_100:
 		profilo.traguardo_100_100_raggiunto = true
 	if _e_seed_del_giorno:
-		profilo.registra_punteggio_seed_del_giorno(SeedDelGiorno.data_di_oggi_stringa(), p)
-	ContactNetwork.valuta_sblocchi(stato, profilo)
+		profilo.registra_punteggio_seed_del_giorno(SeedDelGiorno.data_di_oggi_stringa(), {"punteggio_totale_anni": p.sara_anni, "figlia_anni": p.sara_anni, "padre_anni": 0.0})
 	profilo.save()
 	return note

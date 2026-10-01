@@ -164,27 +164,21 @@ func _livello_effettivo() -> int:
 	return richiesto
 
 
-func crea_stato(seme_scelto: int) -> GameState:
+func crea_stato(seme_scelto: int, persistente: ImperoPersistente = null) -> ImperoState:
 	var seme := seme_scelto if seme_scelto >= 0 else _seed_cli
 	if _seed_giorno_cli:
 		seme = SeedDelGiorno.seed_di_oggi()
-	var stato := GameState.new(seme, _livello_effettivo())
-	var contatti: Array[String] = []
-	for id in profilo.rete_contatti_sbloccati:
-		contatti.append(str(id))
-	stato.contatti_attivi = contatti
-	return stato
+	return ImperoState.new(seme, _livello_effettivo(), persistente, profilo.karma)
 
 
 func _avvia_partita(seme: int, usa_seed_giorno: bool) -> void:
 	_transizione(func() -> Control:
 		profilo = PlayerProfile.load()
-		var persistente := MondoPersistente.carica()
-		var ui := MondoUI.new()
+		var persistente := ImperoPersistente.carica()
+		var ui := ImperoUI.new()
 		add_child(ui)
 		move_child(ui, 1)
-		var mondo := MondoRun.new(crea_stato(seme), persistente)
-		ui.avvia(mondo, profilo, persistente, audio, usa_seed_giorno or _seed_giorno_cli)
+		ui.avvia(crea_stato(seme, persistente), profilo, persistente, audio, usa_seed_giorno or _seed_giorno_cli)
 		ui.torna_al_titolo.connect(_mostra_titolo)
 		ui.nuova_partita.connect(func(): _avvia_partita(-1, false))
 		return ui)

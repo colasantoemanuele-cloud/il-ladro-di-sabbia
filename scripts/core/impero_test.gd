@@ -79,9 +79,8 @@ static func esegui() -> void:
 	var u := ImperoState.new(5)
 	u.luogo = "casa"
 	assert(not u.dona(1.0).successo, "si dona solo in ospedale")
-	u.luogo = "ospedale"
 	var sara_prima := u.sara
-	assert(u.dona(1.0).successo and is_equal_approx(u.sara, sara_prima + 1.0))
+	assert(u.dona(1.0, "ospedale").successo and is_equal_approx(u.sara, sara_prima + 1.0))
 	assert(u.is_over and u.fine == "dono")
 	assert(u.esegui("visita").get("rifiutata", false))
 	print("donazione: ok")

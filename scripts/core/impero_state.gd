@@ -50,6 +50,7 @@ var fine := ""
 var donato := 0.0
 var picco_flusso := 0.0
 var giorno_max := 1
+var ultimo_incasso := 0.0
 
 
 static func dati() -> Dictionary:
@@ -418,12 +419,12 @@ func esegui(id: String, dove: String = "") -> Dictionary:
 		return _rifiuto(str(voce.get("nota", "Non qui, non adesso.")) if not voce.is_empty() and voce.nota != "" else "Non qui, non adesso.")
 	if id == "dona":
 		return _rifiuto("La donazione si fa con dona().")
-	var eff := efficienza(dove)
-	luogo = dove
 	var esito := _esito()
 	if voce.rapida:
-		_rapida(id, esito)
+		_rapida(id, dove, esito)
 		return esito
+	var eff := efficienza(dove)
+	luogo = dove
 	var dorme := false
 	var tipo: String = voce.tipo
 	if tipo == "cresci" or tipo == "riscuoti" or tipo == "luogotenente":
@@ -577,9 +578,9 @@ func _mossa(m: String, esito: Dictionary) -> void:
 	_risultato(esito, md.nome, md.ok if roll.successo else md.ko, roll, roll.successo, righe)
 
 
-func _rapida(id: String, esito: Dictionary) -> void:
+func _rapida(id: String, dove: String, esito: Dictionary) -> void:
 	if id == "mangia":
-		var costo: float = float(luogo_dati(luogo).cibo)
+		var costo: float = float(luogo_dati(dove).cibo)
 		sirio -= costo
 		digiuno = 0
 		_risultato(esito, "Mangiare qualcosa", "Pane, olio, qualcosa di caldo. Mangi in piedi.", null, true, ["Costo %s" % _ore(costo)])
@@ -589,9 +590,12 @@ func _rapida(id: String, esito: Dictionary) -> void:
 		esito.notifiche.append("Nuovo contatto in rubrica: %s" % contatto_dati(cid).nome)
 
 
-func dona(ore: float) -> Dictionary:
+## Si dona in reparto: chi lo fa da un altro luogo ci va (la partita finisce).
+func dona(ore: float, dove: String = "") -> Dictionary:
 	if is_over:
 		return {"successo": false, "motivo": "La partita è finita."}
+	if dove != "":
+		luogo = dove
 	if luogo != "ospedale":
 		return {"successo": false, "motivo": "Si dona in reparto, accanto a Sara."}
 	if ore <= 0.0 or ore > sirio:
@@ -632,6 +636,7 @@ func passa_fascia(dorme: bool = false) -> Array:
 			eventi.append({"tipo": "debito", "testo": ev.debito_fine, "grave": false})
 	var f := flusso_lordo() - uomini * float(p.paga_uomo)
 	sirio += f
+	ultimo_incasso = f
 	picco_flusso = maxf(picco_flusso, f)
 	var riduzione: float = float(p.calore.informatore) if informatore else 1.0
 	var lp: Dictionary = p.luogotenente

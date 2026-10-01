@@ -172,7 +172,7 @@ func _apri_nuova_partita() -> void:
 		_chiudi_overlay()
 		nuova_partita.emit(SeedDelGiorno.seed_di_oggi(), true))
 	v.add_child(giorno)
-	v.add_child(Stile.etichetta("Oppure scrivi un seed per rigiocare una settimana precisa:", 18, Stile.GRIGIO.lightened(0.3)))
+	v.add_child(Stile.etichetta("Oppure scrivi un seed per rigiocare una partita precisa:", 18, Stile.GRIGIO.lightened(0.3)))
 	var riga := HBoxContainer.new()
 	riga.add_theme_constant_override("separation", 10)
 	v.add_child(riga)

@@ -155,7 +155,7 @@ Cosa dicono i numeri:
 - **Karma persistente, Dolce Volpe, sblocchi tra una partita e l'altra**:
   restano.
 
-## 10. Decisioni da prendere
+## 10. Decisioni prese (approvate dall'autore)
 
 1. **Sara 21 giorni invece di 7.** Cambia la premessa ("una settimana").
    Alternativa: restare a 7 giorni con fasce da 2 ore (stesso numero di
@@ -179,3 +179,27 @@ Cosa dicono i numeri:
 4. Telefono e mappa ricollegati ai giri.
 5. Grandi mosse e scrittura degli eventi (retate, assalti, scandali,
    tradimenti) con testi propri.
+
+## 12. Stato dell'implementazione
+
+Tutti i punti del piano sono fatti.
+
+- `data/impero.json`, generato e validato da `tools/genera_impero.py`
+  (riferimenti tra luoghi, contatti, giri e mosse; ogni giro aperto da un
+  contatto, ogni grande mossa scopribile; regole editoriali).
+- `scripts/core/impero_state.gd` (`ImperoState`), `impero_persistente.gd`
+  (sblocchi tra una partita e l'altra, `user://impero_persistente.json`),
+  `impero_bot.gd` (giocatore a regole), `impero_test.gd` (`--test-impero`).
+- `scripts/ui/impero_ui.gd` (`ImperoUI`): barra con ora, i due orologi, la
+  resa netta della rete a fascia, fame, sonno e calore; il luogo che stai
+  guardando con le sue carte (guardare è gratis, agire in un luogo lontano
+  riduce la resa della fascia); diario; telefono, mappa, pannello Impero,
+  taccuino (grandi mosse, stato, obiettivi, opzioni); donazione con
+  selettore.
+- Rispetto al prototipo il gioco aggiunge luoghi, viaggi, telefono, pasti e
+  sonno veri: rende un po' meno. Bot su 300 partite
+  (`--demo-bilancio=300`): ladro 0,03 anni a Sara, onesto 0,05, usuraio
+  0,32 (massimo 2,95), boss 0,30, biscazziere 0,33, predicatore 0,38
+  (massimo 3,68), impero misto 0,08. Il bot dona quando a Sara restano
+  meno di 130 ore: un giocatore che regge il rischio delle crisi fino agli
+  ultimi giorni fa molto di più, perché la rete cresce in modo composto.
