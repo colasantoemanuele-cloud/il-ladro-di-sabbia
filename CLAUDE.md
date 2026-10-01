@@ -1539,3 +1539,19 @@ godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
     Task 1-7 nel suo complesso, MAI loggato qui finora — solo in
     CLAUDE.md) e 18 (questa sessione di sola documentazione).
   - Nessuna modifica al codice, come richiesto.
+- **Fase 11a (narrativa nel codice, prima tranche)**: fatto. Nuovo
+  `scripts/core/narrativa.gd` (`Narrativa`, funzioni statiche pure): intro
+  con i nomi propri (Sirio/Sara/Serena/Ledune), frase di Serena legata al
+  Karma persistente (4 fasce del design doc 3.3, mostrata all'avvio in UI e
+  `--play`), dialoghi del Patto con Dolce Volpe (sostituiscono ogni
+  `[PLACEHOLDER STREGATTO]` in `GameState`, UI e loop testuale; il
+  monologo della quarta parete 9.2 NON è ancora usato — resta per una
+  scena dedicata) ed epilogo a tre esiti (4.5). **Decisioni mie, da
+  confermare**: il finale pulito/ambiguo/sporco si sceglie dal Karma
+  finale della run (>= +20 pulito, <= -50 sporco, altrimenti ambiguo) e si
+  mostra solo se Sara è viva e la donazione è stata fatta; negli altri casi
+  (Sara morta, nessuna donazione, padre morto) epiloghi brevi dedicati. Il
+  testo è mio, da riscrivere/approvare dall'autore. Nuovo `--test-narrativa`
+  incluso in `tools/regression_suite.py` (12/12 PASS).
+  Ancora da fare: azione "Consultare uno studioso clandestino" e catena
+  Eterni, patti 9.3, selettore di difficoltà e UI per bivi/rete di contatti.

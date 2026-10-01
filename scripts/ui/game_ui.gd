@@ -180,7 +180,7 @@ func _costruisci_ui() -> void:
 	lbl_messaggio.custom_minimum_size = Vector2(0, 80)
 	lbl_messaggio.bbcode_enabled = true
 	lbl_messaggio.fit_content = true
-	lbl_messaggio.text = "Scegli un'azione dalla lista qui sotto."
+	lbl_messaggio.text = Narrativa.INTRO + "\n\n[i]\"%s\"[/i] — Serena\n\nScegli un'azione dalla lista qui sotto." % Narrativa.frase_serena(stato.karma)
 	root.add_child(lbl_messaggio)
 
 	root.add_child(HSeparator.new())
@@ -635,9 +635,7 @@ func _blocca_controlli_per_patto(bloccato: bool) -> void:
 
 func _on_patto_accetta_pressed() -> void:
 	var r := stato.risolvi_patto_stregatto(true)
-	lbl_messaggio.text += "\n\n[b][PLACEHOLDER STREGATTO] Patto accettato:[/b] -%.1fh Sabbia-Padre, Karma %+.0f (ora %.0f)." % [
-		r.prezzo_ore, r.karma_ottenuto, stato.karma
-	]
+	lbl_messaggio.text += "\n\n" + Narrativa.patto_accettato(r.prezzo_ore, r.karma_ottenuto, stato.karma)
 	patto_bar.visible = false
 	_blocca_controlli_per_patto(false)
 	_aggiorna_stato_ui()
@@ -645,7 +643,7 @@ func _on_patto_accetta_pressed() -> void:
 
 func _on_patto_rifiuta_pressed() -> void:
 	stato.risolvi_patto_stregatto(false)
-	lbl_messaggio.text += "\n\n[b][PLACEHOLDER STREGATTO] Patto rifiutato.[/b]"
+	lbl_messaggio.text += "\n\n" + Narrativa.patto_rifiutato()
 	patto_bar.visible = false
 	_blocca_controlli_per_patto(false)
 
@@ -681,6 +679,7 @@ func _fine_partita() -> void:
 	]
 	if p.vittoria_100_100:
 		testo += "\n\n[b]*** TRAGUARDO RAGGIUNTO: 100+100 anni per entrambi! ***[/b]"
+	testo += "\n\n" + Narrativa.epilogo(stato.donation_made, stato.tempo_figlia_ore > 0.0, stato.sabbia_padre_ore > 0.0, stato.karma)
 	lbl_messaggio.text = testo
 
 	if profilo != null:
