@@ -16,11 +16,11 @@ PARAMETRI = {
     "ore_fascia": 6.0,
     "giorni": 21,
     "sirio_iniziale": 24.0,
-    "anticipo": {"ore": 30.0, "rata": 5.0, "rate": 8, "dalla_fascia": 8},
+    "anticipo": {"ore": 40.0, "rata": 6.0, "rate": 8, "dalla_fascia": 8},
     "popolazione": 40000,
     "paga_uomo": 0.8,
     "costo_recluta": 10.0,
-    "luogotenente": {"costo": 20.0, "crescita": 0.07, "cresta": 0.15, "tradimento": 0.004, "soglia": 8},
+    "luogotenente": {"costo": 20.0, "crescita": 0.08, "cresta": 0.15, "tradimento": 0.004, "soglia": 8},
     "controllo": {"calo": 0.015, "minimo": 0.6, "con_luogotenente": 0.9},
     "calore": {"calo_polizia": 1.0, "calo_rivali": 0.5, "retata": 800, "assalto": 900, "scandalo": 1500, "informatore": 0.6},
     "crisi": {"base": 0.004, "visita": 0.5, "fasce_visita": 8, "danno": [12.0, 24.0]},
@@ -176,7 +176,7 @@ LUOGHI = [
 
 CONTATTI = [
     {"id": "rocco", "nome": "Rocco Ferrante", "ruolo": "Ex compagno di cella, oste", "iniziale": True,
-     "saluto": "Sei vivo. Bene. Ricordati che mi devi trenta ore.",
+     "saluto": "Sei vivo. Bene. Ricordati che mi devi quaranta ore.",
      "opzioni": [
          {"id": "usura", "testo": "Chi presta ore a chi non può restituirle?", "risposta": "Nando, dietro il mercato del pesce. Tiene un registro. Se vuoi entrarci, ti presento.",
           "effetti": [{"apri_giro": "usura"}, {"luogo": "bottega_nando"}]},

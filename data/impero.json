@@ -4,8 +4,8 @@
   "giorni": 21,
   "sirio_iniziale": 24.0,
   "anticipo": {
-   "ore": 30.0,
-   "rata": 5.0,
+   "ore": 40.0,
+   "rata": 6.0,
    "rate": 8,
    "dalla_fascia": 8
   },
@@ -14,7 +14,7 @@
   "costo_recluta": 10.0,
   "luogotenente": {
    "costo": 20.0,
-   "crescita": 0.07,
+   "crescita": 0.08,
    "cresta": 0.15,
    "tradimento": 0.004,
    "soglia": 8
@@ -760,7 +760,7 @@
    "nome": "Rocco Ferrante",
    "ruolo": "Ex compagno di cella, oste",
    "iniziale": true,
-   "saluto": "Sei vivo. Bene. Ricordati che mi devi trenta ore.",
+   "saluto": "Sei vivo. Bene. Ricordati che mi devi quaranta ore.",
    "opzioni": [
     {
      "id": "usura",

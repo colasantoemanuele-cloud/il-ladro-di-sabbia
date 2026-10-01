@@ -234,7 +234,7 @@ func luoghi_visibili() -> Array:
 	return out
 
 
-func _costo_crescita(g: String) -> float:
+func costo_crescita(g: String) -> float:
 	var d: Dictionary = dati().giri[g]
 	return float(d.costo) * (float(d.base) + float(d.perc) * float(giri[g].persone))
 
@@ -313,7 +313,7 @@ func voci(id_luogo: String) -> Array:
 		if d.sede != id_luogo or not giri_aperti.has(g):
 			continue
 		var st: Dictionary = giri[g]
-		var costo := _costo_crescita(g)
+		var costo := costo_crescita(g)
 		var nuove := float(d.base) + float(d.perc) * float(st.persone)
 		var nota_c := ""
 		if sirio <= costo + 4.0:
@@ -373,7 +373,7 @@ func voce_per_id(id: String) -> Dictionary:
 	for l in luoghi_visibili():
 		for v in voci(l.id):
 			if v.id == id:
-				var c := v.duplicate()
+				var c: Dictionary = v.duplicate()
 				c["luogo"] = l.id
 				return c
 	return {}
@@ -515,7 +515,7 @@ func _giro(tipo: String, g: String, eff: float, esito: Dictionary) -> void:
 	match tipo:
 		"cresci":
 			var nuove := float(d.base) + float(d.perc) * float(st.persone)
-			var costo := _costo_crescita(g)
+			var costo := costo_crescita(g)
 			sirio -= costo
 			karma = clampf(karma + float(d.karma), -100.0, 100.0)
 			var roll := _tiro(float(d.rischio))

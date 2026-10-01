@@ -57,8 +57,13 @@ func _ready() -> void:
 		get_tree().quit()
 		return
 	for a in args:
+		if a.begins_with("--impero-traccia="):
+			ImperoBot.traccia = true
+			ImperoBot.gioca(1000, a.get_slice("=", 1))
+			get_tree().quit()
+			return
 		if a.begins_with("--demo-bilancio="):
-			MondoBot.report(int(a.get_slice("=", 1)))
+			print(ImperoBot.report(int(a.get_slice("=", 1))))
 			get_tree().quit()
 			return
 	if args.has("--demo-foto"):

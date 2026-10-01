@@ -43,6 +43,7 @@ extends Control
 ##                          (nessun server/classifica condivisa)
 ##   --test-seed-del-giorno -> auto-test headless del Seed del Giorno
 ##   --test-narrativa     -> auto-test headless dei testi narrativi (Narrativa)
+##   --test-impero        -> auto-test headless del motore dell'impero (ImperoState)
 ##   --test-bivi          -> auto-test headless dello scheletro tecnico
 ##                          dei bivi (design doc 12.2) — solo bivi
 ##                          segnaposto, nessun contenuto narrativo reale.
@@ -115,6 +116,9 @@ func _ready() -> void:
 		get_tree().quit()
 	elif altri_args.has("--test-narrativa"):
 		_run_test_narrativa()
+	elif altri_args.has("--test-impero"):
+		ImperoTest.esegui()
+		get_tree().quit()
 	elif altri_args.has("--test-bivi"):
 		_run_test_bivi()
 		get_tree().quit()
