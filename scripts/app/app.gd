@@ -56,6 +56,11 @@ func _ready() -> void:
 		await DemoTest.esegui(self)
 		get_tree().quit()
 		return
+	for a in args:
+		if a.begins_with("--demo-bilancio="):
+			MondoBot.report(int(a.get_slice("=", 1)))
+			get_tree().quit()
+			return
 	if args.has("--demo-foto"):
 		var cartella := "/tmp"
 		for a in args:
@@ -122,8 +127,7 @@ func _mostra_titolo(con_transizione: bool = true) -> void:
 		add_child(t)
 		move_child(t, 1)
 		t.avvia(profilo, impostazioni, audio)
-		t.nuova_partita.connect(func(): _inizia(false))
-		t.seed_del_giorno.connect(func(): _inizia(true))
+		t.nuova_partita.connect(_inizia)
 		audio.suona_musica("titolo")
 		return t
 	if con_transizione:
@@ -132,7 +136,7 @@ func _mostra_titolo(con_transizione: bool = true) -> void:
 		_schermata = crea.call()
 
 
-func _inizia(usa_seed_giorno: bool) -> void:
+func _inizia(seme: int, usa_seed_giorno: bool) -> void:
 	if not impostazioni.intro_vista:
 		_transizione(func() -> Control:
 			var intro := IntroScreen.new()
@@ -142,10 +146,10 @@ func _inizia(usa_seed_giorno: bool) -> void:
 			intro.finita.connect(func():
 				impostazioni.intro_vista = true
 				impostazioni.salva()
-				_avvia_partita(usa_seed_giorno))
+				_avvia_partita(seme, usa_seed_giorno))
 			return intro)
 	else:
-		_avvia_partita(usa_seed_giorno)
+		_avvia_partita(seme, usa_seed_giorno)
 
 
 func _livello_effettivo() -> int:
@@ -155,9 +159,9 @@ func _livello_effettivo() -> int:
 	return richiesto
 
 
-func crea_stato(usa_seed_giorno: bool) -> GameState:
-	var seme := _seed_cli
-	if usa_seed_giorno or _seed_giorno_cli:
+func crea_stato(seme_scelto: int) -> GameState:
+	var seme := seme_scelto if seme_scelto >= 0 else _seed_cli
+	if _seed_giorno_cli:
 		seme = SeedDelGiorno.seed_di_oggi()
 	var stato := GameState.new(seme, _livello_effettivo())
 	var contatti: Array[String] = []
@@ -167,13 +171,15 @@ func crea_stato(usa_seed_giorno: bool) -> GameState:
 	return stato
 
 
-func _avvia_partita(usa_seed_giorno: bool) -> void:
+func _avvia_partita(seme: int, usa_seed_giorno: bool) -> void:
 	_transizione(func() -> Control:
 		profilo = PlayerProfile.load()
-		var ui := TouchUI.new()
+		var persistente := MondoPersistente.carica()
+		var ui := MondoUI.new()
 		add_child(ui)
 		move_child(ui, 1)
-		ui.avvia(crea_stato(usa_seed_giorno), profilo, audio, usa_seed_giorno or _seed_giorno_cli)
+		var mondo := MondoRun.new(crea_stato(seme), persistente)
+		ui.avvia(mondo, profilo, persistente, audio, usa_seed_giorno or _seed_giorno_cli)
 		ui.torna_al_titolo.connect(_mostra_titolo)
-		ui.nuova_partita.connect(func(): _avvia_partita(false))
+		ui.nuova_partita.connect(func(): _avvia_partita(-1, false))
 		return ui)

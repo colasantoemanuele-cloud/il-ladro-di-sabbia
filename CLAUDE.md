@@ -1625,3 +1625,65 @@ godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
     in questo ambiente. Da controllare al primo avvio su telefono:
     leggibilità del font monospace di sistema, tempi di generazione
     audio, tasto Indietro.
+- **Fase 13 (il mondo di Ledune: luoghi, telefono, bisogni)**: fatto, su
+  richiesta esplicita dell'autore dopo aver provato la demo. Sostituisce
+  `TouchUI` (rimossa) con `MondoUI`. **Ancora nessuna modifica a
+  `scripts/core/`, `scripts/data/`, `main.gd` e ai JSON di gioco**: le nuove
+  regole vivono in uno strato sopra `GameState` (`scripts/mondo/`).
+  - **Il padre paga ogni ora** (`MondoRun._dopo_core`, `_passa_tempo`): il
+    core toglie il costo solo al Tempo-Figlia; il mondo lo toglie anche alla
+    Sabbia-Padre, per azioni, viaggi, telefonate, sonno. Un turno da 8h che
+    rende 6h lascia Sirio a -2h netti. È la lettura letterale del design doc
+    ("il lavoro onesto quasi pareggia"). **Conseguenza**: i tetti di
+    `tools/balance_ceiling.py` e del Monte Carlo (`--simulate`) misurano
+    ancora il modello del core senza questa regola; per il mondo esiste
+    `--demo-bilancio=N` (bot avido, `MondoBot`): su 300 run arriva in
+    media al giorno 8, dona nell'88% dei casi, circa 5 anni totali.
+  - **Luoghi** (`data/mondo.json`, generato da `tools/genera_mondo.py`, che
+    valida nomi e raggiungibilità di tutte le azioni): 21 luoghi, 11 noti
+    all'inizio. Ogni azione del core si fa solo nel suo luogo (o tramite un
+    contatto); alcune richiedono condizioni (un'arma per rapire l'erede, i
+    piani per la banca, un'auto per le corse). Spostarsi costa ore in base
+    alla distanza (0,2h + distanza/55), meno della metà in auto (rubandone
+    una, con benzina per 4 viaggi), 5% di imprevisto. Non si va dove si è
+    già. Si parte in ospedale, lunedì alle 23:00.
+  - **Telefono**: 10 contatti con nome, ruolo e dialoghi (3 noti
+    all'inizio: Gaetano capocantiere, Rocco ex compagno di cella, la
+    dottoressa Venti). Le opzioni di dialogo sbloccano luoghi, contatti,
+    piste, o avviano azioni. **Le strade (tracce) non si scelgono più da un
+    elenco**: le offre il contatto giusto quando hai i meriti (Gaetano dopo
+    un turno riuscito, Mei Shen dopo due crimini, ecc.). **Le sottotrame si
+    scoprono** come piste (dialoghi, occasioni) e si tentano nel loro
+    luogo. Il cash-in si fa a casa ("Mettere insieme i pezzi"). Messaggi
+    giornalieri dalla dottoressa su Sara.
+  - **Occasioni**: le azioni "Evento" non sono più selezionabili. Capitano
+    (probabilità per luogo, dopo un'azione o un arrivo) come scelte:
+    portafoglio, ricatto, colpo di un vecchio socio, posto di blocco (in
+    viaggio, con Polizia >= 30), ecc. Restano anche gli eventi casuali del
+    core ogni 6 turni.
+  - **Fame e sonno**: ore da sveglio e dall'ultimo pasto. Sonno: 20h
+    stanco -1, 36h sfinito -2, 60h allo stremo -3 e svantaggio. Fame: 16h
+    -1, 36h -2, 72h -3 e svantaggio. Malus massimo -4, passato al core come
+    `modificatore`/`modo` dei tiri. Si dorme a casa, si mangia a casa, in
+    piazza o alla stazione.
+  - **Sblocchi permanenti** (`MondoPersistente`,
+    `user://mondo_persistente.json`, separato dal Profilo Persistente): 5
+    obiettivi (arrivare al terzo giorno, donare, tornare in L'chen, tre
+    vittorie all'azzardo, un rango 2) lasciano contatti o luoghi noti fin
+    dall'inizio delle settimane successive. Visibili nel Taccuino con
+    ricompensa nascosta finché non raggiunti.
+  - **UX**: barra in alto con data e ora, i due orologi, fame, sonno e
+    risorse (toccandola si apre lo stato); al centro il luogo con
+    illustrazione e solo le carte di ciò che si può fare lì, ognuna con
+    durata, resa e netto per Sirio, più un avviso rosso se l'azione dura
+    più delle ore che restano; a destra il diario della settimana; in basso
+    Telefono (con contatore dei non letti), Mappa, Taccuino (Strade, Piste,
+    Stato, Obiettivi, Opzioni). Donazione solo in ospedale, con selettore
+    da un'ora in su (+/-1, +/-10, un'ora, metà, tutto). Nuova partita:
+    seed casuale, del giorno, o scritto a mano.
+  - **Verifica**: `--demo-test` riscritto (viaggio che costa uguale a
+    entrambi, azioni vincolate al luogo, padre che paga il turno, malus di
+    fame e sonno, strade su merito, sblocchi via telefono, donazione di
+    un'ora solo in ospedale, sblocchi permanenti con round-trip su disco,
+    orologio e messaggi, scelta del seed, flusso UI completo). Suite
+    13/13 PASS.

@@ -13,15 +13,15 @@ const INTRO := "Mi chiamo Sirio. A Ledune rubavo per chi pagava meglio. Ora rubo
 const TUTORIAL := [
 	{
 		"titolo": "Due orologi",
-		"testo": "Hai due orologi. La Sabbia-Padre sono le tue ore: se arrivano a zero, muori. Il Tempo-Figlia è la settimana di Sara: ogni azione ne consuma un pezzo. Se finisce, finisce tutto. Scegli cosa vale la pena fare.",
+		"testo": "Ogni ora che passa costa la stessa ora a te e a Sara. Tu hai ventiquattro ore, lei una settimana. Se il tuo orologio arriva a zero, muori. Se arriva a zero il suo, non resta niente da salvare. La sabbia che guadagni allunga solo il tuo.",
 	},
 	{
-		"titolo": "Il dado",
-		"testo": "Ogni azione costa ore di Tempo-Figlia e rende sabbia. Il rischio decide la difficoltà: tiri un d20. Un venti passa sempre. Un uno non perdona. Se fallisci, le ore sono già andate. Il lavoro onesto rende poco ma non tradisce.",
+		"titolo": "La città",
+		"testo": "Puoi fare solo quello che il posto in cui sei permette. Si lavora al porto, si gioca alla bisca, si ruba dove ci sono soldi. Spostarsi costa ore. Il telefono è la tua rete: chi conosci decide quali porte si aprono. Il resto lo decide un d20.",
 	},
 	{
-		"titolo": "La strada",
-		"testo": "La polizia guarda, i rivali ricordano, la gente parla. Il Karma ti segue da una vita all'altra. Le tracce sono strade lunghe: un passo falso chiude la porta. Quando decidi, dona. Una volta sola.",
+		"titolo": "Il corpo",
+		"testo": "Una notte in bianco o un giorno senza mangiare si reggono. Due cominciano a pesare sui tiri. Si dorme a casa. Le storie grosse si scoprono parlando con la gente giusta. Quando decidi, dona a Sara in ospedale. Anche un'ora. Una volta sola.",
 	},
 ]
 

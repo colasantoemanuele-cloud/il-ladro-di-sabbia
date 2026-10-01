@@ -3,8 +3,8 @@ extends Control
 ## Schermata titolo: skyline notturna a quattro livelli di parallasse,
 ## titolo, citazione, seed del giorno e menu.
 
-signal nuova_partita
-signal seed_del_giorno
+## seme -1 = casuale
+signal nuova_partita(seme: int, del_giorno: bool)
 
 var profilo: PlayerProfile
 var impostazioni: ImpostazioniDemo
@@ -91,15 +91,8 @@ func _costruisci() -> void:
 
 	colonna.add_child(_spazio(40))
 	var nuova := _bottone("NUOVA PARTITA", Stile.ROSSO)
-	nuova.pressed.connect(func():
-		_s("click")
-		nuova_partita.emit())
+	nuova.pressed.connect(_apri_nuova_partita)
 	colonna.add_child(nuova)
-	var seed_b := _bottone("SEED DEL GIORNO", Stile.SABBIA)
-	seed_b.pressed.connect(func():
-		_s("click")
-		seed_del_giorno.emit())
-	colonna.add_child(seed_b)
 	var carica := _bottone("CARICA PROFILO", Stile.GRIGIO)
 	carica.pressed.connect(_apri_profilo)
 	colonna.add_child(carica)
@@ -130,6 +123,98 @@ func _bottone(testo: String, colore: Color) -> Button:
 	b.add_theme_font_size_override("font_size", 28)
 	Stile.applica_bottone(b, colore)
 	return b
+
+
+func _overlay_base(larghezza: float) -> VBoxContainer:
+	var fondo := ColorRect.new()
+	fondo.color = Color(0, 0, 0, 0.85)
+	fondo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(fondo)
+	_overlay = fondo
+	var centro := CenterContainer.new()
+	centro.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fondo.add_child(centro)
+	var pannello := PanelContainer.new()
+	pannello.custom_minimum_size = Vector2(larghezza, 0)
+	pannello.add_theme_stylebox_override("panel", Stile.box(Color("12122a"), Stile.SABBIA, 4, 22))
+	centro.add_child(pannello)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	pannello.add_child(v)
+	return v
+
+
+func _chiudi_overlay() -> void:
+	if _overlay != null:
+		_overlay.queue_free()
+		_overlay = null
+
+
+## Nuova partita: seed casuale, seed scritto a mano o seed del giorno.
+func _apri_nuova_partita() -> void:
+	_s("click")
+	if _overlay != null:
+		return
+	var v := _overlay_base(720)
+	v.add_child(Stile.etichetta("NUOVA SETTIMANA", Stile.TITOLI, Stile.SABBIA))
+	var casuale := _bottone("SEED CASUALE", Stile.ROSSO)
+	casuale.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	casuale.pressed.connect(func():
+		_s("click")
+		_chiudi_overlay()
+		nuova_partita.emit(-1, false))
+	v.add_child(casuale)
+	var giorno := _bottone("SEED DEL GIORNO  %d" % SeedDelGiorno.seed_di_oggi(), Stile.SABBIA)
+	giorno.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	giorno.add_theme_font_size_override("font_size", 22)
+	giorno.pressed.connect(func():
+		_s("click")
+		_chiudi_overlay()
+		nuova_partita.emit(SeedDelGiorno.seed_di_oggi(), true))
+	v.add_child(giorno)
+	v.add_child(Stile.etichetta("Oppure scrivi un seed per rigiocare una settimana precisa:", 18, Stile.GRIGIO.lightened(0.3)))
+	var riga := HBoxContainer.new()
+	riga.add_theme_constant_override("separation", 10)
+	v.add_child(riga)
+	var campo := LineEdit.new()
+	campo.placeholder_text = "Seed (solo numeri)"
+	campo.custom_minimum_size = Vector2(0, 80)
+	campo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	campo.add_theme_font_size_override("font_size", 28)
+	campo.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+	campo.max_length = 10
+	riga.add_child(campo)
+	var gioca := Button.new()
+	gioca.text = "GIOCA"
+	gioca.custom_minimum_size = Vector2(180, 80)
+	gioca.add_theme_font_size_override("font_size", 26)
+	Stile.applica_bottone(gioca, Stile.ROSSO)
+	gioca.disabled = true
+	campo.text_changed.connect(func(t: String):
+		var pulito := ""
+		for ch in t:
+			if ch >= "0" and ch <= "9":
+				pulito += ch
+		if pulito != t:
+			campo.text = pulito
+			campo.caret_column = pulito.length()
+		gioca.disabled = pulito == "")
+	var avvia_seed := func():
+		if campo.text == "":
+			return
+		_s("click")
+		var seme := int(campo.text) & 0x7FFFFFFF
+		_chiudi_overlay()
+		nuova_partita.emit(seme, false)
+	gioca.pressed.connect(avvia_seed)
+	campo.text_submitted.connect(func(_t): avvia_seed.call())
+	riga.add_child(gioca)
+	var indietro := _bottone("INDIETRO", Stile.GRIGIO)
+	indietro.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	indietro.pressed.connect(func():
+		_s("click")
+		_chiudi_overlay())
+	v.add_child(indietro)
 
 
 func _apri_profilo() -> void:

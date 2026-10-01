@@ -616,3 +616,225 @@ static func skyline_livello(indice: int) -> ImageTexture:
 	var t := _tex(img)
 	_cache[chiave] = t
 	return t
+
+
+# ---------------------------------------------------------------- mondo
+
+const COLORI_LUOGO := {
+	"casa": Color("c8a97e"), "ospedale": Color("8fb0c8"), "porto": Color("4a7cb0"), "piazza": Color("d0a030"),
+	"villa": Color("4a7c59"), "stazione": Color("e08030"), "chiesa": Color("b08ad0"), "banca": Color("f0c050"),
+	"questura": Color("4a6fb0"), "palazzo": Color("a0a0b8"), "agenzia": Color("a050c0"), "bottega": Color("8a6a50"),
+	"bisca": Color("c03040"), "magazzino": Color("6a2030"), "bar": Color("d07050"), "laboratorio": Color("50b080"),
+	"catacombe": Color("8a5a2a"),
+}
+
+
+static func icona_ui(nome: String) -> ImageTexture:
+	var chiave := "ui_" + nome
+	if _cache.has(chiave):
+		return _cache[chiave]
+	var righe: Array
+	match nome:
+		"sonno":
+			righe = ["................", ".....yyyy.......", "...yyyy.........", "..yyy...........", "..yyy......kkkk.",
+				".yyy.........k..", ".yyy........k...", ".yyy.......kkkk.", "..yyy...........", "..yyyy......yy..",
+				"...yyyyy..yyyy..", ".....yyyyyyy....", "................", "................", "................", "................"]
+		"fame":
+			righe = ["................", "................", "....ssssssss....", "..ssssssssssss..", ".ssswssswssswss.",
+				".ssssssssssssss.", ".oooooooooooooo.", ".oooooooooooooo.", "..oooooooooooo..", "................",
+				"................", "................", "................", "................", "................", "................"]
+		"telefono":
+			righe = ["....gggggggg....", "....gnnnnnng....", "....gnbbbbng....", "....gnbwwbng....", "....gnbbbbng....",
+				"....gnbwwbng....", "....gnbbbbng....", "....gnbbbbng....", "....gnbbbbng....", "....gnnnnnng....",
+				"....gnnwwnng....", "....gggggggg....", "................", "................", "................", "................"]
+		"mappa":
+			righe = ["................", ".sss.sss.sss....", ".sss.sss.sss....", ".srs.sss.sss....", ".srrrrrrrsss....",
+				".sss.sss.rss....", ".sss.sss.rss....", ".sss.sss.sss....", "................", "................",
+				"................", "................", "................", "................", "................", "................"]
+		"taccuino":
+			righe = ["................", "...rwwwwwwwww...", "...rwkkkkkkkw...", "...rwwwwwwwww...", "...rwkkkkkkww...",
+				"...rwwwwwwwww...", "...rwkkkkkkkw...", "...rwwwwwwwww...", "...rwkkkkwwww...", "...rwwwwwwwww...",
+				"...rrrrrrrrrr...", "................", "................", "................", "................", "................"]
+		_:
+			righe = ["................"]
+	var t := _tex(_da_ascii(righe, _mappa()))
+	_cache[chiave] = t
+	return t
+
+
+## Segnaposto della mappa: goccia colorata con l'iniziale del tipo di luogo.
+static func pin_luogo(tipo: String, corrente: bool) -> ImageTexture:
+	var chiave := "pin_%s_%s" % [tipo, corrente]
+	if _cache.has(chiave):
+		return _cache[chiave]
+	var img := _nuova(16, 20)
+	var c: Color = COLORI_LUOGO.get(tipo, SABBIA)
+	if corrente:
+		c = CHIARO
+	_disco(img, 8, 7, 6, c)
+	_poligono(img, [Vector2(3, 9), Vector2(13, 9), Vector2(8, 18)], c)
+	_disco(img, 8, 7, 2, ROSSO if corrente else NERO)
+	var t := _tex(_aggiungi_contorno(img))
+	_cache[chiave] = t
+	return t
+
+
+## Mappa di Ledune a 160x100: mare a sud ovest, porto, strade, quartieri.
+static func mappa_ledune() -> ImageTexture:
+	if _cache.has("mappa"):
+		return _cache["mappa"]
+	var w := 160
+	var h := 100
+	var img := _nuova(w, h)
+	var terra := Color("1c1c2c")
+	_rect(img, 0, 0, w, h, terra)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	for y in h:
+		for x in w:
+			if (x + y * 3) % 7 == 0 and rng.randf() < 0.5:
+				img.set_pixel(x, y, terra.lightened(0.04))
+	var mare := Color("12263e")
+	_poligono(img, [Vector2(0, 58), Vector2(10, 60), Vector2(22, 70), Vector2(30, 86), Vector2(46, 92), Vector2(80, 96), Vector2(80, 100), Vector2(0, 100)], mare)
+	for k in 30:
+		_px(img, rng.randi_range(0, 60), rng.randi_range(80, 99), mare.lightened(0.15))
+	# moli
+	_rect(img, 16, 76, 10, 2, Color("3a3a4a"))
+	_rect(img, 22, 82, 2, 8, Color("3a3a4a"))
+	# parco del quartiere alto
+	_rect(img, 112, 8, 34, 22, Color("1f3a2a"))
+	for k in 40:
+		_px(img, rng.randi_range(113, 145), rng.randi_range(9, 29), Color("2f5a40"))
+	# citta vecchia
+	_rect(img, 76, 56, 30, 22, Color("2a2420"))
+	# strade principali
+	var strada := Color("3e3a48")
+	_rect(img, 0, 46, w, 3, strada)
+	_rect(img, 72, 0, 3, h, strada)
+	_linea(img, 20, 30, 140, 74, strada)
+	_linea(img, 21, 30, 141, 74, strada)
+	_linea(img, 40, 10, 100, 96, strada)
+	_rect(img, 0, 22, w, 1, strada.darkened(0.2))
+	_rect(img, 0, 70, w, 1, strada.darkened(0.2))
+	_rect(img, 40, 0, 1, h, strada.darkened(0.2))
+	_rect(img, 110, 0, 1, h, strada.darkened(0.2))
+	# isolati
+	for k in 120:
+		var x := rng.randi_range(2, w - 6)
+		var y := rng.randi_range(2, h - 6)
+		if img.get_pixel(x, y) == mare:
+			continue
+		_rect(img, x, y, 3, 2, Color("262636"))
+	var t := _tex(img)
+	_cache["mappa"] = t
+	return t
+
+
+## Illustrazione del luogo (200x56): cielo notturno e una silhouette tipica.
+static func scena_luogo(tipo: String) -> ImageTexture:
+	var chiave := "scena_" + tipo
+	if _cache.has(chiave):
+		return _cache[chiave]
+	var w := 200
+	var h := 56
+	var img := _nuova(w, h)
+	var bande := [Color("0b0b16"), BLU_NOTTE, Color("1c2040"), Color("2a2c52")]
+	for y in h:
+		var i := mini(y * bande.size() / h, bande.size() - 1)
+		_rect(img, 0, y, w, 1, bande[i])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(tipo)
+	for k in 25:
+		_px(img, rng.randi_range(0, w - 1), rng.randi_range(0, 22), Color("8a8aa8"))
+	# skyline lontano
+	var lontano := Color("20284a")
+	var x := 0
+	while x < w:
+		var bw := rng.randi_range(8, 18)
+		var bh := rng.randi_range(10, 26)
+		_rect(img, x, h - bh, bw, bh, lontano)
+		x += bw + 1
+	var scuro := Color("0f0f1a")
+	var acc: Color = COLORI_LUOGO.get(tipo, SABBIA)
+	var luce := SABBIA
+	_rect(img, 0, h - 4, w, 4, Color("0a0a10"))
+	match tipo:
+		"casa":
+			_rect(img, 70, 18, 60, 34, scuro)
+			_poligono(img, [Vector2(66, 18), Vector2(100, 6), Vector2(134, 18)], scuro)
+			_rect(img, 80, 26, 8, 8, luce)
+			_rect(img, 112, 26, 8, 8, Color("181828"))
+			_rect(img, 96, 38, 8, 14, Color("2a2018"))
+		"ospedale":
+			_rect(img, 50, 10, 100, 42, Color("1a1a28"))
+			for wy in range(16, 46, 8):
+				for wx in range(56, 146, 10):
+					_rect(img, wx, wy, 5, 4, Color("8fb0c8") if rng.randf() < 0.5 else Color("202034"))
+			_rect(img, 96, 2, 8, 2, ROSSO)
+			_rect(img, 99, 0, 2, 8, ROSSO)
+		"porto":
+			_rect(img, 0, 44, w, 8, Color("12263e"))
+			_rect(img, 40, 8, 4, 40, scuro)
+			_rect(img, 40, 8, 50, 3, scuro)
+			_rect(img, 84, 11, 1, 16, GRIGIO)
+			for k in 5:
+				_rect(img, 110 + k * 16, 34 - (k % 2) * 8, 14, 10 + (k % 2) * 8, [Color("6a2030"), Color("2f5d4a"), Color("3d4f7a")][k % 3])
+		"piazza":
+			_rect(img, 90, 34, 20, 4, GRIGIO)
+			_rect(img, 98, 26, 4, 8, GRIGIO)
+			for k in 4:
+				_rect(img, 20 + k * 44, 30, 26, 18, scuro)
+				_rect(img, 18 + k * 44, 26, 30, 4, [ROSSO, VERDE, GIALLO, Color("4a6fb0")][k])
+		"villa":
+			_rect(img, 60, 16, 80, 36, scuro)
+			_rect(img, 60, 16, 80, 2, acc)
+			for k in 12:
+				_rect(img, 20 + k * 14, 36, 2, 16, GRIGIO)
+			_rect(img, 20, 36, 160, 2, GRIGIO)
+			_disco(img, 30, 26, 10, Color("1f3a2a"))
+			_disco(img, 172, 24, 12, Color("1f3a2a"))
+		"stazione":
+			_rect(img, 40, 14, 120, 4, acc)
+			_rect(img, 50, 18, 3, 34, GRIGIO)
+			_rect(img, 146, 18, 3, 34, GRIGIO)
+			_rect(img, 80, 34, 8, 18, ROSSO)
+			_rect(img, 110, 34, 8, 18, ROSSO)
+			_rect(img, 160, 26, 30, 26, scuro)
+			_rect(img, 164, 30, 22, 6, GIALLO)
+		"chiesa":
+			_rect(img, 70, 22, 60, 30, scuro)
+			_rect(img, 90, 4, 20, 48, scuro)
+			_rect(img, 99, 0, 2, 6, acc)
+			_rect(img, 96, 2, 8, 2, acc)
+			_rect(img, 96, 14, 8, 10, GIALLO)
+		"banca", "palazzo", "questura":
+			_rect(img, 40, 14, 120, 38, Color("1a1a28"))
+			_poligono(img, [Vector2(36, 14), Vector2(100, 2), Vector2(164, 14)], Color("1a1a28"))
+			for k in 6:
+				_rect(img, 50 + k * 20, 18, 6, 32, Color("2a2a3a"))
+			_rect(img, 96, 6, 8, 4, acc)
+		"agenzia", "bottega", "bar", "bisca":
+			_rect(img, 50, 14, 100, 38, scuro)
+			_rect(img, 46, 22, 108, 4, acc)
+			_rect(img, 60, 32, 30, 16, Color("2a2a1a") if tipo != "bisca" else Color("401018"))
+			_rect(img, 110, 32, 14, 20, Color("2a2018"))
+			_rect(img, 62, 34, 26, 2, acc.lightened(0.3))
+		"magazzino":
+			_rect(img, 30, 16, 140, 36, Color("1a1416"))
+			_poligono(img, [Vector2(26, 16), Vector2(100, 6), Vector2(174, 16)], Color("1a1416"))
+			_rect(img, 84, 28, 32, 24, Color("2a2a2a"))
+			for k in 6:
+				_rect(img, 34 + k * 9, 40, 8, 12, Color("5a4030"))
+		"laboratorio":
+			_rect(img, 40, 20, 120, 32, scuro)
+			_rect(img, 50, 42, 30, 8, Color("50b080"))
+			_rect(img, 120, 42, 30, 8, Color("50b080").darkened(0.4))
+		"catacombe":
+			_rect(img, 0, 20, w, 36, Color("1a1410"))
+			for k in 5:
+				_disco(img, 20 + k * 40, 36, 12, Color("0a0806"))
+				_rect(img, 8 + k * 40, 36, 24, 16, Color("0a0806"))
+				_px(img, 20 + k * 40, 30, GIALLO)
+	var t := _tex(img)
+	_cache[chiave] = t
+	return t

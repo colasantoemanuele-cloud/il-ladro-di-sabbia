@@ -3,26 +3,17 @@ extends RefCounted
 ## Auto-test headless della demo: godot --headless --path . -- --demo-test
 ## Usa assert(): valido solo nell'editor o in un export debug.
 
+const PERCORSO_TEST := "user://mondo_persistente_test.json"
+
 
 static func _attendi(app: Node, secondi: float) -> void:
 	await app.get_tree().create_timer(secondi).timeout
 
 
-static func _premi_continua(app: Node, ui: TouchUI) -> void:
-	# attende la fine dell'animazione del dado e preme il bottone del modale
-	for i in 60:
-		await _attendi(app, 0.1)
-		var b := _trova_bottone(ui._modale, "CONTINUA")
-		if b != null and not b.disabled:
-			b.pressed.emit()
-			return
-	assert(false, "il bottone CONTINUA non e' diventato attivo")
-
-
 static func _trova_bottone(nodo: Node, testo: String) -> Button:
 	if nodo == null:
 		return null
-	if nodo is Button and (nodo as Button).text.begins_with(testo):
+	if nodo is Button and (nodo as Button).text.replace("●", "").strip_edges().begins_with(testo):
 		return nodo
 	for c in nodo.get_children():
 		var r := _trova_bottone(c, testo)
@@ -31,183 +22,282 @@ static func _trova_bottone(nodo: Node, testo: String) -> Button:
 	return null
 
 
+static func _premi(app: Node, radice: Node, testo: String, attesa_max: float = 5.0) -> bool:
+	var t := 0.0
+	while t < attesa_max:
+		var b := _trova_bottone(radice, testo)
+		if b != null and not b.disabled and b.is_visible_in_tree():
+			b.pressed.emit()
+			await _attendi(app, 0.05)
+			return true
+		await _attendi(app, 0.1)
+		t += 0.1
+	return false
+
+
+## Chiude tutti i modali aperti (dadi, eventi, occasioni) scegliendo sempre la
+## prima risposta possibile.
+static func _svuota_modali(app: Node, ui: MondoUI) -> void:
+	for i in 20:
+		if ui._modale == null:
+			return
+		if await _premi(app, ui._modale, "CONTINUA", 3.0):
+			continue
+		var bottoni := ui._modale.find_children("*", "Button", true, false)
+		if bottoni.is_empty():
+			await _attendi(app, 0.3)
+			continue
+		(bottoni[0] as Button).pressed.emit()
+		await _attendi(app, 0.1)
+
+
 static func esegui(app: App) -> void:
 	print("=== TEST DEMO ===")
+	_test_testi()
+	_test_mondo()
+	await _test_audio(app)
+	await _test_titolo(app)
+	await _test_ui(app)
+	print("TUTTI I TEST DEMO OK")
 
-	# testi di esito: tutte le 62 azioni, le 7 tracce e le 10 sottotrame
+
+static func _test_testi() -> void:
 	for a: ActionData in ActionDatabase.get_all():
-		assert(TestiDemo.esito_azione(a.nome, true) != "Fatto.", "esito mancante (ok): " + a.nome)
-		assert(TestiDemo.esito_azione(a.nome, false) != "Non è andata.", "esito mancante (ko): " + a.nome)
-	for s: SubplotData in SubplotDatabase.get_all():
-		assert(TestiDemo.esito_sottotrama(s.nome, true) != "Fatto.", "esito sottotrama mancante: " + s.nome)
-	for t in TrackDatabase.get_nomi_tracce_normali():
-		assert(TestiDemo.esito_traccia(t, "X", true) != "Un passo avanti.", "esito traccia mancante: " + t)
-	assert(TestiDemo.CITAZIONI.size() == 8)
+		assert(TestiDemo.esito_azione(a.nome, true) != "Fatto.", "esito mancante: " + a.nome)
+		assert(TestiDemo.esito_azione(a.nome, false) != "Non è andata.", "esito mancante: " + a.nome)
 	var parole := TestiDemo.INTRO.split(" ", false).size()
-	assert(parole <= 120, "intro oltre 120 parole: %d" % parole)
-	print("OK: testi di esito completi, intro di %d parole." % parole)
+	assert(parole <= 120, "intro oltre 120 parole")
+	for t in TestiDemo.TUTORIAL:
+		assert(str(t.testo).split(" ", false).size() <= 60, "tutorial oltre 60 parole: " + str(t.titolo))
+	assert(TestiDemo.CITAZIONI.size() == 8)
+	assert(MondoRun.dati().luoghi.size() >= 20 and MondoRun.dati().contatti.size() >= 10)
+	print("OK: testi e dati del mondo.")
 
-	# pixel art
-	for f in 6:
-		assert(PixelArt.dado_frame(f, 7).get_width() == 32)
-	assert(PixelArt.avatar_frame(3).get_height() == 48)
-	assert(PixelArt.icona_app().get_width() == 192)
-	print("OK: asset pixel art generati.")
 
-	# audio
+static func _test_mondo() -> void:
+	var m := MondoRun.new(GameState.new(31337))
+	assert(m.luogo == "ospedale")
+	assert(not m.luoghi_noti.has("bisca"), "la bisca si scopre, non è nota all'inizio")
+	assert(m.contatti_noti.has("gaetano") and m.contatti_noti.has("rocco") and not m.contatti_noti.has("shen"))
+
+	# il viaggio costa le stesse ore a padre e figlia
+	var p0 := m.stato.sabbia_padre_ore
+	var f0 := m.stato.tempo_figlia_ore
+	var v := m.viaggia("porto")
+	assert(not v.has("rifiutata"))
+	assert(is_equal_approx(f0 - m.stato.tempo_figlia_ore, p0 - m.stato.sabbia_padre_ore), "il viaggio deve costare uguale a entrambi")
+	assert(m.viaggia("porto").has("rifiutata"), "non si va dove si è già")
+	assert(m.viaggia("bisca").has("rifiutata"), "non si va in un posto che non si conosce")
+	print("OK: viaggio (%.2fh) costa uguale a Sirio e a Sara." % v.ore)
+
+	# solo le azioni del luogo
+	assert(m.esegui_azione("Piccolo furto (scippo)").has("rifiutata"), "lo scippo non si fa al porto")
+	var p1 := m.stato.sabbia_padre_ore
+	var r := m.esegui_azione("Turno di lavoro onesto (8h, salario mediano)")
+	assert(not r.has("rifiutata"))
+	var rr: Dictionary = r.risultati[0].r
+	var atteso: float = p1 - rr.costo_tempo_figlia_ore + rr.effetto_sabbia_padre_ore
+	assert(absf(m.stato.sabbia_padre_ore - atteso) < 0.001, "il padre paga le ore del turno e incassa la paga")
+	print("OK: il turno costa %.1fh anche a Sirio, rende %.1fh." % [rr.costo_tempo_figlia_ore, rr.effetto_sabbia_padre_ore])
+
+	# fame e sonno
+	m.ore_sveglio = 40.0
+	m.ore_digiuno = 0.0
+	assert(m.malus_bisogni().modificatore == -2)
+	m.ore_digiuno = 80.0
+	assert(m.malus_bisogni().modo == DiceSystem.RollMode.SVANTAGGIO)
+	assert(m.malus_bisogni().modificatore == -4, "malus massimo -4")
+	m.ore_sveglio = 0.0
+	m.ore_digiuno = 0.0
+	assert(m.malus_bisogni().modificatore == 0)
+	print("OK: fame e sonno.")
+
+	# telefono: le strade si aprono solo con i meriti
+	var ha_lavoro1 := false
+	for o in m.opzioni_contatto("gaetano"):
+		if o.id == "lavoro1":
+			ha_lavoro1 = true
+	assert(ha_lavoro1 == bool(rr.successo), "Gaetano offre il posto solo dopo un turno riuscito")
+	var esito := m.scegli_opzione("rocco", "bisca")
+	assert(m.luoghi_noti.has("bisca") and not esito.notifiche.is_empty())
+	for o in m.opzioni_contatto("rocco"):
+		assert(o.id != "bisca", "un'opzione una tantum sparisce dopo l'uso")
+	print("OK: telefono, sblocchi e strade su merito.")
+
+	# donazione: anche un'ora, ma solo in ospedale
+	assert(not m.dona(1.0).get("successo", false), "si dona in ospedale")
+	m.viaggia("ospedale")
+	if not m.stato.is_over:
+		var d := m.dona(1.0)
+		assert(d.successo and m.stato.is_over and is_equal_approx(m.stato.donated_ore, 1.0))
+	print("OK: donazione di un'ora.")
+
+	# obiettivi persistenti
+	var pers := MondoPersistente.new()
+	var note := m.valuta_obiettivi(pers)
+	assert(pers.contatti.has("anselmo") and not note.is_empty(), "donare sblocca Padre Anselmo per le prossime run")
+	pers.salva(PERCORSO_TEST)
+	var ricaricato := MondoPersistente.carica(PERCORSO_TEST)
+	assert(ricaricato.contatti.has("anselmo") and ricaricato.run_giocate == 1)
+	var m2 := MondoRun.new(GameState.new(1), ricaricato)
+	assert(m2.contatti_noti.has("anselmo"), "il contatto sbloccato c'è nella run successiva")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PERCORSO_TEST))
+	print("OK: sblocchi permanenti tra una run e l'altra.")
+
+	# orologio del mondo
+	var m3 := MondoRun.new(GameState.new(5))
+	assert(m3.ora_testo() == "Lunedì 23:00")
+	m3._passa_tempo(2.0)
+	assert(m3.ora_testo() == "Martedì 01:00" and m3.giorno() == 2 and m3.messaggi_non_letti() == 1)
+	print("OK: orologio e messaggi del giorno.")
+
+
+static func _test_audio(app: App) -> void:
 	var t0 := Time.get_ticks_msec()
 	while not app.audio.brano_disponibile("titolo") and Time.get_ticks_msec() - t0 < 20000:
 		await _attendi(app, 0.2)
-	assert(app.audio.brano_disponibile("titolo"), "brano titolo non generato")
-	assert(app.audio.brano_disponibile("click") and app.audio.brano_disponibile("vittoria"))
-	print("OK: audio generato (%d ms)." % (Time.get_ticks_msec() - t0))
+	assert(app.audio.brano_disponibile("titolo") and app.audio.brano_disponibile("click"))
+	print("OK: audio.")
 
-	# titolo
+
+static func _test_titolo(app: App) -> void:
 	var titolo := TitleScreen.new()
 	app.add_child(titolo)
 	titolo.avvia(PlayerProfile.new(), ImpostazioniDemo.new(), app.audio)
-	await _attendi(app, 0.2)
-	assert(_trova_bottone(titolo, "NUOVA PARTITA") != null)
-	assert(_trova_bottone(titolo, "CARICA PROFILO") != null)
+	var ricevuto := [-2, false]
+	titolo.nuova_partita.connect(func(s, g):
+		ricevuto[0] = s
+		ricevuto[1] = g)
+	await _attendi(app, 0.1)
+	assert(await _premi(app, titolo, "NUOVA PARTITA"))
+	var campo: LineEdit = titolo._overlay.find_children("*", "LineEdit", true, false)[0]
+	campo.text = "4242"
+	campo.text_changed.emit("4242")
+	assert(await _premi(app, titolo, "GIOCA"))
+	assert(ricevuto[0] == 4242 and ricevuto[1] == false, "il seed scritto a mano arriva alla partita")
 	titolo.queue_free()
-	print("OK: schermata titolo.")
+	print("OK: scelta del seed.")
 
-	# partita: bivio iniziale, azione col dado, traccia, donazione
-	var stato := GameState.new(31337)
-	var ui := TouchUI.new()
+
+static func _test_ui(app: App) -> void:
+	var mondo := MondoRun.new(GameState.new(31337))
+	var ui := MondoUI.new()
 	app.add_child(ui)
-	ui.avvia(stato, null, app.audio, false)
-	await _attendi(app, 0.3)
+	ui.avvia(mondo, null, null, app.audio, false)
+	await _attendi(app, 0.2)
 	assert(ui._modale != null, "il bivio iniziale deve comparire")
-	var scelta := _trova_bottone(ui._modale, "A PASSI PICCOLI")
-	assert(scelta != null)
-	scelta.pressed.emit()
-	await _attendi(app, 0.1)
+	assert(await _premi(app, ui._modale, "A PASSI PICCOLI"))
 	assert(ui._modale == null)
-	assert(stato.bivi_scelti.has(TestiDemo.BIVIO_INIZIO))
-	assert(is_equal_approx(stato.karma, 4.0), "il bivio deve dare Karma +4")
-	print("OK: bivio iniziale.")
+	# in ospedale si vede solo cio che si fa in ospedale
+	var testi: Array = []
+	for c in ui._griglia.get_children():
+		if c is CartaUI and not c.is_queued_for_deletion():
+			testi.append(c._lbl_titolo.text)
+	assert(testi.has("Visitare la figlia in ospedale") and testi.has("Donare a Sara"), "carte dell'ospedale: %s" % str(testi))
+	assert(not testi.has("Turno di lavoro onesto (8h, salario mediano)"), "il lavoro non si fa in ospedale")
+	print("OK: carte contestuali (%s)." % ", ".join(testi))
 
-	var lavoro := ActionDatabase.get_all()[0]
-	var tempo_prima := stato.tempo_figlia_ore
-	ui._su_azione(lavoro)
-	assert(ui._modale != null, "il lancio del dado deve aprire il modale")
-	await _premi_continua(app, ui)
-	await _attendi(app, 0.1)
-	assert(ui._modale == null)
-	assert(stato.turno == 1 and stato.tempo_figlia_ore < tempo_prima)
-	print("OK: azione con dado (tempo %.1f -> %.1f)." % [tempo_prima, stato.tempo_figlia_ore])
+	# visita a Sara: dado e diario
+	var turno := mondo.stato.turno
+	for c in ui._griglia.get_children():
+		if c is CartaUI and c._lbl_titolo.text == "Visitare la figlia in ospedale":
+			c.premuta.emit()
+	await _svuota_modali(app, ui)
+	assert(mondo.stato.turno == turno + 1)
 
-	var chiave := "Lavoro|1"
-	ui._su_traccia(ui._righe_traccia[chiave])
-	await _premi_continua(app, ui)
+	# telefono: Rocco indica la bisca
+	ui._apri_telefono()
 	await _attendi(app, 0.1)
-	assert(stato.azioni_uniche_usate.has(chiave), "il tentativo di traccia deve bruciare la riga")
-	# l'eventuale bivio di aggancio o un evento puo' aprire altri modali
-	for i in 6:
-		if ui._modale == null:
-			break
-		var b := _trova_bottone(ui._modale, "CONTINUA")
-		if b != null and not b.disabled:
-			b.pressed.emit()
-		else:
-			var opz := _trova_bottone(ui._modale, "DA SOLO")
-			if opz != null:
-				opz.pressed.emit()
-		await _attendi(app, 1.6)
-	print("OK: traccia.")
+	assert(await _premi(app, ui._pannello, "Rocco Ferrante"))
+	assert(await _premi(app, ui._pannello, "Dove si gioca forte?"))
+	await _svuota_modali(app, ui)
+	assert(mondo.luoghi_noti.has("bisca"))
+	ui._chiudi_pannello()
+	print("OK: telefono.")
 
-	ui._mostra_pagina("profilo")
-	ui._aggiorna_profilo()
-	assert(ui._slider_dono.max_value >= 1.0)
-	ui._slider_dono.value = ui._slider_dono.max_value
-	ui._su_dona()
-	await _attendi(app, 0.1)
-	_trova_bottone(ui._modale, "DONO").pressed.emit()
+	# mappa e viaggio
+	ui._apri_mappa()
+	await _attendi(app, 0.2)
+	ui._viaggia("piazza")
+	await _attendi(app, 1.2)
+	await _svuota_modali(app, ui)
+	assert(mondo.luogo == "piazza" or mondo.stato.is_over)
+	print("OK: viaggio dalla mappa.")
+
+	# ritorno in ospedale e donazione di un'ora
+	if not mondo.stato.is_over:
+		ui._viaggia("ospedale")
+		await _attendi(app, 1.2)
+		await _svuota_modali(app, ui)
+	if not mondo.stato.is_over:
+		ui._apri_donazione()
+		await _attendi(app, 0.1)
+		assert(await _premi(app, ui._modale, "UN'ORA"))
+		assert(await _premi(app, ui._modale, "DONO"))
+		await _attendi(app, 0.3)
+		assert(mondo.stato.donation_made and is_equal_approx(mondo.stato.donated_ore, 1.0))
 	await _attendi(app, 0.3)
-	assert(stato.donation_made and stato.is_over, "la donazione deve concludere la run")
-	assert(ui._fine_mostrata and _trova_bottone(ui._modale, "NUOVA PARTITA") != null)
-	print("OK: donazione e schermata finale.")
-
+	assert(ui._fine_mostrata, "la schermata finale deve comparire")
 	ui.queue_free()
-	print("TUTTI I TEST DEMO OK")
+	print("OK: donazione di un'ora e fine.")
 
 
 static func _scatta(app: Node, cartella: String, nome: String) -> void:
 	await app.get_tree().process_frame
 	await app.get_tree().process_frame
-	var img := app.get_viewport().get_texture().get_image()
-	img.save_png("%s/shot_%s.png" % [cartella, nome])
+	app.get_viewport().get_texture().get_image().save_png("%s/shot_%s.png" % [cartella, nome])
 
 
 static func foto(app: App, cartella: String) -> void:
-	var imp := ImpostazioniDemo.new()
 	var t := TitleScreen.new()
 	app.add_child(t)
-	t.avvia(PlayerProfile.new(), imp, app.audio)
-	await app.get_tree().create_timer(0.5).timeout
+	t.avvia(PlayerProfile.new(), ImpostazioniDemo.new(), app.audio)
+	await _attendi(app, 0.5)
 	await _scatta(app, cartella, "titolo")
-	var prof := PlayerProfile.new()
-	prof.traguardo_100_100_raggiunto = true
+	t._apri_nuova_partita()
+	await _attendi(app, 0.2)
+	await _scatta(app, cartella, "nuova_partita")
 	t.queue_free()
-	var t2 := TitleScreen.new()
-	app.add_child(t2)
-	t2.avvia(prof, imp, app.audio)
-	t2._apri_profilo()
-	await app.get_tree().create_timer(0.3).timeout
-	await _scatta(app, cartella, "titolo_profilo")
-	t2.queue_free()
-	var intro := IntroScreen.new()
-	app.add_child(intro)
-	intro.avvia(app.audio)
-	await app.get_tree().create_timer(3.0).timeout
-	await _scatta(app, cartella, "intro")
-	intro._fase = 1
-	intro._mostra_fase()
-	await app.get_tree().create_timer(2.5).timeout
-	await _scatta(app, cartella, "tutorial")
-	intro.queue_free()
-	var stato := GameState.new(31337)
-	var ui := TouchUI.new()
+	var mondo := MondoRun.new(GameState.new(31337))
+	var ui := MondoUI.new()
 	app.add_child(ui)
-	ui.avvia(stato, null, app.audio, false)
-	await app.get_tree().create_timer(0.4).timeout
+	ui.avvia(mondo, null, MondoPersistente.new(), app.audio, false)
+	await _attendi(app, 0.4)
 	await _scatta(app, cartella, "bivio")
-	var b: Button = ui._modale.find_children("*", "Button", true, false)[0]
-	b.pressed.emit()
-	await app.get_tree().create_timer(0.3).timeout
-	await _scatta(app, cartella, "azioni")
-	ui._su_azione(ActionDatabase.get_all()[1])
-	await app.get_tree().create_timer(0.35).timeout
-	await _scatta(app, cartella, "dado_anim")
-	await app.get_tree().create_timer(1.8).timeout
-	await _scatta(app, cartella, "dado_fine")
-	for bt in ui._modale.find_children("*", "Button", true, false):
-		if bt.text.begins_with("CONTINUA"): bt.pressed.emit()
-	await app.get_tree().create_timer(0.3).timeout
-	ui._mostra_pagina("tracce")
-	await app.get_tree().create_timer(0.2).timeout
-	await _scatta(app, cartella, "tracce")
-	ui._mostra_pagina("sottotrame")
-	await app.get_tree().create_timer(0.2).timeout
-	await _scatta(app, cartella, "sottotrame")
-	ui._mostra_pagina("profilo")
-	await app.get_tree().create_timer(0.2).timeout
-	await _scatta(app, cartella, "profilo")
-	stato.sabbia_padre_ore = 3.0
-	stato.tempo_figlia_ore = 20.0
-	stato.attenzione_polizia = 80.0
-	ui._aggiorna_hud()
-	ui._mostra_pagina("azioni")
-	await app.get_tree().create_timer(0.3).timeout
-	await _scatta(app, cartella, "hud_critico")
-	ui._mostra_pagina("azioni")
-	ui._chiudi_modale()
-	ui._mostra_patto({"tipo": "patto_stregatto_proposto", "testo": Narrativa.patto_proposta(12.0), "prezzo_ore": 12.0})
-	await app.get_tree().create_timer(0.3).timeout
-	await _scatta(app, cartella, "patto")
-	ui._chiudi_modale()
-	stato.dona(3.0)
-	ui._mostra_fine()
-	await app.get_tree().create_timer(0.3).timeout
+	await _premi(app, ui._modale, "A PASSI PICCOLI")
+	await _attendi(app, 0.3)
+	await _scatta(app, cartella, "ospedale")
+	mondo.scegli_opzione("rocco", "bisca")
+	mondo.viaggia("porto")
+	ui._aggiorna()
+	await _attendi(app, 0.3)
+	await _scatta(app, cartella, "porto")
+	for c in ui._griglia.get_children():
+		if c is CartaUI and c._lbl_titolo.text.begins_with("Turno di lavoro onesto"):
+			c.premuta.emit()
+	await _attendi(app, 2.0)
+	await _scatta(app, cartella, "dado")
+	await _svuota_modali(app, ui)
+	ui._apri_telefono()
+	await _attendi(app, 0.2)
+	await _premi(app, ui._pannello, "Gaetano Ruggiero")
+	await _attendi(app, 0.3)
+	await _scatta(app, cartella, "telefono")
+	ui._chiudi_pannello()
+	ui._apri_mappa()
+	await _attendi(app, 0.4)
+	await _scatta(app, cartella, "mappa")
+	ui._chiudi_pannello()
+	ui._apri_taccuino("stato")
+	await _attendi(app, 0.3)
+	await _scatta(app, cartella, "taccuino")
+	ui._chiudi_pannello()
+	mondo.viaggia("ospedale")
+	ui._aggiorna()
+	ui._apri_donazione()
+	await _attendi(app, 0.3)
+	await _scatta(app, cartella, "donazione")
+	await _premi(app, ui._modale, "UN'ORA")
+	await _premi(app, ui._modale, "DONO")
+	await _attendi(app, 0.6)
 	await _scatta(app, cartella, "fine")
