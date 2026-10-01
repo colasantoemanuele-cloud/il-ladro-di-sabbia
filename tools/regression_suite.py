@@ -186,6 +186,7 @@ def main() -> None:
     checks.append(check_godot_test(godot_bin, "Difficoltà crescente (--test-difficolta)", "--test-difficolta", "TUTTI I TEST DIFFICOLTÀ OK"))
     checks.append(check_godot_test(godot_bin, "Seed del giorno (--test-seed-del-giorno)", "--test-seed-del-giorno", "TUTTI I TEST SEED DEL GIORNO OK"))
     checks.append(check_godot_test(godot_bin, "Narrativa (--test-narrativa)", "--test-narrativa", "TUTTI I TEST NARRATIVA OK"))
+    checks.append(check_godot_test(godot_bin, "Demo Android (--demo-test)", "--demo-test", "TUTTI I TEST DEMO OK"))
     checks.append(check_godot_test(godot_bin, "Bivi (--test-bivi)", "--test-bivi", "TUTTI I TEST BIVI OK"))
     checks.append(check_godot_test(godot_bin, "Rete di contatti (--test-rete-contatti)", "--test-rete-contatti", "TUTTI I TEST RETE DI CONTATTI OK"))
 

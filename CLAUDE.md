@@ -1555,3 +1555,73 @@ godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
   incluso in `tools/regression_suite.py` (12/12 PASS).
   Ancora da fare: azione "Consultare uno studioso clandestino" e catena
   Eterni, patti 9.3, selettore di difficoltà e UI per bivi/rete di contatti.
+- **Fase 12 (demo Android: UI touch, pixel art, musica, testi)**: fatto.
+  **Nessuna modifica a `scripts/core/`, `scripts/data/`, `scripts/main.gd`,
+  `data/azioni|tracce|sottotrame.json`, né agli autoload.** Solo aggiunte.
+  Il file `scripts/ui/game_ui.gd` ha una sola modifica (testo della frase
+  di Serena, senza trattino lungo, dalla Fase 11a).
+  - **Punto di ingresso**: la scena principale ora è `scenes/App.tscn`
+    (`scripts/app/app.gd`, `App`). Con argomenti `--play`, `--simulate*`,
+    `--test-*`, `--ui-legacy` delega a `Main.tscn` (invariato): tutte le
+    verifiche storiche funzionano come prima. Senza argomenti (caso
+    Android) mostra titolo, intro/tutorial (solo alla prima partita,
+    preferenza in `user://demo_impostazioni.json` perché il Profilo
+    Persistente appartiene alla logica e non va esteso da qui) e
+    `TouchUI`. Accetta anche `--seed=N`, `--difficolta=N`,
+    `--seed-del-giorno`. Il tasto Indietro di Android porta al Profilo,
+    poi alla conferma di uscita.
+  - **UI** (`scripts/ui/`): `TouchUI` (HUD 320px con avatar animato,
+    due countdown con barra, 5 risorse con icona, traccia attiva; centro
+    con pagine Azioni/Tracce/Sottotrame/Profilo; barra in basso 72px),
+    `CartaUI` (carta toccabile, cornice per categoria, dado e rischio),
+    `TitleScreen`, `IntroScreen`, `Stile` (tema, font monospace, corpo 18,
+    valori 22, titoli 28). Il dado si anima (6 frame) a ogni tiro, poi
+    mostra tiro, esito, testo e variazioni; coda di schermate per evento
+    casuale, Patto con Dolce Volpe e bivi (2-3 carte affiancate). Le
+    azioni "Evento" a rischio 100% (le due minacce) sono nascoste dalla
+    lista: sono eventi subiti, non scelte. La categoria "Evento" si
+    chiama "Occasioni". Selettore di difficoltà nel profilo del titolo
+    (gate binario, aperto dopo il primo traguardo 100+100).
+  - **Scelte mie**: icone di navigazione in pixel art invece di emoji (il
+    font di sistema Android può non averle e mostrare quadrati); il
+    brano è pre-renderizzato in `AudioStreamWAV` con loop invece di
+    `AudioStreamGenerator` (zero CPU in riproduzione, nessun buco sonoro
+    sotto carico, generazione in un thread e cache in `user://`);
+    animazione del titolo con parallasse a 4 livelli; tre bivi con testo
+    reale e effetti fissi minimi (`TestiDemo.EFFETTI_BIVIO`, applicati
+    toccando direttamente i campi pubblici di `GameState`).
+  - **Pixel art** (`scripts/art/pixel_art.gd`): tutta procedurale, nessun
+    PNG esterno. Icona app, skyline 4 livelli (320x200 ingrandita 4x),
+    avatar 32x48 a 4 frame, 5 icone risorsa 16x16, cornice carta a nove
+    parti per 17 categorie, dado d20 a 6 frame. `tools/genera_asset.gd`
+    scrive `assets/icon.png` (unico file immagine, richiesto dall'export).
+  - **Musica** (`scripts/audio/music_engine.gd`, `MusicEngine`): onde
+    quadre (duty 12-50%), triangolare a 16 gradini, rumore, calcio con
+    sweep. Titolo 90 BPM (La minore), gameplay 110 BPM (Re minore,
+    sincopato), endgame 130 BPM (Mi minore, arpeggi), jingle vittoria e
+    sconfitta, 5 effetti UI. Crossfade 1s, bus "Musica" ed "Effetti"
+    separati, volumi nel Profilo. L'endgame parte sotto le 24h di
+    Tempo-Figlia. Frequenze verificate con FFT (E5=659 Hz, A2=110 Hz...).
+  - **Testi**: `data/esiti_azioni.json` (62 azioni, 7 tracce, 10
+    sottotrame, successo e fallimento) generato da `tools/genera_esiti.py`,
+    che controlla anche le regole editoriali (niente trattini lunghi,
+    massimo 20 parole, niente frasi da assistente). Intro di 81 parole,
+    3 schermate di tutorial, 8 citazioni per il titolo in
+    `scripts/app/testi_demo.gd`.
+  - **Verifica**: `--demo-test` (incluso in `tools/regression_suite.py`,
+    13/13 PASS) controlla testi, asset, audio, titolo, bivio, dado,
+    traccia, donazione e schermata finale. `--demo-foto --out=DIR` salva
+    screenshot di ogni schermata (servono `xvfb-run` e
+    `--rendering-driver opengl3`).
+  - **Build Android**: `godot --headless --export-debug "Android"
+    build/android/il-ladro-di-sabbia-demo.apk` (preset "Android" in
+    `export_presets.cfg`, arm64, firma debug). Nell'ambiente cloud
+    `dl.google.com` è bloccato: `tools/setup_android_sdk.sh` ricrea una
+    struttura SDK minima con i pacchetti apt `apksigner`, `zipalign`,
+    `adb`. L'APK risulta firmato (schema v2/v3 verificato con
+    `apksigner verify`). Aggiunte a `project.godot`: ETC2/ASTC attivo,
+    orientamento landscape, filtro texture nearest, zona morta dello scroll
+    24px. **Non verificato su un dispositivo reale**: non c'è emulatore
+    in questo ambiente. Da controllare al primo avvio su telefono:
+    leggibilità del font monospace di sistema, tempi di generazione
+    audio, tasto Indietro.

@@ -180,7 +180,7 @@ func _costruisci_ui() -> void:
 	lbl_messaggio.custom_minimum_size = Vector2(0, 80)
 	lbl_messaggio.bbcode_enabled = true
 	lbl_messaggio.fit_content = true
-	lbl_messaggio.text = Narrativa.INTRO + "\n\n[i]\"%s\"[/i] — Serena\n\nScegli un'azione dalla lista qui sotto." % Narrativa.frase_serena(stato.karma)
+	lbl_messaggio.text = Narrativa.INTRO + "\n\n[i]\"%s\"[/i]\nSerena\n\nScegli un'azione dalla lista qui sotto." % Narrativa.frase_serena(stato.karma)
 	root.add_child(lbl_messaggio)
 
 	root.add_child(HSeparator.new())

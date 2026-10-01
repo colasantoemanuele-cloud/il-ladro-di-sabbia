@@ -1,0 +1,324 @@
+{
+ "azioni": {
+  "Turno di lavoro onesto (8h, salario mediano)": {
+   "ok": "Otto ore di fatica, una paga piccola e pulita.",
+   "ko": "Il capoturno ti manda a casa senza paga. Ore buttate."
+  },
+  "Turno doppio / straordinario (+25%)": {
+   "ok": "Doppio turno finito. Le mani tremano, il conto sale.",
+   "ko": "Cedi a metà turno. Ti pagano il minimo e ti guardano storto."
+  },
+  "Settimana di lavoro nero con un caporale": {
+   "ok": "Il caporale paga in contanti e non fa domande.",
+   "ko": "Il caporale sparisce il venerdì con la cassa."
+  },
+  "Lavoretto di sicurezza per un vecchio contatto": {
+   "ok": "Stai fermo in un corridoio, nessuno passa. Pagato bene.",
+   "ko": "Qualcuno passa. Il contatto non ti chiama più."
+  },
+  "Consulenza sicurezza per un'azienda": {
+   "ok": "Trovi tre falle in una mattina. L'azienda paga e finge di ringraziare.",
+   "ko": "Il direttore preferisce un altro nome. La settimana è persa."
+  },
+  "Vendere anni futuri a un'agenzia di prestiti-vita": {
+   "ok": "Firmi. L'agenzia ti conta anni che non vivrai e te li paga subito.",
+   "ko": "L'agenzia rifiuta la firma. Non sei abbastanza malleabile."
+  },
+  "Fare da cavia per un esperimento clandestino": {
+   "ok": "L'ago entra, le ore escono. Il medico non ti guarda in faccia.",
+   "ko": "La cavia sbagliata. Esci con le gambe che non rispondono."
+  },
+  "Mendicare in strada": {
+   "ok": "Qualche moneta di sabbia nel cappello.",
+   "ko": "Nessuno guarda. Un vigile ti sposta."
+  },
+  "Rovistare tra i rifiuti in zone ricche": {
+   "ok": "Nel bidone di un ricco c'è sempre qualcosa che vale.",
+   "ko": "Solo avanzi e un cane che ringhia."
+  },
+  "Esibirsi per strada (musica)": {
+   "ok": "Suoni, qualcuno si ferma. La sabbia cade nel cappello.",
+   "ko": "Strada deserta. Le dita sono fredde."
+  },
+  "Vendere oggetti personali (fede nuziale)": {
+   "ok": "Il banco dei pegni la pesa in fretta. Serena aveva le dita sottili.",
+   "ko": "Il banco non la vuole. Resta al dito, più pesante."
+  },
+  "Fingersi malato per elemosina mirata": {
+   "ok": "Il trucco regge. Una signora lascia più del dovuto.",
+   "ko": "Qualcuno ti riconosce. Vergogna e niente sabbia."
+  },
+  "Chiedere aiuto a un vecchio compagno di cella": {
+   "ok": "Il vecchio compagno apre la porta. Un pasto e qualche ora in prestito.",
+   "ko": "Il compagno non risponde. Ha nuovi amici, o è morto."
+  },
+  "Comprare un'arma dal fornitore di fiducia": {
+   "ok": "Il fornitore pesa i soldi, non te. L'arma è nel sacchetto.",
+   "ko": "Il fornitore ha cambiato numero. Le ore sono perse."
+  },
+  "Comprare un giubbotto antiproiettile": {
+   "ok": "Pesante, scomodo, utile. Lo indossi sotto il cappotto.",
+   "ko": "Il giubbotto è di seconda mano e di taglia sbagliata."
+  },
+  "Vendere refurtiva al proprio fence": {
+   "ok": "Il fence abbassa il prezzo, tu alzi le spalle. Affare chiuso.",
+   "ko": "Il fence dice che la merce scotta. Te la tieni."
+  },
+  "Comprare informazioni su un bersaglio d'elite": {
+   "ok": "L'informatore ha tutto: orari, abitudini, la porta di servizio.",
+   "ko": "Ti vendono informazioni vecchie. Lo capisci troppo tardi."
+  },
+  "Vendere una soffiata compromettente a un rivale dell'organizzazione": {
+   "ok": "La soffiata passa di mano. Qualcuno, altrove, dorme male stanotte.",
+   "ko": "Il rivale sa già tutto. Ora sa anche chi ha parlato."
+  },
+  "Comprare documenti falsi di alta qualita'": {
+   "ok": "I documenti reggono a ogni controllo. Hai un nome nuovo.",
+   "ko": "La carta ha una crepa. Il falsario sparisce."
+  },
+  "Noleggiare un furgone blindato per un colpo": {
+   "ok": "Chiavi in mano, targa pulita. Il furgone aspetta.",
+   "ko": "Il noleggiatore vuole vedere i documenti. Rinunci."
+  },
+  "Comprare i piani di sicurezza di una banca": {
+   "ok": "Le planimetrie sono vere. Ogni porta ha un orario.",
+   "ko": "I piani sono un falso ben fatto. Hai pagato per niente."
+  },
+  "Trovi un portafoglio, rintracci il proprietario e ti fai 'ricompensare' con le maniere forti": {
+   "ok": "Il proprietario capisce in fretta e ti ringrazia a modo suo.",
+   "ko": "L'uomo urla. Scappi senza niente."
+  },
+  "Rintracci il proprietario di un portafoglio trovato e glielo restituisci": {
+   "ok": "Lo restituisci. L'uomo non sa cosa dire e ti stringe la mano.",
+   "ko": "Il proprietario sospetta di te. Ti fai insultare e basta."
+  },
+  "Testimoni un crimine di un pezzo grosso, lo ricatti": {
+   "ok": "Hai visto, hai la prova, hai un prezzo. Lui paga.",
+   "ko": "Il pezzo grosso ti vede per primo."
+  },
+  "Un piccolo criminale ti minaccia per strada e ti costringe a cedere sabbia": {
+   "ok": "Cedi il minimo e te ne vai a testa bassa.",
+   "ko": "Il piccolo criminale ti guarda, ti riconosce e cambia marciapiede."
+  },
+  "Un vecchio socio propone un colpo last-minute": {
+   "ok": "Il colpo va liscio. Il socio conta, tu non fai domande.",
+   "ko": "Il socio aveva già venduto il piano a qualcun altro."
+  },
+  "Controllo di polizia a sorpresa": {
+   "ok": "Paghi quello che serve e il controllo finisce lì.",
+   "ko": "Ti trattengono in questura più del dovuto."
+  },
+  "Un'associazione benefica dona sabbia (rara)": {
+   "ok": "Una busta anonima, poche ore, nessun nome. Le accetti.",
+   "ko": "L'associazione ha chiuso i fondi. Un volontario si scusa."
+  },
+  "Un associato a cui avevi affidato sabbia viene minacciato dai rivali e gliela cede": {
+   "ok": "L'associato cede tutto ai rivali. Piange, poi ti chiama.",
+   "ko": "L'associato resiste alla minaccia. Per oggi la sabbia è al sicuro."
+  },
+  "Un boss ti fa un favore avvelenato": {
+   "ok": "Il boss ti fa un favore. Sai che prima o poi lo riscuoterà.",
+   "ko": "Il favore del boss si rivela una trappola. Esci con le tasche vuote."
+  },
+  "Poker in una bisca di quartiere": {
+   "ok": "Una mano buona, una faccia di pietra. Il banco paga.",
+   "ko": "Il bluff non regge. Il piatto va a un tizio coi baffi."
+  },
+  "Slot machine": {
+   "ok": "Tre ciliegie. La moneta sputata vale più di quanto hai perso.",
+   "ko": "La macchina inghiotte la moneta e suona una musichetta allegra."
+  },
+  "Scommesse su combattimenti clandestini": {
+   "ok": "Punti sul perdente giusto. Il sangue paga bene.",
+   "ko": "Il favorito vince in due riprese. Il tuo biglietto è carta."
+  },
+  "Corse clandestine di alto livello": {
+   "ok": "La tua macchina taglia il traguardo per prima. L'asfalto fuma.",
+   "ko": "Una curva sbagliata, un rottame in più. Perdi la puntata."
+  },
+  "Tavolo VIP del boss della malavita": {
+   "ok": "Siedi al tavolo del boss e non tremi. Esci più ricco e più osservato.",
+   "ko": "Il boss ti guarda perdere con un sorriso paziente."
+  },
+  "Lotteria clandestina della sabbia (jackpot raro)": {
+   "ok": "Il numero esce. Per un momento il mondo è silenzioso.",
+   "ko": "Non sei tu. Quasi mai sei tu."
+  },
+  "Piccolo furto (scippo)": {
+   "ok": "Una borsa, un vicolo, trenta secondi. Nessuno ha visto.",
+   "ko": "La signora urla. Corri finché i polmoni bruciano."
+  },
+  "Furto con scasso in un appartamento": {
+   "ok": "La serratura cede senza rumore. Esci con quello che luccica.",
+   "ko": "Il cane del vicino sa fare il suo mestiere."
+  },
+  "Rapina a un negozio": {
+   "ok": "Il negoziante svuota la cassa senza dire niente.",
+   "ko": "Il negoziante ha un fucile e meno paura di te."
+  },
+  "Rapina a un furgone blindato": {
+   "ok": "Il furgone si ferma dove deve. Il bottino pesa.",
+   "ko": "Il furgone ha una scorta che non ti avevano detto."
+  },
+  "Rapina alla Banca della Sabbia Centrale (IL GRANDE COLPO)": {
+   "ok": "La Banca della Sabbia Centrale perde il silenzio e una parte dell'oro. Ledune ne parlerà per anni.",
+   "ko": "L'allarme parte un minuto prima del previsto. Il piano era buono, la fortuna no."
+  },
+  "Minacciare un passante": {
+   "ok": "Il passante capisce subito e consegna il minimo.",
+   "ko": "Il passante è più grosso di come sembrava."
+  },
+  "Rapire l'erede di una famiglia ricca": {
+   "ok": "L'erede ha paura e una famiglia che paga in fretta.",
+   "ko": "L'erede ha una guardia del corpo che sa leggere le intenzioni."
+  },
+  "Colpo pianificato con la vecchia organizzazione": {
+   "ok": "L'chen pianifica meglio di chiunque. Il colpo scorre come un orologio.",
+   "ko": "Qualcuno dentro L'chen ha cambiato lato. Salta tutto."
+  },
+  "Fare da sicario per un contratto d'elite": {
+   "ok": "Un solo colpo, nessun testimone. Il committente paga e non ti saluta.",
+   "ko": "Il bersaglio non era solo. Esci a mani vuote e con un nome in più sul registro."
+  },
+  "Sabotare un concorrente dell'organizzazione": {
+   "ok": "Un cavo tagliato, una consegna ritardata. L'organizzazione ringrazia in contanti.",
+   "ko": "Il concorrente ti becca. L'organizzazione ti guarda come un debito."
+  },
+  "Rubare un'auto (strumentale)": {
+   "ok": "L'auto parte al primo tentativo. Serve, non rende.",
+   "ko": "Allarme. Torni a piedi."
+  },
+  "Estorsione a un piccolo imprenditore (pizzo)": {
+   "ok": "L'imprenditore paga in silenzio, guardando la strada.",
+   "ko": "L'imprenditore chiama qualcuno più forte di te."
+  },
+  "Ricatto a un politico corrotto": {
+   "ok": "Il politico firma, poi paga. Ha una famiglia e uno stipendio da proteggere.",
+   "ko": "Il politico ha già un avvocato. E un amico in questura."
+  },
+  "Comprare un pasto": {
+   "ok": "Pane, olio, un pomodoro. Mangi seduto, per una volta.",
+   "ko": "Il locale è chiuso. Mangi in piedi, quello che trovi."
+  },
+  "Fare benzina": {
+   "ok": "Il serbatoio è pieno. La città è lunga.",
+   "ko": "La pompa è asciutta. Spingi a mano."
+  },
+  "Riposare (dormire)": {
+   "ok": "Dormi senza sogni. È l'unico lusso che ti concedi.",
+   "ko": "Il sonno non arriva. Conti le ore, e sono quelle di Sara."
+  },
+  "Chiedere un favore importante a un vecchio boss": {
+   "ok": "Il vecchio boss ascolta e annuisce. Sai che avrà un prezzo.",
+   "ko": "Il vecchio boss non ti riceve. Hai dimenticato di portare un regalo."
+  },
+  "Corrompere un poliziotto": {
+   "ok": "Il poliziotto intasca e dimentica il tuo nome.",
+   "ko": "Il poliziotto rifiuta e lo scrive nel rapporto."
+  },
+  "Corrompere un giudice per far cadere un'accusa": {
+   "ok": "Il giudice trova un cavillo. L'accusa cade come una foglia.",
+   "ko": "Il giudice conta male. O finge di contare male."
+  },
+  "Fare l'informatore per la polizia (tradimento)": {
+   "ok": "Dai un nome. Ti pagano e non ti guardano più negli occhi.",
+   "ko": "La polizia sospetta di te quanto del nome che hai dato."
+  },
+  "Donare sabbia a un bisognoso": {
+   "ok": "Una vecchia ti stringe la mano. Non dici niente.",
+   "ko": "Il bisognoso rifiuta. Ha ancora un po' di orgoglio."
+  },
+  "Visitare la figlia in ospedale": {
+   "ok": "Sara dorme. La guardi finché l'infermiera ti manda via.",
+   "ko": "Il reparto è chiuso per il turno. Resti dietro al vetro."
+  },
+  "Riattivare un vecchio contatto della rete criminale": {
+   "ok": "Il numero risponde. Dall'altra parte, una voce che ricorda.",
+   "ko": "Il numero è muto. Sei solo."
+  },
+  "Ripagare un vecchio debito d'onore": {
+   "ok": "Paghi quello che devi. Il creditore ti guarda come un fantasma.",
+   "ko": "Il creditore non vuole soldi. Vuole altro."
+  },
+  "Pagare un tributo ai rivali": {
+   "ok": "I rivali prendono il tributo e rimandano la vendetta.",
+   "ko": "Il tributo non basta. Chiedono il resto con gli interessi."
+  },
+  "Mantenere un basso profilo pubblico": {
+   "ok": "Un cappello, una strada laterale. Per qualche giorno non esisti.",
+   "ko": "Qualcuno ti riconosce al mercato. Il basso profilo è andato."
+  }
+ },
+ "tracce": {
+  "Lavoro": {
+   "ok": "Ti danno una scrivania e un titolo: {n}. Il lavoro onesto stanca, ma paga.",
+   "ko": "La promozione va a un altro. Il tuo nome non sta nel verbale."
+  },
+  "Criminale": {
+   "ok": "La banda ti riconosce: {n}. Qualcuno abbassa gli occhi, qualcuno ti guarda male.",
+   "ko": "I tuoi uomini non ti seguono. Il passo falso lo pagano gli altri."
+  },
+  "Politica": {
+   "ok": "Il palazzo ti apre una porta laterale: {n}. Qui nessuno dice la verità e tutti la sanno.",
+   "ko": "Il tuo favore non basta. Il palazzo si dimentica di te."
+  },
+  "Azzardo": {
+   "ok": "Il tavolo ti riconosce: {n}. Le carte non mentono, gli altri sì.",
+   "ko": "La fortuna cambia faccia. Il tavolo ti restituisce al marciapiede."
+  },
+  "Bancaria": {
+   "ok": "Un funzionario ti allunga una chiave: {n}. La banca è paziente e ruba più di te.",
+   "ko": "Il funzionario si spaventa. Il tuo nome sparisce dai registri."
+  },
+  "Religiosa": {
+   "ok": "L'incenso e la menzogna reggono: {n}. La gente paga per credere.",
+   "ko": "Il fedele sospetta. La chiesa si svuota in una sera."
+  },
+  "Occulto": {
+   "ok": "La candela si spegne da sola: {n}. Qualcuno, sotto, ride piano.",
+   "ko": "Il rito va storto. Gli adepti ti guardano con un silenzio nuovo."
+  }
+ },
+ "sottotrame": {
+  "Il tesoro del vecchio boss": {
+   "ok": "Sotto il pavimento della vecchia casa, il tesoro del boss di L'chen. Pesa più dei ricordi.",
+   "ko": "La casa è vuota. Qualcuno è arrivato prima e ti ha lasciato la polvere."
+  },
+  "L'asta dei secoli": {
+   "ok": "Alzi la mano all'ultimo secondo. Aggiudicato. Un secolo di sabbia cambia padrone.",
+   "ko": "Il rilancio arriva da un telefono. Perdi l'asta e il fiato."
+  },
+  "L'ultima donazione": {
+   "ok": "Un vecchio moribondo ti lascia tutto e ti chiede di non scoprire perché.",
+   "ko": "Il vecchio cambia testamento un'ora prima di morire."
+  },
+  "Il patto con l'usuraio della mezzanotte": {
+   "ok": "Firmi a mezzanotte. L'usuraio non ha ombra. La sabbia arriva.",
+   "ko": "L'usuraio legge i tuoi occhi e rifiuta il contratto."
+  },
+  "La cripta della setta degli eterni": {
+   "ok": "Nella cripta, tra ossa e candele, trovi un frammento che non dovresti toccare.",
+   "ko": "La cripta si richiude dietro di te. Esci da un altro corridoio, senza niente."
+  },
+  "Il grande torneo dei senza-tempo": {
+   "ok": "Vinci l'ultimo incontro. Il pubblico, che non ha più ore da perdere, applaude lo stesso.",
+   "ko": "Cadi al terzo turno. Il pubblico ride piano."
+  },
+  "Il crollo della casata": {
+   "ok": "La casata Sabbiedoro crolla e tu raccogli quello che cade.",
+   "ko": "Il crollo travolge anche chi stava vicino. Compreso te."
+  },
+  "La fuga dal purgatorio dei debitori": {
+   "ok": "Esci dal purgatorio dei debitori con le tasche piene e il debito di un altro.",
+   "ko": "Il cancello dei debitori si richiude. Resti dentro un po' più a lungo."
+  },
+  "Il tavolo dei senza fondo": {
+   "ok": "Siedi al tavolo dove nessuno ha più niente da perdere. Tu perdi meno.",
+   "ko": "Al tavolo dei senza fondo, il fondo lo trovi tu."
+  },
+  "La cassa di guerra della vecchia organizzazione": {
+   "ok": "La cassa di guerra di L'chen si apre con una sola chiave. Hai la chiave.",
+   "ko": "La cassa è vuota. L'organizzazione ha speso tutto prima di cadere."
+  }
+ }
+}
