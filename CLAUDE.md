@@ -18,7 +18,18 @@ Dettaglio narrativo ed economico completo: `Il_ladro_di_sabbia_design_doc.docx`
 `Il_ladro_di_sabbia_elementi_mancanti.docx`, numeri in
 `ladro_di_sabbia_bilanciamento.xlsx`.
 
-**Scope attuale**: loop core (62 azioni — 60 originali + 2 aggiunte in Fase
+**Direzione attuale (Fasi 14-15)**: il gioco è l'"impero di sabbia"
+(`docs/progetto_impero.md`): Sara ha 21 giorni, la sabbia si guadagna con
+giri di persone che crescono in modo composto. Dalla Fase 15 il tempo scorre
+a minuti (un secondo nel mondo = un minuto di vita per Sirio e per Sara) e
+Ledune si esplora a piedi: stanze in vista dall'alto, mappa del mondo
+all'uscita, dialoghi di persona stile visual novel, roulette e ring, cutscene
+a pannelli, musica per luogo. Motore `ImperoState`, dati in
+`data/impero.json` e `data/esplorazione.json`. Quello che segue su loop core, Excel e tetto dei 265,55
+anni descrive il motore storico `GameState`, ancora presente e testato
+(`--play`, `--simulate`, `--test-*`) ma non più usato dall'app.
+
+**Scope del motore storico**: loop core (62 azioni — 60 originali + 2 aggiunte in Fase
 10, doppio countdown, dado d20, donazione, punteggio, varianza roguelite) +
 le 7 tracce normali + le 10 sottotrame endgame + le sinergie tra tracce
 (Blocco Fase 9, completo: 9a+9b+9c) + le 5 risorse con effetti reali
@@ -149,6 +160,24 @@ ora risolte e confermate dall'autore.
 # sezione "Export standalone Linux", e nel log "Task 7" più in fondo.
 python3 tools/regression_suite.py
 python3 tools/regression_suite.py --simulate=2000   # numero "ufficiale" da report di fase, più lento
+
+# (Fasi 14-15) dati dell'impero e del mondo esplorabile: rigenerano e
+# validano data/impero.json e data/esplorazione.json (riferimenti, porte,
+# raggiungibilità di ogni azione da un oggetto, nodi dei dialoghi, flag,
+# regole editoriali). Inclusi in regression_suite.py.
+python3 tools/genera_impero.py
+python3 tools/genera_esplorazione.py
+
+# (Fasi 14-15) bilanciamento dell'impero: 9 strategie del bot, N partite
+godot --headless --path . -- --impero-bilancio=300
+# una partita del bot passo per passo
+godot --headless --path . -- --impero-traccia=usuraio
+
+# (Fase 15) foto delle schermate e di tutte le stanze (serve un display)
+xvfb-run -a -s "-screen 0 1280x800x24" godot --path . --rendering-driver opengl3 --resolution 1280x800 -- --demo-foto --out=/tmp/foto
+xvfb-run -a -s "-screen 0 1280x800x24" godot --path . --rendering-driver opengl3 --resolution 1280x800 -- --demo-stanze --out=/tmp/stanze
+# brani in WAV per ascoltarli fuori dal gioco, con i tempi di generazione
+godot --headless --path . --script tools/prova_musica.gd -- --out=/tmp
 
 # Controllo di coerenza tra l'Excel (fonte di verità) e i tre data/*.json:
 # segnala SOLO, non corregge — se trova discrepanze, rilanciare lo script
@@ -1539,3 +1568,262 @@ godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
     Task 1-7 nel suo complesso, MAI loggato qui finora — solo in
     CLAUDE.md) e 18 (questa sessione di sola documentazione).
   - Nessuna modifica al codice, come richiesto.
+- **Fase 11a (narrativa nel codice, prima tranche)**: fatto. Nuovo
+  `scripts/core/narrativa.gd` (`Narrativa`, funzioni statiche pure): intro
+  con i nomi propri (Sirio/Sara/Serena/Ledune), frase di Serena legata al
+  Karma persistente (4 fasce del design doc 3.3, mostrata all'avvio in UI e
+  `--play`), dialoghi del Patto con Dolce Volpe (sostituiscono ogni
+  `[PLACEHOLDER STREGATTO]` in `GameState`, UI e loop testuale; il
+  monologo della quarta parete 9.2 NON è ancora usato — resta per una
+  scena dedicata) ed epilogo a tre esiti (4.5). **Decisioni mie, da
+  confermare**: il finale pulito/ambiguo/sporco si sceglie dal Karma
+  finale della run (>= +20 pulito, <= -50 sporco, altrimenti ambiguo) e si
+  mostra solo se Sara è viva e la donazione è stata fatta; negli altri casi
+  (Sara morta, nessuna donazione, padre morto) epiloghi brevi dedicati. Il
+  testo è mio, da riscrivere/approvare dall'autore. Nuovo `--test-narrativa`
+  incluso in `tools/regression_suite.py` (12/12 PASS).
+  Ancora da fare: azione "Consultare uno studioso clandestino" e catena
+  Eterni, patti 9.3, selettore di difficoltà e UI per bivi/rete di contatti.
+- **Fase 12 (demo Android: UI touch, pixel art, musica, testi)**: fatto.
+  **Nessuna modifica a `scripts/core/`, `scripts/data/`, `scripts/main.gd`,
+  `data/azioni|tracce|sottotrame.json`, né agli autoload.** Solo aggiunte.
+  Il file `scripts/ui/game_ui.gd` ha una sola modifica (testo della frase
+  di Serena, senza trattino lungo, dalla Fase 11a).
+  - **Punto di ingresso**: la scena principale ora è `scenes/App.tscn`
+    (`scripts/app/app.gd`, `App`). Con argomenti `--play`, `--simulate*`,
+    `--test-*`, `--ui-legacy` delega a `Main.tscn` (invariato): tutte le
+    verifiche storiche funzionano come prima. Senza argomenti (caso
+    Android) mostra titolo, intro/tutorial (solo alla prima partita,
+    preferenza in `user://demo_impostazioni.json` perché il Profilo
+    Persistente appartiene alla logica e non va esteso da qui) e
+    `TouchUI`. Accetta anche `--seed=N`, `--difficolta=N`,
+    `--seed-del-giorno`. Il tasto Indietro di Android porta al Profilo,
+    poi alla conferma di uscita.
+  - **UI** (`scripts/ui/`): `TouchUI` (HUD 320px con avatar animato,
+    due countdown con barra, 5 risorse con icona, traccia attiva; centro
+    con pagine Azioni/Tracce/Sottotrame/Profilo; barra in basso 72px),
+    `CartaUI` (carta toccabile, cornice per categoria, dado e rischio),
+    `TitleScreen`, `IntroScreen`, `Stile` (tema, font monospace, corpo 18,
+    valori 22, titoli 28). Il dado si anima (6 frame) a ogni tiro, poi
+    mostra tiro, esito, testo e variazioni; coda di schermate per evento
+    casuale, Patto con Dolce Volpe e bivi (2-3 carte affiancate). Le
+    azioni "Evento" a rischio 100% (le due minacce) sono nascoste dalla
+    lista: sono eventi subiti, non scelte. La categoria "Evento" si
+    chiama "Occasioni". Selettore di difficoltà nel profilo del titolo
+    (gate binario, aperto dopo il primo traguardo 100+100).
+  - **Scelte mie**: icone di navigazione in pixel art invece di emoji (il
+    font di sistema Android può non averle e mostrare quadrati); il
+    brano è pre-renderizzato in `AudioStreamWAV` con loop invece di
+    `AudioStreamGenerator` (zero CPU in riproduzione, nessun buco sonoro
+    sotto carico, generazione in un thread e cache in `user://`);
+    animazione del titolo con parallasse a 4 livelli; tre bivi con testo
+    reale e effetti fissi minimi (`TestiDemo.EFFETTI_BIVIO`, applicati
+    toccando direttamente i campi pubblici di `GameState`).
+  - **Pixel art** (`scripts/art/pixel_art.gd`): tutta procedurale, nessun
+    PNG esterno. Icona app, skyline 4 livelli (320x200 ingrandita 4x),
+    avatar 32x48 a 4 frame, 5 icone risorsa 16x16, cornice carta a nove
+    parti per 17 categorie, dado d20 a 6 frame. `tools/genera_asset.gd`
+    scrive `assets/icon.png` (unico file immagine, richiesto dall'export).
+  - **Musica** (`scripts/audio/music_engine.gd`, `MusicEngine`): onde
+    quadre (duty 12-50%), triangolare a 16 gradini, rumore, calcio con
+    sweep. Titolo 90 BPM (La minore), gameplay 110 BPM (Re minore,
+    sincopato), endgame 130 BPM (Mi minore, arpeggi), jingle vittoria e
+    sconfitta, 5 effetti UI. Crossfade 1s, bus "Musica" ed "Effetti"
+    separati, volumi nel Profilo. L'endgame parte sotto le 24h di
+    Tempo-Figlia. Frequenze verificate con FFT (E5=659 Hz, A2=110 Hz...).
+  - **Testi**: `data/esiti_azioni.json` (62 azioni, 7 tracce, 10
+    sottotrame, successo e fallimento) generato da `tools/genera_esiti.py`,
+    che controlla anche le regole editoriali (niente trattini lunghi,
+    massimo 20 parole, niente frasi da assistente). Intro di 81 parole,
+    3 schermate di tutorial, 8 citazioni per il titolo in
+    `scripts/app/testi_demo.gd`.
+  - **Verifica**: `--demo-test` (incluso in `tools/regression_suite.py`,
+    13/13 PASS) controlla testi, asset, audio, titolo, bivio, dado,
+    traccia, donazione e schermata finale. `--demo-foto --out=DIR` salva
+    screenshot di ogni schermata (servono `xvfb-run` e
+    `--rendering-driver opengl3`).
+  - **Build Android**: `godot --headless --export-debug "Android"
+    build/android/il-ladro-di-sabbia-demo.apk` (preset "Android" in
+    `export_presets.cfg`, arm64, firma debug). Nell'ambiente cloud
+    `dl.google.com` è bloccato: `tools/setup_android_sdk.sh` ricrea una
+    struttura SDK minima con i pacchetti apt `apksigner`, `zipalign`,
+    `adb`. L'APK risulta firmato (schema v2/v3 verificato con
+    `apksigner verify`). Aggiunte a `project.godot`: ETC2/ASTC attivo,
+    orientamento landscape, filtro texture nearest, zona morta dello scroll
+    24px. **Non verificato su un dispositivo reale**: non c'è emulatore
+    in questo ambiente. Da controllare al primo avvio su telefono:
+    leggibilità del font monospace di sistema, tempi di generazione
+    audio, tasto Indietro.
+- **Fase 13 (il mondo di Ledune: luoghi, telefono, bisogni)**: fatto, su
+  richiesta esplicita dell'autore dopo aver provato la demo. Sostituisce
+  `TouchUI` (rimossa) con `MondoUI`. **Ancora nessuna modifica a
+  `scripts/core/`, `scripts/data/`, `main.gd` e ai JSON di gioco**: le nuove
+  regole vivono in uno strato sopra `GameState` (`scripts/mondo/`).
+  - **Il padre paga ogni ora** (`MondoRun._dopo_core`, `_passa_tempo`): il
+    core toglie il costo solo al Tempo-Figlia; il mondo lo toglie anche alla
+    Sabbia-Padre, per azioni, viaggi, telefonate, sonno. Un turno da 8h che
+    rende 6h lascia Sirio a -2h netti. È la lettura letterale del design doc
+    ("il lavoro onesto quasi pareggia"). **Conseguenza**: i tetti di
+    `tools/balance_ceiling.py` e del Monte Carlo (`--simulate`) misurano
+    ancora il modello del core senza questa regola; per il mondo esiste
+    `--demo-bilancio=N` (bot avido, `MondoBot`): su 300 run arriva in
+    media al giorno 8, dona nell'88% dei casi, circa 5 anni totali.
+  - **Luoghi** (`data/mondo.json`, generato da `tools/genera_mondo.py`, che
+    valida nomi e raggiungibilità di tutte le azioni): 21 luoghi, 11 noti
+    all'inizio. Ogni azione del core si fa solo nel suo luogo (o tramite un
+    contatto); alcune richiedono condizioni (un'arma per rapire l'erede, i
+    piani per la banca, un'auto per le corse). Spostarsi costa ore in base
+    alla distanza (0,2h + distanza/55), meno della metà in auto (rubandone
+    una, con benzina per 4 viaggi), 5% di imprevisto. Non si va dove si è
+    già. Si parte in ospedale, lunedì alle 23:00.
+  - **Telefono**: 10 contatti con nome, ruolo e dialoghi (3 noti
+    all'inizio: Gaetano capocantiere, Rocco ex compagno di cella, la
+    dottoressa Venti). Le opzioni di dialogo sbloccano luoghi, contatti,
+    piste, o avviano azioni. **Le strade (tracce) non si scelgono più da un
+    elenco**: le offre il contatto giusto quando hai i meriti (Gaetano dopo
+    un turno riuscito, Mei Shen dopo due crimini, ecc.). **Le sottotrame si
+    scoprono** come piste (dialoghi, occasioni) e si tentano nel loro
+    luogo. Il cash-in si fa a casa ("Mettere insieme i pezzi"). Messaggi
+    giornalieri dalla dottoressa su Sara.
+  - **Occasioni**: le azioni "Evento" non sono più selezionabili. Capitano
+    (probabilità per luogo, dopo un'azione o un arrivo) come scelte:
+    portafoglio, ricatto, colpo di un vecchio socio, posto di blocco (in
+    viaggio, con Polizia >= 30), ecc. Restano anche gli eventi casuali del
+    core ogni 6 turni.
+  - **Fame e sonno**: ore da sveglio e dall'ultimo pasto. Sonno: 20h
+    stanco -1, 36h sfinito -2, 60h allo stremo -3 e svantaggio. Fame: 16h
+    -1, 36h -2, 72h -3 e svantaggio. Malus massimo -4, passato al core come
+    `modificatore`/`modo` dei tiri. Si dorme a casa, si mangia a casa, in
+    piazza o alla stazione.
+  - **Sblocchi permanenti** (`MondoPersistente`,
+    `user://mondo_persistente.json`, separato dal Profilo Persistente): 5
+    obiettivi (arrivare al terzo giorno, donare, tornare in L'chen, tre
+    vittorie all'azzardo, un rango 2) lasciano contatti o luoghi noti fin
+    dall'inizio delle settimane successive. Visibili nel Taccuino con
+    ricompensa nascosta finché non raggiunti.
+  - **UX**: barra in alto con data e ora, i due orologi, fame, sonno e
+    risorse (toccandola si apre lo stato); al centro il luogo con
+    illustrazione e solo le carte di ciò che si può fare lì, ognuna con
+    durata, resa e netto per Sirio, più un avviso rosso se l'azione dura
+    più delle ore che restano; a destra il diario della settimana; in basso
+    Telefono (con contatore dei non letti), Mappa, Taccuino (Strade, Piste,
+    Stato, Obiettivi, Opzioni). Donazione solo in ospedale, con selettore
+    da un'ora in su (+/-1, +/-10, un'ora, metà, tutto). Nuova partita:
+    seed casuale, del giorno, o scritto a mano.
+  - **Verifica**: `--demo-test` riscritto (viaggio che costa uguale a
+    entrambi, azioni vincolate al luogo, padre che paga il turno, malus di
+    fame e sonno, strade su merito, sblocchi via telefono, donazione di
+    un'ora solo in ospedale, sblocchi permanenti con round-trip su disco,
+    orologio e messaggi, scelta del seed, flusso UI completo). Suite
+    13/13 PASS.
+- **Fase 14 (l'impero di sabbia, direzione A)**: fatto, su approvazione
+  esplicita dell'autore di tre decisioni: Sara 21 giorni; nuovo motore in
+  `scripts/core/` accanto a `GameState` (che resta come riferimento
+  storico, con tutti i suoi test); Excel e tetto dei 265,55 anni non
+  descrivono più il gioco, i numeri vivono in `data/impero.json`.
+  - **Dati**: `tools/genera_impero.py` → `data/impero.json` (parametri,
+    bisogni in fasce, 5 giri, 16 azioni, 9 grandi mosse, 18 luoghi, 7
+    contatti con dialoghi, messaggi della dottoressa, eventi, 5 obiettivi
+    permanenti, traguardi). Lo script valida i riferimenti, la
+    raggiungibilità di giri e mosse e le regole editoriali.
+  - **Motore** (`ImperoState`, logica pura): quattro fasce al giorno; ogni
+    voce non rapida occupa una fascia e chiama `passa_fascia()` (6 ore a
+    Sirio e a Sara, rata dell'anticipo di Rocco, tributi dei giri meno la
+    paga degli uomini, calore, perdite, crescita dei giri con
+    luogotenente, tradimenti, retate, assalti, scandali, crisi di Sara,
+    messaggi, Dolce Volpe se il Karma di inizio partita è <= -50). Voci
+    rapide (mangiare, conoscere il parroco o il bancario, donare) non
+    occupano la fascia. Agire in un luogo diverso da dove si trova Sirio
+    riduce la resa (`efficienza`, minimo 50%). Il tiro usa `DiceSystem`
+    con il malus di fame e sonno. Sblocchi tra partite in
+    `ImperoPersistente` (`user://impero_persistente.json`, separato dal
+    Profilo Persistente; il Karma resta lì).
+  - **Bilanciamento**: `ImperoBot` gioca 9 strategie;
+    `--demo-bilancio=N` stampa la tabella, `--impero-traccia=strategia`
+    stampa una partita fascia per fascia. Rispetto al prototipo Python
+    alzati anticipo (30 → 40 ore, rata 6) e crescita con luogotenente
+    (7% → 8%). Risultati su 300 partite in `docs/progetto_impero.md`,
+    sezione 12.
+  - **UI**: `ImperoUI` sostituisce `MondoUI` (rimossa con `scripts/mondo/`,
+    `data/mondo.json`, `tools/genera_mondo.py`, `data/esiti_azioni.json`,
+    `tools/genera_esiti.py` e i bivi demo di `TestiDemo`). Intro e
+    tutorial riscritti per il nuovo gioco.
+  - **Verifica**: `--test-impero` (dati, tempo, luoghi, telefono, giri,
+    luogotenenti, bisogni, calore, donazione, sblocchi su disco,
+    determinismo, il bot usuraio rende più del ladro, difficoltà) e
+    `--demo-test` riscritto sul nuovo flusso UI. Suite 14/14 PASS.
+- **Fase 15 (Ledune a piedi: tempo a minuti, esplorazione, dialoghi di
+  persona, minigiochi, cutscene, musica per luogo)**: fatto, su richiesta
+  dell'autore (premessa life-decay, mondo navigabile, dialoghi a quattro
+  categorie, estetica retro, APK di prova).
+  - **Motore a minuti** (`ImperoState`, riscritto): `passa_tempo(minuti)`
+    toglie lo stesso tempo a Sirio e a Sara e ogni 360 minuti fa girare la
+    città (`_tick`: rata, tributi, calore, retate, assalti, scandali,
+    tradimenti, crisi di Sara). Ogni voce ha una durata in ore (dati:
+    `durata` delle azioni, `parametri.durate` per giri e mosse: crescere un
+    giro 3h, riscuotere 2h, grande mossa 4h, mangiare 30 min). Viaggi con
+    `viaggia(dest)` (0,2h + distanza/55); telefonate 5 min; cambiare
+    stanza 1 min; esaminare 2 min. Fame e sonno in ore (soglie 24/36/60 e
+    24/48/72). Orologio dal lunedì alle 23:00.
+  - **Statistiche** Carisma, Intuizione, Freddezza: 7 punti da 1 a 4
+    decisi dal seed, crescono con quello che si fa (ogni 3 colpi
+    Freddezza, ogni 3 vittorie all'azzardo Intuizione, scelte nei
+    dialoghi); danno bonus ai tiri ((stat-1)/2) e aprono risposte.
+    **Oggetti** (pistola, grimaldelli, chiave del retro, lanterna, santino)
+    con bonus o porte; **flag di memoria** (`ricorda`, `ricordato`) per le
+    scelte pregresse. `variante(chiave, n)`: scelta stabile dal seed,
+    indipendente dall'ordine delle azioni.
+  - **Bilanciamento**: con crescite da 3h invece di 6h l'impero rende di
+    più. Bot su 100 partite: ladro 0,05 anni a Sara, onesto 0,03, usuraio
+    2,35 (max 7,5), boss 2,94, biscazziere 2,02, predicatore 1,47, impero
+    misto 0,84. Il bot incontra di persona i contatti dei luoghi noti.
+  - **Dati del mondo** (`tools/genera_esplorazione.py` →
+    `data/esplorazione.json`): 27 stanze in 18 luoghi (casa con soggiorno,
+    camera e cucina; ospedale con corridoio e reparto; bisca con sala,
+    saletta privata chiusa e ring; Cripta degli Eterni su tre livelli, gli
+    ultimi due al buio e il terzo solo con la lanterna), 66 oggetti, 22
+    persone, aspetto dei personaggi, 11 dialoghi. Ogni azione, giro e
+    grande mossa è raggiungibile da un oggetto nel suo luogo (verificato
+    dal generatore).
+  - **Dialoghi** (`DialogoSystem`, logica pura): opzioni **fisse** (lore e
+    avanzamento, comprese quelle del telefono del contatto), **stat**
+    (visibili anche chiuse, con il requisito), **memoria** (compaiono solo
+    dopo un fatto della partita: il santino di Serena, il registro delle
+    offerte, la soffiata dell'ubriaco, l'informatore in questura che apre
+    il ricatto a Bassi), **seed** (una variante su tre per persona:
+    offerte, retroscena, piccoli eventi). Ogni risposta costa minuti; le
+    risposte possono costare sabbia, dare oggetti, aprire giri, piste,
+    luoghi, cambiare statistiche e Karma. Incontrare di persona un
+    contatto lo aggiunge alla rubrica.
+  - **Minigiochi** (`Minigiochi`, logica pura): roulette (10 min a giro,
+    rosso/nero/pari/dispari/numero; con Intuizione 4 si legge il
+    croupier) e ring clandestino (30 min a incontro, quote dalla forza dei
+    lottatori, un incontro su quattro è truccato: lo vede chi ha
+    Intuizione 3 o la soffiata giusta).
+  - **Interfaccia**: `Esplorazione` (stanza dall'alto, tocco per
+    camminare con `AStarGrid2D`, tocco su oggetti, persone e porte;
+    frecce/WASD sul desktop), `MappaMondo` (si apre da sola all'uscita),
+    `DialogoUI` (ritratti con espressioni, testo a macchina, risposte
+    colorate per categoria), `RouletteUI`, `LottaUI`, `CutsceneUI`
+    (apertura, finali, prima discesa nella Cripta, Dolce Volpe).
+    `ImperoUI` orchestra tutto e fa scorrere il tempo reale (fermo durante
+    dialoghi, minigiochi, pannelli e mappa: lì il tempo lo contano i
+    gesti). Le azioni lunghe mostrano l'orologio che avanza.
+  - **Pixel art** (`scripts/art/pixel_mondo.gd`): 20 temi di pavimento e
+    muro, 50 tipi di oggetto, personaggi 16x24 in quattro direzioni con
+    passo a tre fotogrammi, ritratti 48x48 con sette espressioni, vignette
+    160x90 per le cutscene, velo di buio con cerchio di luce.
+  - **Musica**: il tema di Sara (otto battute in La minore) torna in ogni
+    luogo: carillon con eco in ospedale, lo-fi a casa, città sulla mappa,
+    tremolo folk all'osteria, swing jazz in bisca, organo in chiesa, drone
+    con eco nella Cripta; l'endgame sotto le 72 ore di Sara. Generazione in
+    un thread, prima il brano richiesto, cache in `user://`.
+  - **Verifica**: `--test-impero` (tempo a minuti, viaggi, statistiche,
+    minigiochi, dialoghi a quattro categorie, memoria che apre il
+    ricatto), `--demo-test` riscritto (cutscene, tempo reale, camminata,
+    oggetti, dialogo, porte, mappa, roulette, ring, porta chiusa,
+    donazione, finale), validazione dei generatori in
+    `tools/regression_suite.py`. Suite 15/15 PASS.
+  - **Non verificato su telefono**: niente emulatore in questo ambiente.
+    Da provare: comodità del tocco per camminare, leggibilità dei
+    ritratti, tempi di generazione della musica al primo avvio.

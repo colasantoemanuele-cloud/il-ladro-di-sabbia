@@ -355,7 +355,7 @@ func _pesca_evento_casuale() -> Dictionary:
 		patto_in_sospeso = {"prezzo_ore": prezzo}
 		return {
 			"tipo": "patto_stregatto_proposto",
-			"testo": "[PLACEHOLDER STREGATTO]: offre di aggiustare il tuo Karma in cambio di metà della tua Sabbia-Padre. Accetti?",
+			"testo": Narrativa.patto_proposta(prezzo),
 			"prezzo_ore": prezzo,
 		}
 
@@ -407,7 +407,7 @@ func _avanza_turno() -> Dictionary:
 	return {"evento": _pesca_evento_casuale()}
 
 
-## [PLACEHOLDER STREGATTO]: risponde a un patto proposto da
+## Patto con Dolce Volpe: risponde a un patto proposto da
 ## _pesca_evento_casuale(). Se accettato: sottrae il prezzo (metà della
 ## Sabbia-Padre al momento della proposta, già arrotondata) e aggiunge
 ## +30 Karma SENZA clamp a zero (può portare il Karma sopra zero anche se
@@ -422,7 +422,7 @@ func risolvi_patto_stregatto(accetta: bool) -> Dictionary:
 	patto_in_sospeso = {}
 
 	if not accetta:
-		var rifiuto := {"accettato": false, "azione": "[PLACEHOLDER STREGATTO] Patto rifiutato"}
+		var rifiuto := {"accettato": false, "azione": "Patto con Dolce Volpe rifiutato"}
 		storico.append(rifiuto)
 		return rifiuto
 
@@ -431,7 +431,7 @@ func risolvi_patto_stregatto(accetta: bool) -> Dictionary:
 
 	var risultato := {
 		"accettato": true,
-		"azione": "[PLACEHOLDER STREGATTO] Patto accettato",
+		"azione": "Patto con Dolce Volpe accettato",
 		"prezzo_ore": prezzo,
 		"karma_ottenuto": STREGATTO_KARMA_EFFETTO,
 		"sabbia_padre_ore": sabbia_padre_ore,

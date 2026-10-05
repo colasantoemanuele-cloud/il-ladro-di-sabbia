@@ -42,6 +42,8 @@ extends Control
 ##                          Profilo Persistente per la data odierna
 ##                          (nessun server/classifica condivisa)
 ##   --test-seed-del-giorno -> auto-test headless del Seed del Giorno
+##   --test-narrativa     -> auto-test headless dei testi narrativi (Narrativa)
+##   --test-impero        -> auto-test headless del motore dell'impero (ImperoState)
 ##   --test-bivi          -> auto-test headless dello scheletro tecnico
 ##                          dei bivi (design doc 12.2) — solo bivi
 ##                          segnaposto, nessun contenuto narrativo reale.
@@ -111,6 +113,14 @@ func _ready() -> void:
 		get_tree().quit()
 	elif altri_args.has("--test-seed-del-giorno"):
 		_run_test_seed_del_giorno()
+		get_tree().quit()
+	elif altri_args.has("--test-narrativa"):
+		_run_test_narrativa()
+	elif not altri_args.is_empty() and altri_args[0].begins_with("--impero-bilancio="):
+		print(ImperoBot.report(int(altri_args[0].get_slice("=", 1))))
+		get_tree().quit()
+	elif altri_args.has("--test-impero"):
+		ImperoTest.esegui()
 		get_tree().quit()
 	elif altri_args.has("--test-bivi"):
 		_run_test_bivi()
@@ -672,6 +682,23 @@ func _run_test_seed_del_giorno() -> void:
 	print("TUTTI I TEST SEED DEL GIORNO OK")
 
 
+func _run_test_narrativa() -> void:
+	print("=== TEST NARRATIVA ===")
+	assert(Narrativa.frase_serena(0.0) != Narrativa.frase_serena(-30.0))
+	assert(Narrativa.frase_serena(-80.0) == "L'ho vista in te, oggi. Non voltarti.")
+	assert(Narrativa.frase_serena(80.0) == "Non ti giudico più. Guardo solo.")
+	var pulito := Narrativa.epilogo(true, true, true, 40.0)
+	var ambiguo := Narrativa.epilogo(true, true, true, 0.0)
+	var sporco := Narrativa.epilogo(true, true, true, -70.0)
+	assert(pulito != ambiguo and ambiguo != sporco and pulito != sporco)
+	assert(Narrativa.epilogo(false, false, true, 0.0) == Narrativa.epilogo(true, false, true, 90.0))
+	assert(Narrativa.epilogo(false, true, true, 0.0) != ambiguo)
+	assert(not Narrativa.patto_proposta(12.0).contains("PLACEHOLDER"))
+	assert(Narrativa.patto_proposta(12.0).contains("12.0"))
+	print("TUTTI I TEST NARRATIVA OK")
+	get_tree().quit()
+
+
 func _run_test_bivi() -> void:
 	print("=== Batch tecnico: auto-test headless dello scheletro dei bivi (design doc 12.2) ===")
 
@@ -910,7 +937,7 @@ func _stampa_report_batch(s: Dictionary) -> void:
 
 func _run_play_loop(seed_arg: int = -1, difficolta_arg: int = 0, usa_seed_del_giorno: bool = false) -> void:
 	print("=== IL LADRO DI SABBIA — prototipo testuale ===")
-	print("La figlia ha 168 ore di vita, tu (il padre) ne hai 24.")
+	print(Narrativa.INTRO)
 	print("Scegli azioni per raccogliere sabbia prima che uno dei due countdown arrivi a zero.")
 	print("")
 
@@ -1125,6 +1152,8 @@ func _stampa_punteggio(stato: GameState) -> void:
 	print("Padre:  %.1fh (~%.2f anni)" % [p.padre_ore, p.padre_anni])
 	print("Figlia: %.1fh (~%.2f anni)" % [p.figlia_ore, p.figlia_anni])
 	print("Totale: ~%.2f anni" % p.punteggio_totale_anni)
+	print("")
+	print(Narrativa.epilogo(stato.donation_made, stato.tempo_figlia_ore > 0.0, stato.sabbia_padre_ore > 0.0, stato.karma))
 	if p.vittoria_100_100:
 		print("")
 		print("*** TRAGUARDO RAGGIUNTO: 100+100 anni per entrambi! ***")
@@ -1164,13 +1193,11 @@ func _gestisci_evento_casuale(stato: GameState, evento) -> void:
 			var risposta := OS.read_string_from_stdin().strip_edges().to_lower()
 			if risposta == "si" or risposta == "s":
 				var r := stato.risolvi_patto_stregatto(true)
-				print("[PLACEHOLDER STREGATTO] Patto accettato: -%.1fh Sabbia-Padre, Karma %+.0f (ora %.0f)." % [
-					r.prezzo_ore, r.karma_ottenuto, stato.karma
-				])
+				print(Narrativa.patto_accettato(r.prezzo_ore, r.karma_ottenuto, stato.karma))
 				break
 			elif risposta == "no" or risposta == "n":
 				stato.risolvi_patto_stregatto(false)
-				print("[PLACEHOLDER STREGATTO] Patto rifiutato.")
+				print(Narrativa.patto_rifiutato())
 				break
 			else:
 				print("Rispondi 'si' o 'no'.")

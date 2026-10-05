@@ -93,6 +93,27 @@ def check_coerenza_dati() -> Risultato:
     return Risultato(nome, False, _ultime_righe(out + proc.stderr, 12))
 
 
+def check_dati_impero() -> Risultato:
+    """Rigenera data/impero.json e data/esplorazione.json con i generatori
+    (che validano riferimenti, raggiungibilità e regole editoriali) e
+    controlla che il risultato coincida con i file nel repository."""
+    nome = "Dati impero ed esplorazione (tools/genera_impero.py, genera_esplorazione.py)"
+    righe = []
+    for script, dati in (("genera_impero.py", "impero.json"), ("genera_esplorazione.py", "esplorazione.json")):
+        prima = (ROOT / "data" / dati).read_bytes()
+        try:
+            proc = subprocess.run([sys.executable, str(ROOT / "tools" / script)],
+                                  capture_output=True, text=True, timeout=DEFAULT_TIMEOUT, cwd=ROOT)
+        except subprocess.TimeoutExpired:
+            return Risultato(nome, False, "timeout")
+        if proc.returncode != 0:
+            return Risultato(nome, False, _ultime_righe(proc.stdout + proc.stderr, 12))
+        if (ROOT / "data" / dati).read_bytes() != prima:
+            return Risultato(nome, False, f"data/{dati} non era aggiornato: rigenerato, controllare e committare")
+        righe.append(proc.stdout.strip())
+    return Risultato(nome, True, numeri=" / ".join(righe))
+
+
 def check_knapsack() -> Risultato:
     try:
         proc = subprocess.run(
@@ -177,6 +198,7 @@ def main() -> None:
     t0 = time.time()
 
     checks.append(check_coerenza_dati())
+    checks.append(check_dati_impero())
     checks.append(check_knapsack())
     checks.append(check_monte_carlo(godot_bin, simulate_n))
     checks.append(check_salvataggio(godot_bin))
@@ -185,6 +207,9 @@ def main() -> None:
     checks.append(check_godot_test(godot_bin, "Fase 10: le 5 risorse (--test-fase10)", "--test-fase10", "TUTTI I TEST FASE 10 OK"))
     checks.append(check_godot_test(godot_bin, "Difficoltà crescente (--test-difficolta)", "--test-difficolta", "TUTTI I TEST DIFFICOLTÀ OK"))
     checks.append(check_godot_test(godot_bin, "Seed del giorno (--test-seed-del-giorno)", "--test-seed-del-giorno", "TUTTI I TEST SEED DEL GIORNO OK"))
+    checks.append(check_godot_test(godot_bin, "Narrativa (--test-narrativa)", "--test-narrativa", "TUTTI I TEST NARRATIVA OK"))
+    checks.append(check_godot_test(godot_bin, "Impero (--test-impero)", "--test-impero", "TUTTI I TEST IMPERO OK"))
+    checks.append(check_godot_test(godot_bin, "Demo Android (--demo-test)", "--demo-test", "TUTTI I TEST DEMO OK"))
     checks.append(check_godot_test(godot_bin, "Bivi (--test-bivi)", "--test-bivi", "TUTTI I TEST BIVI OK"))
     checks.append(check_godot_test(godot_bin, "Rete di contatti (--test-rete-contatti)", "--test-rete-contatti", "TUTTI I TEST RETE DI CONTATTI OK"))
 
