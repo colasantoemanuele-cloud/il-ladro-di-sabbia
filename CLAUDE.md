@@ -18,11 +18,14 @@ Dettaglio narrativo ed economico completo: `Il_ladro_di_sabbia_design_doc.docx`
 `Il_ladro_di_sabbia_elementi_mancanti.docx`, numeri in
 `ladro_di_sabbia_bilanciamento.xlsx`.
 
-**Direzione attuale (Fase 14, approvata dall'autore)**: il gioco è
-diventato l'"impero di sabbia" (`docs/progetto_impero.md`): Sara ha 21
-giorni, il tempo avanza a fasce di 6 ore, la sabbia si guadagna con giri di
-persone che crescono in modo composto. Motore nuovo `ImperoState`, dati in
-`data/impero.json`. Quello che segue su loop core, Excel e tetto dei 265,55
+**Direzione attuale (Fasi 14-15)**: il gioco è l'"impero di sabbia"
+(`docs/progetto_impero.md`): Sara ha 21 giorni, la sabbia si guadagna con
+giri di persone che crescono in modo composto. Dalla Fase 15 il tempo scorre
+a minuti (un secondo nel mondo = un minuto di vita per Sirio e per Sara) e
+Ledune si esplora a piedi: stanze in vista dall'alto, mappa del mondo
+all'uscita, dialoghi di persona stile visual novel, roulette e ring, cutscene
+a pannelli, musica per luogo. Motore `ImperoState`, dati in
+`data/impero.json` e `data/esplorazione.json`. Quello che segue su loop core, Excel e tetto dei 265,55
 anni descrive il motore storico `GameState`, ancora presente e testato
 (`--play`, `--simulate`, `--test-*`) ma non più usato dall'app.
 
@@ -157,6 +160,24 @@ ora risolte e confermate dall'autore.
 # sezione "Export standalone Linux", e nel log "Task 7" più in fondo.
 python3 tools/regression_suite.py
 python3 tools/regression_suite.py --simulate=2000   # numero "ufficiale" da report di fase, più lento
+
+# (Fasi 14-15) dati dell'impero e del mondo esplorabile: rigenerano e
+# validano data/impero.json e data/esplorazione.json (riferimenti, porte,
+# raggiungibilità di ogni azione da un oggetto, nodi dei dialoghi, flag,
+# regole editoriali). Inclusi in regression_suite.py.
+python3 tools/genera_impero.py
+python3 tools/genera_esplorazione.py
+
+# (Fasi 14-15) bilanciamento dell'impero: 9 strategie del bot, N partite
+godot --headless --path . -- --impero-bilancio=300
+# una partita del bot passo per passo
+godot --headless --path . -- --impero-traccia=usuraio
+
+# (Fase 15) foto delle schermate e di tutte le stanze (serve un display)
+xvfb-run -a -s "-screen 0 1280x800x24" godot --path . --rendering-driver opengl3 --resolution 1280x800 -- --demo-foto --out=/tmp/foto
+xvfb-run -a -s "-screen 0 1280x800x24" godot --path . --rendering-driver opengl3 --resolution 1280x800 -- --demo-stanze --out=/tmp/stanze
+# brani in WAV per ascoltarli fuori dal gioco, con i tempi di generazione
+godot --headless --path . --script tools/prova_musica.gd -- --out=/tmp
 
 # Controllo di coerenza tra l'Excel (fonte di verità) e i tre data/*.json:
 # segnala SOLO, non corregge — se trova discrepanze, rilanciare lo script
@@ -1731,3 +1752,78 @@ godot --headless --export-release "Linux" build/linux/il_ladro_di_sabbia.x86_64
     luogotenenti, bisogni, calore, donazione, sblocchi su disco,
     determinismo, il bot usuraio rende più del ladro, difficoltà) e
     `--demo-test` riscritto sul nuovo flusso UI. Suite 14/14 PASS.
+- **Fase 15 (Ledune a piedi: tempo a minuti, esplorazione, dialoghi di
+  persona, minigiochi, cutscene, musica per luogo)**: fatto, su richiesta
+  dell'autore (premessa life-decay, mondo navigabile, dialoghi a quattro
+  categorie, estetica retro, APK di prova).
+  - **Motore a minuti** (`ImperoState`, riscritto): `passa_tempo(minuti)`
+    toglie lo stesso tempo a Sirio e a Sara e ogni 360 minuti fa girare la
+    città (`_tick`: rata, tributi, calore, retate, assalti, scandali,
+    tradimenti, crisi di Sara). Ogni voce ha una durata in ore (dati:
+    `durata` delle azioni, `parametri.durate` per giri e mosse: crescere un
+    giro 3h, riscuotere 2h, grande mossa 4h, mangiare 30 min). Viaggi con
+    `viaggia(dest)` (0,2h + distanza/55); telefonate 5 min; cambiare
+    stanza 1 min; esaminare 2 min. Fame e sonno in ore (soglie 24/36/60 e
+    24/48/72). Orologio dal lunedì alle 23:00.
+  - **Statistiche** Carisma, Intuizione, Freddezza: 7 punti da 1 a 4
+    decisi dal seed, crescono con quello che si fa (ogni 3 colpi
+    Freddezza, ogni 3 vittorie all'azzardo Intuizione, scelte nei
+    dialoghi); danno bonus ai tiri ((stat-1)/2) e aprono risposte.
+    **Oggetti** (pistola, grimaldelli, chiave del retro, lanterna, santino)
+    con bonus o porte; **flag di memoria** (`ricorda`, `ricordato`) per le
+    scelte pregresse. `variante(chiave, n)`: scelta stabile dal seed,
+    indipendente dall'ordine delle azioni.
+  - **Bilanciamento**: con crescite da 3h invece di 6h l'impero rende di
+    più. Bot su 100 partite: ladro 0,05 anni a Sara, onesto 0,03, usuraio
+    2,35 (max 7,5), boss 2,94, biscazziere 2,02, predicatore 1,47, impero
+    misto 0,84. Il bot incontra di persona i contatti dei luoghi noti.
+  - **Dati del mondo** (`tools/genera_esplorazione.py` →
+    `data/esplorazione.json`): 27 stanze in 18 luoghi (casa con soggiorno,
+    camera e cucina; ospedale con corridoio e reparto; bisca con sala,
+    saletta privata chiusa e ring; Cripta degli Eterni su tre livelli, gli
+    ultimi due al buio e il terzo solo con la lanterna), 66 oggetti, 22
+    persone, aspetto dei personaggi, 11 dialoghi. Ogni azione, giro e
+    grande mossa è raggiungibile da un oggetto nel suo luogo (verificato
+    dal generatore).
+  - **Dialoghi** (`DialogoSystem`, logica pura): opzioni **fisse** (lore e
+    avanzamento, comprese quelle del telefono del contatto), **stat**
+    (visibili anche chiuse, con il requisito), **memoria** (compaiono solo
+    dopo un fatto della partita: il santino di Serena, il registro delle
+    offerte, la soffiata dell'ubriaco, l'informatore in questura che apre
+    il ricatto a Bassi), **seed** (una variante su tre per persona:
+    offerte, retroscena, piccoli eventi). Ogni risposta costa minuti; le
+    risposte possono costare sabbia, dare oggetti, aprire giri, piste,
+    luoghi, cambiare statistiche e Karma. Incontrare di persona un
+    contatto lo aggiunge alla rubrica.
+  - **Minigiochi** (`Minigiochi`, logica pura): roulette (10 min a giro,
+    rosso/nero/pari/dispari/numero; con Intuizione 4 si legge il
+    croupier) e ring clandestino (30 min a incontro, quote dalla forza dei
+    lottatori, un incontro su quattro è truccato: lo vede chi ha
+    Intuizione 3 o la soffiata giusta).
+  - **Interfaccia**: `Esplorazione` (stanza dall'alto, tocco per
+    camminare con `AStarGrid2D`, tocco su oggetti, persone e porte;
+    frecce/WASD sul desktop), `MappaMondo` (si apre da sola all'uscita),
+    `DialogoUI` (ritratti con espressioni, testo a macchina, risposte
+    colorate per categoria), `RouletteUI`, `LottaUI`, `CutsceneUI`
+    (apertura, finali, prima discesa nella Cripta, Dolce Volpe).
+    `ImperoUI` orchestra tutto e fa scorrere il tempo reale (fermo durante
+    dialoghi, minigiochi, pannelli e mappa: lì il tempo lo contano i
+    gesti). Le azioni lunghe mostrano l'orologio che avanza.
+  - **Pixel art** (`scripts/art/pixel_mondo.gd`): 20 temi di pavimento e
+    muro, 50 tipi di oggetto, personaggi 16x24 in quattro direzioni con
+    passo a tre fotogrammi, ritratti 48x48 con sette espressioni, vignette
+    160x90 per le cutscene, velo di buio con cerchio di luce.
+  - **Musica**: il tema di Sara (otto battute in La minore) torna in ogni
+    luogo: carillon con eco in ospedale, lo-fi a casa, città sulla mappa,
+    tremolo folk all'osteria, swing jazz in bisca, organo in chiesa, drone
+    con eco nella Cripta; l'endgame sotto le 72 ore di Sara. Generazione in
+    un thread, prima il brano richiesto, cache in `user://`.
+  - **Verifica**: `--test-impero` (tempo a minuti, viaggi, statistiche,
+    minigiochi, dialoghi a quattro categorie, memoria che apre il
+    ricatto), `--demo-test` riscritto (cutscene, tempo reale, camminata,
+    oggetti, dialogo, porte, mappa, roulette, ring, porta chiusa,
+    donazione, finale), validazione dei generatori in
+    `tools/regression_suite.py`. Suite 15/15 PASS.
+  - **Non verificato su telefono**: niente emulatore in questo ambiente.
+    Da provare: comodità del tocco per camminare, leggibilità dei
+    ritratti, tempi di generazione della musica al primo avvio.

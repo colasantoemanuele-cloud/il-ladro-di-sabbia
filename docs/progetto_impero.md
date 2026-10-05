@@ -203,3 +203,27 @@ Tutti i punti del piano sono fatti.
   (massimo 3,68), impero misto 0,08. Il bot dona quando a Sara restano
   meno di 130 ore: un giocatore che regge il rischio delle crisi fino agli
   ultimi giorni fa molto di più, perché la rete cresce in modo composto.
+
+## 13. Ledune a piedi (Fase 15)
+
+Il gioco ha smesso di essere un menu. Il tempo scorre a minuti: un secondo
+nel mondo è un minuto di vita per Sirio e per Sara, e ogni gesto ne costa
+altri (parlare, esaminare, giocare, cambiare stanza, viaggiare). Ogni sei ore
+la città gira come prima.
+
+- Ogni luogo è una o più stanze da percorrere a piedi. Gli oggetti sono le
+  azioni: il registro di Nando fa crescere l'usura, il letto fa dormire,
+  l'incubatrice fa stare con Sara o donare. Uscendo si apre la mappa.
+- Le persone si incontrano di persona: dialoghi con ritratti, quattro
+  categorie di risposta (fissa, statistica, ricordo della partita,
+  occasione del seed).
+- Sirio ha tre statistiche (Carisma, Intuizione, Freddezza) decise dal seed
+  e qualche oggetto in tasca: aprono risposte, porte e vantaggi ai tiri.
+- La bisca ha roulette e ring; la Cripta degli Eterni scende su tre livelli
+  e al terzo serve la lanterna della sagrestia.
+- Cutscene a pannelli per l'apertura, i finali e i momenti chiave; un tema
+  musicale, quello di Sara, che cambia veste in ogni luogo.
+
+Bilanciamento dopo il passaggio ai minuti (bot, 100 partite): le strategie
+concentrate su un giro danno a Sara da 1,5 a 3 anni in media, con punte di 7;
+i colpi da soli e il lavoro onesto restano sotto il mese.

@@ -371,3 +371,28 @@ static func foto(app: App, cartella: String) -> void:
 	await _premi(app, ui, "SALTA")
 	await _attendi(app, 0.6)
 	await _scatta(app, cartella, "fine")
+
+
+## Una foto per ogni stanza: --demo-stanze --out=DIR
+static func foto_stanze(app: App, cartella: String) -> void:
+	var s := ImperoState.new(7)
+	var ui := ImperoUI.new()
+	app.add_child(ui)
+	ui.avvia(s, null, ImperoPersistente.new(), app.audio, false, false)
+	ui.tempo_reale = false
+	s.ricorda("visto_cripta")
+	for st in DialogoSystem.dati().stanze:
+		s.luogo = st.luogo
+		ui.entra_stanza(st.id, st.get("entrata", [int(st.w) / 2, int(st.h) / 2]) if st.has("entrata") else _libera(st))
+		await _attendi(app, 0.25)
+		await _scatta(app, cartella, "stanza_" + str(st.id).replace("/", "_"))
+
+
+static func _libera(st: Dictionary) -> Array:
+	for p in st.porte:
+		if p.verso != "@mappa":
+			for q in DialogoSystem.dati().stanze:
+				for r in q.porte:
+					if r.verso == st.id:
+						return r.arrivo
+	return [2, 2]

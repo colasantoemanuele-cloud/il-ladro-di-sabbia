@@ -296,6 +296,12 @@ static func _porta(img: Image, s: Dictionary, tema: Dictionary, p: Dictionary) -
 	elif x == 0 or x == w - 1:
 		_pavimento(img, tema, x, y)
 		_r(img, px + (0 if x == 0 else T - 4), py - 6, 4, T + 6, legno.darkened(0.3))
+		var oro := Color("f0c050")
+		var verso := -1 if x == 0 else 1
+		var cx := px + 8
+		_r(img, cx - 4, py + 7, 8, 2, oro)
+		for k in 4:
+			_r(img, cx + verso * (4 + k) - (0 if verso > 0 else 0), py + 4 + k, 1, 8 - k * 2, oro)
 	if p.has("richiede"):
 		_r(img, px + 6, py + 6 if y > 1 else T + 6, 4, 4, Color("e94560"))
 

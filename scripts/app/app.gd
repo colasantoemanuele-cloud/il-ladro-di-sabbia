@@ -66,6 +66,14 @@ func _ready() -> void:
 			print(ImperoBot.report(int(a.get_slice("=", 1))))
 			get_tree().quit()
 			return
+	if args.has("--demo-stanze"):
+		var dir := "/tmp"
+		for a in args:
+			if a.begins_with("--out="):
+				dir = a.get_slice("=", 1)
+		await DemoTest.foto_stanze(self, dir)
+		get_tree().quit()
+		return
 	if args.has("--demo-foto"):
 		var cartella := "/tmp"
 		for a in args:
@@ -78,7 +86,7 @@ func _ready() -> void:
 
 
 func _deve_delegare(args: PackedStringArray) -> bool:
-	if args.has("--demo-test") or args.has("--demo-foto"):
+	if args.has("--demo-test") or args.has("--demo-foto") or args.has("--demo-stanze"):
 		return false
 	for a in args:
 		if a.begins_with("--test-") or a.begins_with("--simulate") or a.begins_with("--impero-bilancio") or FLAG_LEGACY.has(a):
