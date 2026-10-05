@@ -14,6 +14,15 @@ RADICE = Path(__file__).resolve().parent.parent
 
 PARAMETRI = {
     "ore_fascia": 6.0,
+    "ora_inizio": 23,
+    "durate": {"cresci": 3.0, "riscuoti": 2.0, "luogotenente": 1.0, "mossa": 4.0, "mangia": 0.5},
+    "minuti_telefonata": 5,
+    "minuti_stanza": 1,
+    "minuti_esamina": 2,
+    "minuti_roulette": 10,
+    "minuti_lotta": 30,
+    "stat_iniziali": 7,
+    "stat_max": 5,
     "giorni": 21,
     "sirio_iniziale": 24.0,
     "anticipo": {"ore": 40.0, "rata": 6.0, "rate": 8, "dalla_fascia": 8},
@@ -23,7 +32,7 @@ PARAMETRI = {
     "luogotenente": {"costo": 20.0, "crescita": 0.08, "cresta": 0.15, "tradimento": 0.004, "soglia": 8},
     "controllo": {"calo": 0.015, "minimo": 0.6, "con_luogotenente": 0.9},
     "calore": {"calo_polizia": 1.0, "calo_rivali": 0.5, "retata": 800, "assalto": 900, "scandalo": 1500, "informatore": 0.6},
-    "crisi": {"base": 0.004, "visita": 0.5, "fasce_visita": 8, "danno": [12.0, 24.0]},
+    "crisi": {"base": 0.004, "visita": 0.5, "ore_visita": 48, "danno": [12.0, 24.0]},
     "corrompi": {"costo": 15.0, "quota": 0.05, "effetto": 35.0},
     "tributo": {"costo": 15.0, "quota": 0.05, "effetto": 35.0},
     "informatore": 40.0,
@@ -33,101 +42,115 @@ PARAMETRI = {
     "difficolta": {"sirio_per_livello": 4.0, "rischio_per_livello": 0.05},
 }
 
-SONNO = [[4, "Stanco", -1], [6, "Sfinito", -2], [10, "Allo stremo", -3]]
-FAME = [[4, "Affamato", -1], [8, "Debilitato", -2], [12, "A digiuno", -3]]
+SONNO = [[24, "Stanco", -1], [36, "Sfinito", -2], [60, "Allo stremo", -3]]
+FAME = [[24, "Affamato", -1], [48, "Debilitato", -2], [72, "A digiuno", -3]]
+
+STAT = {
+    "carisma": {"nome": "Carisma", "descrizione": "Convincere, sedurre, predicare."},
+    "intuizione": {"nome": "Intuizione", "descrizione": "Leggere le persone, i tavoli, le bugie."},
+    "freddezza": {"nome": "Freddezza", "descrizione": "Mani ferme quando conta. Minacciare senza alzare la voce."},
+}
+
+OGGETTI = {
+    "pistola": {"nome": "Una pistola", "descrizione": "Vecchia, pulita. +1 ai colpi.", "bonus": {"colpo": 1}},
+    "grimaldello": {"nome": "Grimaldelli", "descrizione": "Un rotolo di ferri sottili. +2 agli scassi.", "bonus": {"scasso": 2}},
+    "chiave_retro": {"nome": "La chiave del retro", "descrizione": "Apre la saletta privata della bisca."},
+    "lanterna": {"nome": "Una lanterna a olio", "descrizione": "Senza, le catacombe finiscono al primo livello."},
+    "santino": {"nome": "Il santino di Santa Rena", "descrizione": "Serena lo teneva nel portafoglio. +1 a predicare.", "bonus": {"culto": 1}},
+}
 
 GIRI = {
-    "usura": {"nome": "Usura", "persone": "debitori", "sede": "bottega_nando",
+    "usura": {"nome": "Usura", "persone": "debitori", "sede": "bottega_nando", "stat": "freddezza",
               "tributo": 0.40, "base": 4, "perc": 0.18, "costo": 2.0, "rischio": 0.10,
               "polizia": 0.0030, "rivali": 0.0, "fama": 0.0, "karma": -1, "perdita": 0.010, "uomini_per": 0,
               "cresci": "Prestare a nuovi disperati", "descrizione": "Presti ore a chi non ne ha. Ti restituiscono un po' a ogni fascia, per sempre."},
-    "protezione": {"nome": "Protezione", "persone": "negozi", "sede": "piazza",
+    "protezione": {"nome": "Protezione", "persone": "negozi", "sede": "piazza", "stat": "freddezza",
                    "tributo": 0.90, "base": 3, "perc": 0.20, "costo": 1.0, "rischio": 0.30,
                    "polizia": 0.0020, "rivali": 0.0040, "fama": 0.0, "karma": -2, "perdita": 0.0, "uomini_per": 25,
                    "cresci": "Allargare la protezione", "descrizione": "I negozianti pagano perché non succeda niente. Serve un uomo ogni 25 negozi."},
-    "bische": {"nome": "Bische", "persone": "tavoli", "sede": "bisca",
+    "bische": {"nome": "Bische", "persone": "tavoli", "sede": "bisca", "stat": "intuizione",
                "tributo": 3.50, "base": 1, "perc": 0.15, "costo": 10.0, "rischio": 0.20,
                "polizia": 0.0300, "rivali": 0.0080, "fama": 0.0, "karma": -1, "perdita": 0.0, "uomini_per": 6,
                "cresci": "Aprire un nuovo tavolo", "descrizione": "Il banco vince sempre. La polizia lo sa. Serve un uomo ogni 6 tavoli."},
-    "culto": {"nome": "Culto", "persone": "fedeli", "sede": "chiesa",
+    "culto": {"nome": "Culto", "persone": "fedeli", "sede": "chiesa", "stat": "carisma",
               "tributo": 0.15, "base": 5, "perc": 0.22, "costo": 0.4, "rischio": 0.25,
               "polizia": 0.0, "rivali": 0.0, "fama": 0.0012, "karma": -1, "perdita": 0.002, "uomini_per": 0,
               "cresci": "Predicare", "descrizione": "I fedeli donano ore alla causa. I fedeli portano fedeli. Uno scandalo li disperde."},
-    "cooperativa": {"nome": "Cooperativa", "persone": "operai", "sede": "porto",
+    "cooperativa": {"nome": "Cooperativa", "persone": "operai", "sede": "porto", "stat": "carisma",
                     "tributo": 0.25, "base": 5, "perc": 0.15, "costo": 1.5, "rischio": 0.05,
                     "polizia": -0.0010, "rivali": 0.0, "fama": 0.0004, "karma": 1, "perdita": 0.0, "uomini_per": 0,
                     "cresci": "Assumere al porto", "descrizione": "Lavoro onesto, una quota a te. Lenta e pulita. Tiene lontana la polizia."},
 }
 
 AZIONI = [
-    {"id": "turno", "nome": "Turno al porto", "luogo": "porto", "tipo": "lavoro", "resa": 7.0, "karma": 1,
+    {"id": "turno", "durata": 6, "nome": "Turno al porto", "luogo": "porto", "tipo": "lavoro", "resa": 7.0, "karma": 1,
      "ok": "Sei ore di casse e corde. Una paga piccola e pulita."},
-    {"id": "lavoretto", "nome": "Lavoretto per Rocco", "luogo": "osteria", "tipo": "lavoro", "resa": 16.0, "karma": -1, "attesa": 4,
+    {"id": "lavoretto", "durata": 6, "attesa": 24, "nome": "Lavoretto per Rocco", "luogo": "osteria", "tipo": "lavoro", "resa": 16.0, "karma": -1,
      "ok": "Un magazzino da guardare fino all'alba. Non è passato nessuno. Rocco paga."},
-    {"id": "mendicare", "nome": "Chiedere l'elemosina", "luogo": "piazza", "tipo": "lavoro", "resa": 3.0, "karma": 0,
+    {"id": "mendicare", "durata": 2, "nome": "Chiedere l'elemosina", "luogo": "piazza", "tipo": "lavoro", "resa": 3.0, "karma": 0,
      "ok": "Qualche minuto di sabbia in un cappello. Nessuno ti guarda in faccia."},
-    {"id": "scippo", "nome": "Uno scippo", "luogo": "piazza", "tipo": "colpo", "resa": [8.0, 22.0], "rischio": 0.20, "polizia": 6, "karma": -2,
+    {"id": "scippo", "durata": 3, "nome": "Uno scippo", "luogo": "piazza", "tipo": "colpo", "resa": [6.0, 16.0], "rischio": 0.20, "stat": "freddezza", "polizia": 6, "karma": -2,
      "ok": "Una borsa, un vicolo, trenta secondi.", "ko": "La signora urla. Corri finché i polmoni bruciano."},
-    {"id": "scasso", "nome": "Un appartamento vuoto", "luogo": "quartiere_alto", "tipo": "colpo", "resa": [20.0, 45.0], "rischio": 0.35, "polizia": 10, "karma": -2, "attesa": 2,
+    {"id": "scasso", "durata": 4, "attesa": 12, "nome": "Un appartamento vuoto", "luogo": "quartiere_alto", "tipo": "colpo", "stat": "freddezza", "resa": [20.0, 45.0], "rischio": 0.35, "polizia": 10, "karma": -2,
      "ok": "La serratura cede senza rumore. Esci con quello che luccica.", "ko": "Il cane del vicino sa fare il suo mestiere."},
-    {"id": "rapina", "nome": "Rapina alla stazione di servizio", "luogo": "stazione", "tipo": "colpo", "resa": [30.0, 70.0], "rischio": 0.45, "polizia": 15, "karma": -3, "uomini": 1, "attesa": 2,
+    {"id": "rapina", "durata": 3, "attesa": 12, "nome": "Rapina alla stazione di servizio", "luogo": "stazione", "tipo": "colpo", "stat": "freddezza", "resa": [30.0, 70.0], "rischio": 0.45, "polizia": 15, "karma": -3, "uomini": 1,
      "ok": "Il cassiere svuota il cassetto senza alzare gli occhi.", "ko": "Una volante fa benzina proprio adesso."},
-    {"id": "furgone", "nome": "Il furgone blindato", "luogo": "magazzino", "tipo": "colpo", "resa": [60.0, 120.0], "per_uomo": 0.2, "rischio": 0.45, "polizia": 20, "karma": -4, "uomini": 3, "attesa": 4,
+    {"id": "furgone", "durata": 6, "attesa": 24, "nome": "Il furgone blindato", "luogo": "magazzino", "tipo": "colpo", "stat": "freddezza", "resa": [60.0, 120.0], "per_uomo": 0.2, "rischio": 0.45, "polizia": 20, "karma": -4, "uomini": 3,
      "ok": "Il furgone si ferma dove deve. Il bottino pesa.", "ko": "La scorta era doppia. Torni con un uomo in meno."},
-    {"id": "anni_futuri", "nome": "Vendere anni futuri", "luogo": "agenzia", "tipo": "lavoro", "resa": 60.0, "karma": -5, "una_volta": True,
+    {"id": "anni_futuri", "durata": 2, "nome": "Vendere anni futuri", "luogo": "agenzia", "tipo": "lavoro", "resa": 60.0, "karma": -5, "una_volta": True,
      "ok": "Firmi. Ti pagano subito anni che non vivrai."},
-    {"id": "fede", "nome": "Impegnare la fede nuziale", "luogo": "bottega_nando", "tipo": "lavoro", "resa": 14.0, "karma": -1, "una_volta": True,
+    {"id": "fede", "durata": 0.5, "nome": "Impegnare la fede nuziale", "luogo": "bottega_nando", "tipo": "lavoro", "resa": 14.0, "karma": -1, "una_volta": True,
      "ok": "Nando la pesa in fretta. Serena aveva le dita sottili."},
-    {"id": "recluta", "nome": "Assoldare un uomo", "luogo": "osteria", "tipo": "recluta",
+    {"id": "recluta", "durata": 1, "nome": "Assoldare un uomo", "luogo": "osteria", "tipo": "recluta",
      "ok": "Un ragazzo con le mani grandi e niente da perdere. Adesso lavora per te."},
-    {"id": "corrompi", "nome": "Ungere la questura", "luogo": "questura", "tipo": "corrompi",
+    {"id": "corrompi", "durata": 1, "nome": "Ungere la questura", "luogo": "questura", "tipo": "corrompi",
      "ok": "Un commissario dimentica un fascicolo. Per un po' nessuno ti cerca."},
-    {"id": "informatore", "nome": "Comprare un informatore", "luogo": "questura", "tipo": "informatore",
+    {"id": "informatore", "durata": 1, "nome": "Comprare un informatore", "luogo": "questura", "tipo": "informatore",
      "ok": "Un agente ti chiamerà prima delle retate. Per sempre, finché paghi."},
-    {"id": "tributo", "nome": "Pagare un tributo ai rivali", "luogo": "bar_aurora", "tipo": "tributo",
+    {"id": "tributo", "durata": 1, "nome": "Pagare un tributo ai rivali", "luogo": "bar_aurora", "tipo": "tributo",
      "ok": "I rivali contano le ore e rimandano la vendetta."},
-    {"id": "dormi", "nome": "Dormire", "luogo": "casa", "tipo": "dormi",
+    {"id": "dormi", "durata": 6, "nome": "Dormire", "luogo": "casa", "tipo": "dormi",
      "ok": "Dormi. La rete lavora anche senza di te."},
-    {"id": "visita", "nome": "Stare con Sara", "luogo": "ospedale", "tipo": "visita",
+    {"id": "visita", "durata": 2, "nome": "Stare con Sara", "luogo": "ospedale", "tipo": "visita",
      "ok": "Sara dorme. Le infermiere dicono che respira meglio quando ci sei."},
-    {"id": "liquida", "nome": "La grande mossa", "luogo": "casa", "tipo": "liquida",
+    {"id": "liquida", "durata": 6, "nome": "La grande mossa", "luogo": "casa", "tipo": "liquida",
      "ok": "Vendi tutto in una notte: debiti, negozi, tavoli, fedeli. Ledune tace.", "ko": "Qualcuno parla prima del tempo. La rete crolla e ti resta poco."},
 ]
 
 MOSSE = {
-    "tesoro_boss": {"nome": "Il tesoro del vecchio boss", "luogo": "villa_corradi", "resa": [400.0, 800.0], "rischio": 0.40,
+    "tesoro_boss": {"nome": "Il tesoro del vecchio boss", "stat": "freddezza", "luogo": "villa_corradi", "resa": [400.0, 800.0], "rischio": 0.40,
                     "richiede": {"uomini": 3}, "fallimento": {"uomini": 1, "polizia": 15}, "rivali": 15, "karma": -2,
                     "ok": "Sotto il pavimento della vecchia casa, il tesoro del boss di L'chen. Pesa più dei ricordi.",
                     "ko": "La villa era sorvegliata. Lasci un uomo indietro."},
-    "ultima_donazione": {"nome": "L'ultima donazione", "luogo": "ospedale", "resa": [300.0, 900.0], "rischio": 0.20,
+    "ultima_donazione": {"nome": "L'ultima donazione", "stat": "carisma", "luogo": "ospedale", "resa": [300.0, 900.0], "rischio": 0.20,
                          "richiede": {"visite": 4}, "karma": 3,
                          "ok": "Il vecchio del letto in fondo ride, una volta sola. Poi ti lascia quello che ha.",
                          "ko": "Il vecchio cambia idea. Il testamento va a un nipote mai visto."},
-    "usuraio": {"nome": "Il patto con l'usuraio della mezzanotte", "luogo": "bar_aurora", "resa": [1500.0, 3000.0], "rischio": 0.45,
+    "usuraio": {"nome": "Il patto con l'usuraio della mezzanotte", "stat": "intuizione", "luogo": "bar_aurora", "resa": [1500.0, 3000.0], "rischio": 0.45,
                 "richiede": {"giro": ["usura", 200]}, "fallimento": {"giro": ["usura", 0.5]}, "karma": -3,
                 "ok": "L'usuraio compra i tuoi debitori in blocco. Paga in secoli.",
                 "ko": "L'usuraio legge i tuoi conti e si prende metà dei tuoi debitori."},
-    "cripta": {"nome": "La cripta degli eterni", "luogo": "catacombe", "resa": [4000.0, 9000.0], "rischio": 0.50,
+    "cripta": {"nome": "La cripta degli eterni", "stat": "carisma", "luogo": "catacombe", "resa": [4000.0, 9000.0], "rischio": 0.50,
                "richiede": {"giro": ["culto", 800]}, "fallimento": {"giro": ["culto", 0.5]}, "karma": -4,
                "ok": "Nella cripta, tra ossa e candele, i fedeli versano tutto quello che hanno. Qualcosa, sotto, ascolta.",
                "ko": "Il rito va storto. Metà dei fedeli scappa e racconta."},
-    "torneo": {"nome": "Il grande torneo dei senza-tempo", "luogo": "bisca", "resa": [1500.0, 3000.0], "rischio": 0.40,
+    "torneo": {"nome": "Il grande torneo dei senza-tempo", "stat": "intuizione", "luogo": "bisca", "resa": [1500.0, 3000.0], "rischio": 0.40,
                "richiede": {"giro": ["bische", 10]}, "fallimento": {"polizia": 30}, "karma": -2,
                "ok": "Il torneo è tuo. I senza-tempo hanno perso le ultime ore al tuo tavolo.",
                "ko": "Una soffiata. La polizia entra al terzo giro di carte."},
-    "cassa_guerra": {"nome": "La cassa di guerra di L'chen", "luogo": "magazzino", "resa": [2500.0, 5000.0], "rischio": 0.45,
+    "cassa_guerra": {"nome": "La cassa di guerra di L'chen", "stat": "freddezza", "luogo": "magazzino", "resa": [2500.0, 5000.0], "rischio": 0.45,
                      "richiede": {"giro": ["protezione", 150], "uomini": 6}, "fallimento": {"uomini": 3, "rivali": 30}, "rivali": 60, "karma": -3,
                      "ok": "La cassa si apre con una sola chiave. Adesso L'chen ti teme.",
                      "ko": "Ti aspettavano. Perdi tre uomini nel buio."},
-    "casata": {"nome": "Il crollo della casata Sabbiedoro", "luogo": "quartiere_alto", "resa": [6000.0, 12000.0], "rischio": 0.50,
+    "casata": {"nome": "Il crollo della casata Sabbiedoro", "stat": "freddezza", "luogo": "quartiere_alto", "resa": [6000.0, 12000.0], "rischio": 0.50,
                "richiede": {"giro": ["protezione", 500], "uomini": 10}, "fallimento": {"uomini": 4, "polizia": 40}, "rivali": 40, "karma": -4,
                "ok": "La casata Sabbiedoro crolla e tu raccogli quello che cade.",
                "ko": "I Sabbiedoro hanno amici in alto. Perdi uomini e faccia."},
-    "asta": {"nome": "L'asta dei secoli", "luogo": "casa_aste", "posta": 1000.0, "moltiplica": 2.5, "rischio": 0.35,
+    "asta": {"nome": "L'asta dei secoli", "stat": "intuizione", "luogo": "casa_aste", "posta": 1000.0, "moltiplica": 2.5, "rischio": 0.35,
              "richiede": {"sabbia": 1500}, "karma": -1,
              "ok": "Compri un secolo all'asta e lo rivendi la sera stessa. Il martelletto batte per te.",
              "ko": "Il rilancio arriva da un telefono. La tua posta resta sul tavolo di Morandi."},
-    "banca": {"nome": "Il grande colpo alla Banca della Sabbia", "luogo": "banca", "resa": [20000.0, 45000.0], "rischio": 0.55,
+    "banca": {"nome": "Il grande colpo alla Banca della Sabbia", "stat": "freddezza", "luogo": "banca", "resa": [20000.0, 45000.0], "rischio": 0.55,
               "richiede": {"uomini": 12, "informatore": True}, "fallimento": {"uomini": 6, "polizia": 80}, "karma": -6,
               "ok": "La Banca della Sabbia Centrale perde il silenzio e una parte dell'oro. Ledune ne parlerà per anni.",
               "ko": "L'allarme parte un minuto prima del previsto. Metà della squadra non torna."},
@@ -145,8 +168,7 @@ LUOGHI = [
     {"id": "piazza", "nome": "Piazza del Mercato", "tipo": "piazza", "pos": [46, 56], "iniziale": True, "cibo": 0.5,
      "descrizione": "Bancarelle, negozi, una fontana senz'acqua. Ogni negozio è una porta."},
     {"id": "chiesa", "nome": "Santuario di Santa Rena", "tipo": "chiesa", "pos": [48, 38], "iniziale": True,
-     "descrizione": "Ceri accesi a pagamento. Il parroco conta le offerte due volte.",
-     "speciale": {"testo": "Parlare con il parroco", "contatto": "anselmo"}},
+     "descrizione": "Ceri accesi a pagamento. Il parroco conta le offerte due volte."},
     {"id": "questura", "nome": "Questura", "tipo": "questura", "pos": [34, 44], "iniziale": True,
      "descrizione": "Corridoi gialli, sedie di plastica. Tutti hanno un prezzo, nessuno lo dice."},
     {"id": "stazione", "nome": "Stazione di servizio", "tipo": "stazione", "pos": [70, 76], "iniziale": True, "cibo": 0.5,
@@ -154,8 +176,7 @@ LUOGHI = [
     {"id": "quartiere_alto", "nome": "Via dei Giardini", "tipo": "villa", "pos": [76, 24], "iniziale": True,
      "descrizione": "Il quartiere alto. Cancelli, cani, finestre che non si aprono mai."},
     {"id": "banca", "nome": "Banca della Sabbia Centrale", "tipo": "banca", "pos": [64, 52], "iniziale": True,
-     "descrizione": "Marmo, vetro blindato, guardie annoiate. Il caveau sta sotto la piazza.",
-     "speciale": {"testo": "Chiedere un prestito allo sportello", "contatto": "bassi"}},
+     "descrizione": "Marmo, vetro blindato, guardie annoiate. Il caveau sta sotto la piazza."},
     {"id": "agenzia", "nome": "Agenzia Clessidra", "tipo": "agenzia", "pos": [84, 46], "iniziale": True,
      "descrizione": "Prestiti-vita. Sul vetro: «Il futuro è adesso». Nessuno ride."},
     {"id": "bottega_nando", "nome": "Bottega di Nando", "tipo": "bottega", "pos": [32, 74],
@@ -170,7 +191,7 @@ LUOGHI = [
      "descrizione": "La villa del vecchio boss di L'chen. Chiusa da quando è morto."},
     {"id": "casa_aste", "nome": "Casa d'aste Morandi", "tipo": "palazzo", "pos": [90, 32],
      "descrizione": "Qui si vendono secoli di sabbia al miglior offerente."},
-    {"id": "catacombe", "nome": "Le catacombe", "tipo": "catacombe", "pos": [58, 70],
+    {"id": "catacombe", "nome": "La Cripta degli Eterni", "tipo": "catacombe", "pos": [58, 70],
      "descrizione": "Sotto la città vecchia. Qualcuno accende candele che nessuno vede."},
 ]
 
@@ -306,9 +327,6 @@ def main() -> int:
     for m, d in MOSSE.items():
         if d["luogo"] not in luoghi:
             errori.append(f"mossa {m}: luogo inesistente")
-    for l in LUOGHI:
-        if "speciale" in l and l["speciale"]["contatto"] not in contatti:
-            errori.append(f"luogo {l['id']}: contatto speciale inesistente")
 
     def eff(lista, dove):
         for e in lista:
@@ -335,7 +353,7 @@ def main() -> int:
             errori.append(f"mossa {m}: nessuno la fa scoprire")
 
     tutti = []
-    testi([GIRI, AZIONI, MOSSE, LUOGHI, CONTATTI, list(MESSAGGI.values()), list(EVENTI.values()), OBIETTIVI], tutti)
+    testi([STAT, OGGETTI, GIRI, AZIONI, MOSSE, LUOGHI, CONTATTI, list(MESSAGGI.values()), list(EVENTI.values()), OBIETTIVI], tutti)
     for t in tutti:
         if "—" in t or "–" in t or "--" in t:
             errori.append(f"trattino lungo: {t}")
@@ -347,7 +365,7 @@ def main() -> int:
     if errori:
         print("\n".join(errori))
         return 1
-    dati = {"parametri": PARAMETRI, "sonno": SONNO, "fame": FAME, "giri": GIRI, "azioni": AZIONI, "mosse": MOSSE,
+    dati = {"parametri": PARAMETRI, "sonno": SONNO, "fame": FAME, "stat": STAT, "oggetti": OGGETTI, "giri": GIRI, "azioni": AZIONI, "mosse": MOSSE,
             "luoghi": LUOGHI, "contatti": CONTATTI, "messaggi": MESSAGGI, "eventi": EVENTI,
             "obiettivi": OBIETTIVI, "traguardi": TRAGUARDI}
     (RADICE / "data/impero.json").write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

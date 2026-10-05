@@ -116,6 +116,9 @@ func _ready() -> void:
 		get_tree().quit()
 	elif altri_args.has("--test-narrativa"):
 		_run_test_narrativa()
+	elif not altri_args.is_empty() and altri_args[0].begins_with("--impero-bilancio="):
+		print(ImperoBot.report(int(altri_args[0].get_slice("=", 1))))
+		get_tree().quit()
 	elif altri_args.has("--test-impero"):
 		ImperoTest.esegui()
 		get_tree().quit()

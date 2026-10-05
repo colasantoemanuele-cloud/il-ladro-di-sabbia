@@ -36,6 +36,10 @@ static func _prova(s: ImperoState, ids: Array) -> Dictionary:
 
 
 static func _telefono(s: ImperoState, prof: Dictionary) -> void:
+	for st in DialogoSystem.dati().get("stanze", []):
+		for n in st.npc:
+			if n.has("contatto") and s.luoghi_noti.has(st.luogo):
+				s.incontra(n.contatto)
 	var fatto := true
 	while fatto:
 		fatto = false
@@ -51,11 +55,6 @@ static func _telefono(s: ImperoState, prof: Dictionary) -> void:
 					continue
 				s.scegli_opzione(c.id, o.id)
 				fatto = true
-		for l in s.luoghi_visibili():
-			for v in s.voci(l.id):
-				if v.tipo == "parla":
-					s.esegui(v.id, l.id)
-					fatto = true
 
 
 static func _deve_donare(s: ImperoState, prof: Dictionary) -> bool:
@@ -68,11 +67,11 @@ static func _deve_donare(s: ImperoState, prof: Dictionary) -> bool:
 
 static func scegli(s: ImperoState, prof: Dictionary) -> Dictionary:
 	var crim: bool = prof.crimine
-	if s.sveglio >= 5 and s.sirio > 8.0:
+	if s.sveglio >= 30.0 and s.sirio > 8.0:
 		return _prova(s, ["dormi"])
 	if s.sirio < 20.0:
 		return _prova(s, ["lavoretto", "scippo", "turno", "mendicare"] if crim else ["turno", "lavoretto", "mendicare"])
-	if s.fascia - s.ultima_visita >= 10:
+	if s.tempo_min - s.ultima_visita >= 60.0 * 60.0:
 		return _prova(s, ["visita"])
 	if s.polizia > 40.0 and not _disponibile(s, "corrompi").is_empty():
 		return _disponibile(s, "corrompi")
@@ -125,7 +124,7 @@ static func passo(s: ImperoState, prof: Dictionary, puo_donare: bool = true) -> 
 	if puo_donare and _deve_donare(s, prof):
 		s.dona(maxf(s.sirio * 0.9, 1.0), "ospedale")
 		return false
-	if s.digiuno >= 3:
+	if s.digiuno >= 18.0:
 		var cibo := _prova(s, ["mangia"])
 		if not cibo.is_empty():
 			s.esegui("mangia", cibo.luogo)

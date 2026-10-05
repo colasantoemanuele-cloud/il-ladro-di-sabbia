@@ -1,13 +1,15 @@
 class_name ImperoState
 extends RefCounted
 ## Il motore dell'impero di sabbia (docs/progetto_impero.md). Logica pura,
-## nessuna dipendenza dalla scena. Il tempo avanza a fasce di 6 ore: Sirio fa
-## una cosa per fascia, poi la città gira (passa_fascia). Ogni fascia costa
-## le stesse ore a Sirio e a Sara. Numeri in data/impero.json.
+## nessuna dipendenza dalla scena. Il tempo scorre a minuti: ogni minuto che
+## passa nel mondo costa un minuto di vita a Sirio e uno a Sara, che Sirio
+## cammini, parli, giochi o dorma. Ogni sei ore la città gira (_tick): i giri
+## rendono, il calore si muove, Sara può avere una crisi. Numeri in
+## data/impero.json.
 
 const GIORNI := ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
-const FASCE_NOMI := ["notte", "mattina", "pomeriggio", "sera"]
 const ORE_ANNO := 8760.0
+const MINUTI_TICK := 360.0
 
 static var _dati: Dictionary = {}
 
@@ -15,6 +17,7 @@ var seed_run: int
 var _rng := RandomNumberGenerator.new()
 var livello_difficolta := 0
 
+var tempo_min := 0.0
 var fascia := 0
 var sirio := 0.0
 var sara := 0.0
@@ -31,13 +34,17 @@ var rivalita := 0.0
 var fama := 0.0
 var karma := 0.0
 var karma_inizio := 0.0
-var sveglio := 3
-var digiuno := 1
+var sveglio := 18.0
+var digiuno := 6.0
 var visite := 0
-var ultima_visita := -99
+var ultima_visita := -99999.0
 var colpi_riusciti := 0
 var lavori := 0
 var luogotenenti_messi := 0
+var vittorie_azzardo := 0
+var stat: Dictionary = {}
+var oggetti: Dictionary = {}
+var flag: Dictionary = {}
 var piste: Dictionary = {}
 var mosse_tentate: Dictionary = {}
 var usate: Dictionary = {}
@@ -103,6 +110,7 @@ func _init(seme: int = -1, livello: int = 0, persistente: ImperoPersistente = nu
 	for c in dati().contatti:
 		if c.get("iniziale", false):
 			contatti_noti[c.id] = true
+	_distribuisci_stat()
 	if persistente != null:
 		for id in persistente.luoghi:
 			luoghi_noti[str(id)] = true
@@ -112,30 +120,141 @@ func _init(seme: int = -1, livello: int = 0, persistente: ImperoPersistente = nu
 			piste[str(id)] = true
 
 
+## Ogni partita ha un Sirio un po' diverso: 7 punti tra le tre statistiche,
+## da 1 a 4 ciascuna, decisi dal seed.
+func _distribuisci_stat() -> void:
+	var nomi: Array = dati().stat.keys()
+	for n in nomi:
+		stat[n] = 1
+	var restanti := int(par().stat_iniziali) - nomi.size()
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_run ^ 0x5A5A
+	while restanti > 0:
+		var n: String = nomi[r.randi() % nomi.size()]
+		if int(stat[n]) < 4:
+			stat[n] = int(stat[n]) + 1
+			restanti -= 1
+
+
+## Variante stabile decisa dal seed, indipendente dall'ordine delle azioni.
+func variante(chiave: String, quante: int) -> int:
+	if quante <= 0:
+		return 0
+	return absi(("%d/%s" % [seed_run, chiave]).hash()) % quante
+
+
 # ================================================================ tempo
 
 func fasce_totali() -> int:
 	return int(par().giorni) * 4
 
 
+func _minuti_orologio() -> float:
+	return float(par().ora_inizio) * 60.0 + tempo_min
+
+
 func giorno() -> int:
-	return fascia / 4 + 1
+	return int(_minuti_orologio() / 1440.0) + 1
+
+
+func orologio() -> String:
+	var m := int(_minuti_orologio()) % 1440
+	return "%02d:%02d" % [m / 60, m % 60]
 
 
 func ora_testo() -> String:
-	return "%s %d, %s" % [GIORNI[(giorno() - 1) % 7], giorno(), FASCE_NOMI[fascia % 4]]
+	return "%s %d, %s" % [GIORNI[(giorno() - 1) % 7], giorno(), orologio()]
 
 
 func giorni_sara() -> float:
 	return sara / 24.0
 
 
+## Fa passare il tempo: lo stesso tempo per Sirio e per Sara. Ogni sei ore la
+## città gira. Restituisce gli eventi accaduti nel frattempo.
+func passa_tempo(minuti: float, dorme: bool = false) -> Array:
+	var eventi: Array = []
+	var resto := minuti
+	while resto > 0.0001 and not is_over:
+		var prossimo := float(fascia + 1) * MINUTI_TICK
+		var passo := minf(resto, prossimo - tempo_min)
+		var ore := passo / 60.0
+		tempo_min += passo
+		resto -= passo
+		sirio -= ore
+		sara -= ore
+		if not dorme:
+			sveglio += ore
+		digiuno += ore
+		if tempo_min >= prossimo - 0.0001:
+			tempo_min = prossimo
+			eventi.append_array(_tick())
+		if giorno() > giorno_max:
+			giorno_max = giorno()
+			eventi.append_array(_nuovo_giorno())
+		_controlla_fine()
+	return eventi
+
+
+func attendi(minuti: float) -> Array:
+	return passa_tempo(minuti)
+
+
+func _nuovo_giorno() -> Array:
+	var eventi: Array = []
+	var p := par()
+	var msg: String = dati().messaggi.get(str(giorno()), "")
+	if msg != "":
+		messaggi.append({"da": "venti", "testo": msg, "letto": false})
+		eventi.append({"tipo": "messaggio", "testo": "Un messaggio della dottoressa Venti.", "grave": false})
+	if karma_inizio <= float(p.patto.soglia_karma) and patto_in_sospeso.is_empty() and _rng.randf() < float(p.patto.probabilita_giorno):
+		patto_in_sospeso = {"prezzo": roundf(maxf(sirio, 0.0) * float(p.patto.prezzo))}
+		eventi.append({"tipo": "patto", "testo": Narrativa.patto_proposta(patto_in_sospeso.prezzo), "grave": true})
+	return eventi
+
+
+# ================================================================ statistiche, oggetti, memoria
+
+func bonus_stat(nome: String) -> int:
+	return (int(stat.get(nome, 1)) - 1) / 2
+
+
+func aumenta_stat(nome: String, quanto: int = 1) -> String:
+	var prima := int(stat.get(nome, 1))
+	stat[nome] = clampi(prima + quanto, 1, int(par().stat_max))
+	if int(stat[nome]) == prima:
+		return ""
+	return "%s sale a %d." % [dati().stat[nome].nome, stat[nome]]
+
+
+func bonus_oggetti(chiave: String) -> int:
+	var b := 0
+	for o in oggetti:
+		b += int(dati().oggetti[o].get("bonus", {}).get(chiave, 0))
+	return b
+
+
+func ricorda(f: String) -> void:
+	flag[f] = true
+
+
+func ricordato(f: String) -> bool:
+	return flag.has(f)
+
+
+func incontra(cid: String) -> bool:
+	if cid == "" or contatti_noti.has(cid) or contatto_dati(cid).is_empty():
+		return false
+	contatti_noti[cid] = true
+	return true
+
+
 # ================================================================ bisogni e tiri
 
-static func _livello(valore: int, soglie: Array) -> Array:
+static func _livello(valore: float, soglie: Array) -> Array:
 	var esito := ["", 0, 0]
 	for i in soglie.size():
-		if valore >= int(soglie[i][0]):
+		if valore >= float(soglie[i][0]):
 			esito = [soglie[i][1], int(soglie[i][2]), i + 1]
 	return esito
 
@@ -166,9 +285,17 @@ func _rischio(base: float) -> float:
 	return clampf(base + par().difficolta.rischio_per_livello * livello_difficolta, 0.0, 1.0)
 
 
-func _tiro(rischio: float, extra: int = 0) -> DiceSystem.RollResult:
+func tiro(rischio: float, extra: int = 0) -> DiceSystem.RollResult:
 	var m := malus()
 	return DiceSystem.risolvi(_rischio(rischio), m.modo, int(m.modificatore) + extra, _rng)
+
+
+func casuale() -> float:
+	return _rng.randf()
+
+
+func casuale_intero(da: int, a: int) -> int:
+	return _rng.randi_range(da, a)
 
 
 # ================================================================ economia
@@ -200,7 +327,7 @@ func costi_fissi() -> float:
 	return c
 
 
-## Quanto entra in una fascia al netto delle ore che passano.
+## Quanto entra ogni sei ore al netto delle sei ore che passano.
 func flusso_netto() -> float:
 	return flusso_lordo() - costi_fissi() - float(par().ore_fascia)
 
@@ -212,7 +339,7 @@ func persone_totali() -> float:
 	return n
 
 
-# ================================================================ luoghi
+# ================================================================ luoghi e viaggi
 
 func ore_viaggio(dest: String) -> float:
 	if dest == luogo:
@@ -222,9 +349,17 @@ func ore_viaggio(dest: String) -> float:
 	return 0.2 + Vector2(a[0], a[1]).distance_to(Vector2(b[0], b[1])) / 55.0
 
 
-## Il viaggio mangia parte della fascia: resa ridotta in proporzione.
-func efficienza(dest: String) -> float:
-	return clampf(1.0 - ore_viaggio(dest) / float(par().ore_fascia), 0.5, 1.0)
+func viaggia(dest: String) -> Dictionary:
+	if is_over:
+		return _rifiuto("La partita è finita.")
+	if not luoghi_noti.has(dest):
+		return _rifiuto("Non conosci la strada.")
+	if dest == luogo:
+		return {"ore": 0.0, "eventi": []}
+	var ore := ore_viaggio(dest)
+	var eventi := passa_tempo(ore * 60.0)
+	luogo = dest
+	return {"ore": ore, "eventi": eventi}
 
 
 func luoghi_visibili() -> Array:
@@ -244,19 +379,20 @@ func _costo_quota(base: float, quota: float) -> float:
 	return base + quota * maxf(flusso_lordo(), 0.0)
 
 
-func _voce(id: String, nome: String, tipo: String, descrizione: String, disponibile: bool, nota: String = "", rischio: float = -1.0, rapida: bool = false) -> Dictionary:
+func _voce(id: String, nome: String, tipo: String, descrizione: String, disponibile: bool, durata: float, nota: String = "", rischio: float = -1.0) -> Dictionary:
 	return {"id": id, "nome": nome, "tipo": tipo, "descrizione": descrizione, "disponibile": disponibile and not is_over,
-		"nota": nota, "rischio": rischio, "rapida": rapida}
+		"nota": nota, "rischio": rischio, "durata": durata}
 
 
 ## Tutto quello che si può fare in un luogo (anche non ancora disponibile,
-## con il motivo nella nota).
+## con il motivo nella nota). Ogni voce ha una durata in ore.
 func voci(id_luogo: String) -> Array:
 	var out: Array = []
 	var l := luogo_dati(id_luogo)
 	if l.is_empty():
 		return out
 	var p := par()
+	var dur: Dictionary = p.durate
 	for a in dati().azioni:
 		if a.luogo != id_luogo:
 			continue
@@ -274,7 +410,7 @@ func voci(id_luogo: String) -> Array:
 					ok = false
 					nota = "Servono %d uomini" % int(a.uomini)
 			"recluta":
-				desc = "Costa %s, poi %s a fascia." % [_ore(float(p.costo_recluta)), _ore(float(p.paga_uomo))]
+				desc = "Costa %s, poi %s ogni sei ore." % [_ore(float(p.costo_recluta)), _ore(float(p.paga_uomo))]
 				ok = sirio > float(p.costo_recluta)
 			"corrompi":
 				var c := _costo_quota(float(p.corrompi.costo), float(p.corrompi.quota))
@@ -290,7 +426,7 @@ func voci(id_luogo: String) -> Array:
 				if informatore:
 					nota = "Ce l'hai già"
 			"dormi":
-				desc = "Una fascia di sonno. La rete lavora lo stesso."
+				desc = "Sei ore di sonno. La rete lavora lo stesso."
 			"visita":
 				desc = "Sara ha meno crisi quando ci sei."
 			"liquida":
@@ -302,13 +438,13 @@ func voci(id_luogo: String) -> Array:
 		if a.get("una_volta", false) and usate.has(a.id):
 			ok = false
 			nota = "Già fatto"
-		if int(attese.get(a.id, 0)) > fascia:
+		if float(attese.get(a.id, -1.0)) > tempo_min:
 			ok = false
-			nota = "Di nuovo tra %d fasce" % (int(attese[a.id]) - fascia)
+			nota = "Di nuovo tra %dh" % ceili((float(attese[a.id]) - tempo_min) / 60.0)
 		var rischio: float = float(a.get("rischio", -1.0))
 		if a.tipo == "liquida":
 			rischio = float(p.liquidazione.rischio)
-		out.append(_voce(a.id, a.nome, a.tipo, desc, ok, nota, rischio))
+		out.append(_voce(a.id, a.nome, a.tipo, desc, ok, float(a.durata), nota, rischio))
 	for g in dati().giri:
 		var d: Dictionary = dati().giri[g]
 		if d.sede != id_luogo or not giri_aperti.has(g):
@@ -319,9 +455,9 @@ func voci(id_luogo: String) -> Array:
 		var nota_c := ""
 		if sirio <= costo + 4.0:
 			nota_c = "Non hai abbastanza sabbia"
-		out.append(_voce("cresci:" + g, d.cresci, "cresci", "Circa %d %s in più, costa %s. %s" % [int(nuove), d.persone, _ore(costo), d.descrizione], sirio > costo + 4.0, nota_c, float(d.rischio)))
+		out.append(_voce("cresci:" + g, d.cresci, "cresci", "Circa %d %s in più, costa %s. %s" % [int(nuove), d.persone, _ore(costo), d.descrizione], sirio > costo + 4.0, float(dur.cresci), nota_c, float(d.rischio)))
 		if st.persone > 0.0 and not st.luogotenente:
-			out.append(_voce("riscuoti:" + g, "Giro di riscossione", "riscuoti", "Rimetti in riga i %s e incassi gli arretrati. Controllo ora al %d%%." % [d.persone, int(float(st.controllo) * 100.0)], float(st.controllo) < 0.99))
+			out.append(_voce("riscuoti:" + g, "Giro di riscossione", "riscuoti", "Rimetti in riga i %s e incassi gli arretrati. Controllo ora al %d%%." % [d.persone, int(float(st.controllo) * 100.0)], float(st.controllo) < 0.99, float(dur.riscuoti)))
 		if not st.luogotenente:
 			var lp: Dictionary = p.luogotenente
 			var ok_l: bool = st.persone >= float(lp.soglia) and uomini >= 1 and sirio > float(lp.costo)
@@ -330,7 +466,7 @@ func voci(id_luogo: String) -> Array:
 				nota_l = "Servono almeno %d %s" % [int(lp.soglia), d.persone]
 			elif uomini < 1:
 				nota_l = "Serve un uomo da mettere a capo"
-			out.append(_voce("luogotenente:" + g, "Mettere un luogotenente", "luogotenente", "Costa %s e un uomo. Il giro cresce da solo del %d%% a fascia, ma lui trattiene il %d%% e può tradire." % [_ore(float(lp.costo)), int(float(lp.crescita) * 100.0), int(float(lp.cresta) * 100.0)], ok_l, nota_l))
+			out.append(_voce("luogotenente:" + g, "Mettere un luogotenente", "luogotenente", "Costa %s e un uomo. Il giro cresce da solo del %d%% ogni sei ore, ma lui trattiene il %d%% e può tradire." % [_ore(float(lp.costo)), int(float(lp.crescita) * 100.0), int(float(lp.cresta) * 100.0)], ok_l, float(dur.luogotenente), nota_l))
 	for m in dati().mosse:
 		var md: Dictionary = dati().mosse[m]
 		if md.luogo != id_luogo or not piste.has(m):
@@ -343,13 +479,11 @@ func voci(id_luogo: String) -> Array:
 			desc_m = "Punti %s. Se va bene ne ricevi %s." % [_ore(float(md.posta)), _ore(float(md.posta) * float(md.moltiplica))]
 		else:
 			desc_m = "Rende %s-%s. Una sola occasione." % [_ore(float(md.resa[0])), _ore(float(md.resa[1]))]
-		out.append(_voce("mossa:" + m, md.nome, "mossa", desc_m, motivo == "", motivo, float(md.rischio)))
+		out.append(_voce("mossa:" + m, md.nome, "mossa", desc_m, motivo == "", float(dur.mossa), motivo, float(md.rischio)))
 	if l.get("dona", false):
-		out.append(_voce("dona", "Donare a Sara", "dona", "Una volta sola, irreversibile. Puoi dare anche un'ora sola. La partita finisce qui.", not is_over, "", -1.0, true))
+		out.append(_voce("dona", "Donare a Sara", "dona", "Una volta sola, irreversibile. Puoi dare anche un'ora sola. La partita finisce qui.", not is_over, 0.0))
 	if l.has("cibo"):
-		out.append(_voce("mangia", "Mangiare qualcosa", "mangia", "Costa %s. Non occupa la fascia." % _ore(float(l.cibo)), sirio > float(l.cibo) and digiuno > 0, "", -1.0, true))
-	if l.has("speciale") and not contatti_noti.has(l.speciale.contatto):
-		out.append(_voce("parla:" + str(l.speciale.contatto), l.speciale.testo, "parla", "Non occupa la fascia.", true, "", -1.0, true))
+		out.append(_voce("mangia", "Mangiare qualcosa", "mangia", "Costa %s." % _ore(float(l.cibo)), sirio > float(l.cibo) and digiuno > 2.0, float(dur.mangia), "" if digiuno > 2.0 else "Hai appena mangiato"))
 	return out
 
 
@@ -382,8 +516,8 @@ func voce_per_id(id: String) -> Dictionary:
 
 static func _ore(v: float) -> String:
 	var a := absf(v)
-	if a >= 1000.0:
-		return "%.1f anni" % (v / ORE_ANNO) if a >= 4380.0 else "%dh" % int(roundf(v))
+	if a >= 4380.0:
+		return "%.1f anni" % (v / ORE_ANNO)
 	if a >= 100.0:
 		return "%dh" % int(roundf(v))
 	return "%.1fh" % v
@@ -402,8 +536,7 @@ func _rifiuto(motivo: String) -> Dictionary:
 	return e
 
 
-## Esegue una voce nel luogo indicato (ci si sposta lì). Le voci normali
-## occupano la fascia e fanno girare la città; quelle rapide no.
+## Esegue una voce. Se Sirio è altrove, prima ci va (il viaggio costa tempo).
 func esegui(id: String, dove: String = "") -> Dictionary:
 	if is_over:
 		return _rifiuto("La partita è finita.")
@@ -416,25 +549,32 @@ func esegui(id: String, dove: String = "") -> Dictionary:
 		if v.id == id:
 			voce = v
 	if voce.is_empty() or not voce.disponibile:
-		return _rifiuto(str(voce.get("nota", "Non qui, non adesso.")) if not voce.is_empty() and voce.nota != "" else "Non qui, non adesso.")
+		return _rifiuto(str(voce.nota) if not voce.is_empty() and voce.nota != "" else "Non qui, non adesso.")
 	if id == "dona":
 		return _rifiuto("La donazione si fa con dona().")
 	var esito := _esito()
-	if voce.rapida:
-		_rapida(id, dove, esito)
-		return esito
-	var eff := efficienza(dove)
-	luogo = dove
-	var dorme := false
+	if dove != luogo:
+		var v := viaggia(dove)
+		esito.eventi.append_array(v.get("eventi", []))
+		if is_over:
+			return esito
 	var tipo: String = voce.tipo
+	var dorme := false
 	if tipo == "cresci" or tipo == "riscuoti" or tipo == "luogotenente":
-		_giro(tipo, id.split(":")[1], eff, esito)
+		_giro(tipo, id.split(":")[1], esito)
 	elif tipo == "mossa":
 		_mossa(id.split(":")[1], esito)
+	elif tipo == "mangia":
+		var costo: float = float(luogo_dati(luogo).cibo)
+		sirio -= costo
+		digiuno = 0.0
+		_risultato(esito, "Mangiare qualcosa", "Pane, olio, qualcosa di caldo. Mangi in piedi.", null, true, ["Costo %s" % _ore(costo)])
 	else:
 		dorme = tipo == "dormi"
-		_azione(_azione_dati(id), eff, esito)
-	esito.eventi.append_array(passa_fascia(dorme))
+		_azione(_azione_dati(id), esito)
+	esito.eventi.append_array(passa_tempo(float(voce.durata) * 60.0, dorme))
+	if dorme:
+		sveglio = 0.0
 	return esito
 
 
@@ -449,26 +589,32 @@ func _risultato(esito: Dictionary, titolo: String, testo: String, roll, successo
 	esito.risultati.append({"titolo": titolo, "testo": testo, "roll": roll, "successo": successo, "righe": righe})
 
 
-func _azione(a: Dictionary, eff: float, esito: Dictionary) -> void:
+func _azione(a: Dictionary, esito: Dictionary) -> void:
 	var p := par()
 	if a.get("una_volta", false):
 		usate[a.id] = true
 	if a.has("attesa"):
-		attese[a.id] = fascia + int(a.attesa)
+		attese[a.id] = tempo_min + float(a.attesa) * 60.0
 	karma = clampf(karma + float(a.get("karma", 0)), -100.0, 100.0)
 	match a.tipo:
 		"lavoro":
-			var resa := float(a.resa) * eff
+			var resa := float(a.resa)
 			sirio += resa
 			lavori += 1
 			_risultato(esito, a.nome, a.ok, null, true, ["Sabbia +%s" % _ore(resa)])
 		"colpo":
-			var roll := _tiro(float(a.rischio), -int(polizia / 25.0))
+			var extra := -int(polizia / 25.0) + bonus_stat(a.get("stat", "freddezza")) + bonus_oggetti("colpo") + bonus_oggetti(a.id)
+			var roll := tiro(float(a.rischio), extra)
 			if roll.successo:
-				var resa2 := _rng.randf_range(float(a.resa[0]), float(a.resa[1])) * (1.0 + float(a.get("per_uomo", 0.0)) * uomini) * eff
+				var resa2 := _rng.randf_range(float(a.resa[0]), float(a.resa[1])) * (1.0 + float(a.get("per_uomo", 0.0)) * uomini)
 				sirio += resa2
 				colpi_riusciti += 1
-				_risultato(esito, a.nome, a.ok, roll, true, ["Sabbia +%s" % _ore(resa2)])
+				var righe2 := ["Sabbia +%s" % _ore(resa2)]
+				if colpi_riusciti % 3 == 0:
+					var s := aumenta_stat("freddezza")
+					if s != "":
+						righe2.append(s)
+				_risultato(esito, a.nome, a.ok, roll, true, righe2)
 			else:
 				polizia += float(a.get("polizia", 0))
 				var righe := ["Polizia +%d" % int(a.get("polizia", 0))]
@@ -493,16 +639,17 @@ func _azione(a: Dictionary, eff: float, esito: Dictionary) -> void:
 		"informatore":
 			sirio -= float(p.informatore)
 			informatore = true
+			ricorda("informatore")
 			_risultato(esito, a.nome, a.ok, null, true, [])
 		"dormi":
 			_risultato(esito, a.nome, a.ok, null, true, [])
 		"visita":
 			visite += 1
-			ultima_visita = fascia
+			ultima_visita = tempo_min
 			_risultato(esito, a.nome, a.ok, null, true, [])
 		"liquida":
 			var valore := flusso_lordo() * float(p.liquidazione.fasce)
-			var roll2 := _tiro(float(p.liquidazione.rischio))
+			var roll2 := tiro(float(p.liquidazione.rischio), bonus_stat("freddezza"))
 			var preso := valore if roll2.successo else valore * 0.2
 			sirio += preso
 			for g in giri:
@@ -510,7 +657,7 @@ func _azione(a: Dictionary, eff: float, esito: Dictionary) -> void:
 			_risultato(esito, a.nome, a.ok if roll2.successo else a.ko, roll2, roll2.successo, ["Sabbia +%s" % _ore(preso), "La rete non c'è più"])
 
 
-func _giro(tipo: String, g: String, eff: float, esito: Dictionary) -> void:
+func _giro(tipo: String, g: String, esito: Dictionary) -> void:
 	var d: Dictionary = dati().giri[g]
 	var st: Dictionary = giri[g]
 	match tipo:
@@ -519,9 +666,9 @@ func _giro(tipo: String, g: String, eff: float, esito: Dictionary) -> void:
 			var costo := costo_crescita(g)
 			sirio -= costo
 			karma = clampf(karma + float(d.karma), -100.0, 100.0)
-			var roll := _tiro(float(d.rischio))
+			var roll := tiro(float(d.rischio), bonus_stat(d.stat) + bonus_oggetti(g))
 			if roll.successo:
-				var prese := nuove * _rng.randf_range(0.8, 1.2) * eff
+				var prese := nuove * _rng.randf_range(0.8, 1.2)
 				st.persone = minf(float(st.persone) + prese, float(par().popolazione))
 				st.controllo = minf(1.0, float(st.controllo) + 0.2)
 				_risultato(esito, d.cresci, "Il giro si allarga.", roll, true, ["%s +%d (ora %d)" % [str(d.persone).capitalize(), int(prese), int(st.persone)], "Costo %s" % _ore(costo)])
@@ -529,7 +676,7 @@ func _giro(tipo: String, g: String, eff: float, esito: Dictionary) -> void:
 				_risultato(esito, d.cresci, "Porte chiuse, facce dure. La sabbia spesa non torna.", roll, false, ["Costo %s" % _ore(costo)])
 		"riscuoti":
 			var pieno := tributo(g) / maxf(float(st.controllo), 0.01)
-			var arretrati := (1.0 - float(st.controllo)) * pieno * 4.0 * eff
+			var arretrati := (1.0 - float(st.controllo)) * pieno * 4.0
 			st.controllo = 1.0
 			sirio += arretrati
 			_risultato(esito, "Giro di riscossione", "Passi di persona. Nessuno ha voglia di essere in ritardo.", null, true, ["Arretrati +%s" % _ore(arretrati)])
@@ -546,7 +693,10 @@ func _mossa(m: String, esito: Dictionary) -> void:
 	var md: Dictionary = dati().mosse[m]
 	mosse_tentate[m] = true
 	karma = clampf(karma + float(md.get("karma", 0)), -100.0, 100.0)
-	var roll := _tiro(float(md.rischio), uomini / 4 if md.get("richiede", {}).has("uomini") else 0)
+	var extra: int = bonus_stat(md.get("stat", "freddezza"))
+	if md.get("richiede", {}).has("uomini"):
+		extra += uomini / 4
+	var roll := tiro(float(md.rischio), extra)
 	var righe: Array = []
 	if md.has("posta"):
 		var posta := float(md.posta)
@@ -562,6 +712,7 @@ func _mossa(m: String, esito: Dictionary) -> void:
 		righe.append("Sabbia +%s" % _ore(resa))
 	if roll.successo:
 		rivalita += float(md.get("rivali", 0))
+		ricorda("mossa_" + m)
 	else:
 		var f: Dictionary = md.get("fallimento", {})
 		if f.has("uomini"):
@@ -578,19 +729,7 @@ func _mossa(m: String, esito: Dictionary) -> void:
 	_risultato(esito, md.nome, md.ok if roll.successo else md.ko, roll, roll.successo, righe)
 
 
-func _rapida(id: String, dove: String, esito: Dictionary) -> void:
-	if id == "mangia":
-		var costo: float = float(luogo_dati(dove).cibo)
-		sirio -= costo
-		digiuno = 0
-		_risultato(esito, "Mangiare qualcosa", "Pane, olio, qualcosa di caldo. Mangi in piedi.", null, true, ["Costo %s" % _ore(costo)])
-	elif id.begins_with("parla:"):
-		var cid := id.split(":")[1]
-		contatti_noti[cid] = true
-		esito.notifiche.append("Nuovo contatto in rubrica: %s" % contatto_dati(cid).nome)
-
-
-## Si dona in reparto: chi lo fa da un altro luogo ci va (la partita finisce).
+## Si dona in reparto. Chi lo fa da un altro luogo ci va: la partita finisce.
 func dona(ore: float, dove: String = "") -> Dictionary:
 	if is_over:
 		return {"successo": false, "motivo": "La partita è finita."}
@@ -623,12 +762,10 @@ func risolvi_patto(accetta: bool) -> Dictionary:
 
 # ================================================================ la città gira
 
-func passa_fascia(dorme: bool = false) -> Array:
+func _tick() -> Array:
 	var eventi: Array = []
 	var p := par()
 	var ev: Dictionary = dati().eventi
-	sirio -= float(p.ore_fascia)
-	sara -= float(p.ore_fascia)
 	if rate_debito > 0 and fascia >= int(p.anticipo.dalla_fascia):
 		sirio -= float(p.anticipo.rata)
 		rate_debito -= 1
@@ -638,6 +775,8 @@ func passa_fascia(dorme: bool = false) -> Array:
 	sirio += f
 	ultimo_incasso = f
 	picco_flusso = maxf(picco_flusso, f)
+	if absf(f) >= 0.1:
+		eventi.append({"tipo": "incasso", "testo": "La rete ha reso %s." % _ore(f), "grave": false, "ore": f})
 	var riduzione: float = float(p.calore.informatore) if informatore else 1.0
 	var lp: Dictionary = p.luogotenente
 	for g in giri:
@@ -690,25 +829,13 @@ func passa_fascia(dorme: bool = false) -> Array:
 	rivalita = maxf(0.0, rivalita - float(p.calore.calo_rivali))
 	var c: Dictionary = p.crisi
 	var prob: float = float(c.base) * giorno()
-	if fascia - ultima_visita < int(c.fasce_visita):
+	if tempo_min - ultima_visita < float(c.ore_visita) * 60.0:
 		prob *= float(c.visita)
 	if _rng.randf() < prob:
 		var danno := _rng.randf_range(float(c.danno[0]), float(c.danno[1])) * (1.0 + giorno() / 5.0)
 		sara -= danno
 		eventi.append({"tipo": "crisi", "testo": str(ev.crisi).format({"ore": int(danno)}), "grave": true})
-	sveglio = 0 if dorme else sveglio + 1
-	digiuno += 1
-	var giorno_prima := giorno()
 	fascia += 1
-	if giorno() > giorno_prima:
-		giorno_max = maxi(giorno_max, giorno())
-		var msg: String = dati().messaggi.get(str(giorno()), "")
-		if msg != "":
-			messaggi.append({"da": "venti", "testo": msg, "letto": false})
-		if karma_inizio <= float(p.patto.soglia_karma) and _rng.randf() < float(p.patto.probabilita_giorno):
-			patto_in_sospeso = {"prezzo": roundf(maxf(sirio, 0.0) * float(p.patto.prezzo))}
-			eventi.append({"tipo": "patto", "testo": Narrativa.patto_proposta(patto_in_sospeso.prezzo), "grave": true})
-	_controlla_fine()
 	return eventi
 
 
@@ -724,7 +851,7 @@ func _controlla_fine() -> void:
 		fine = "sara"
 
 
-# ================================================================ telefono
+# ================================================================ telefono e incontri
 
 func contatti_visibili() -> Array:
 	var out: Array = []
@@ -753,6 +880,12 @@ func vale(cond: Dictionary) -> bool:
 			"giro":
 				if float(giri[v[0]].persone) < float(v[1]):
 					return false
+			"giro_aperto":
+				if not giri_aperti.has(v):
+					return false
+			"giro_chiuso":
+				if giri_aperti.has(v):
+					return false
 			"flusso":
 				if flusso_lordo() < float(v):
 					return false
@@ -774,6 +907,36 @@ func vale(cond: Dictionary) -> bool:
 					return false
 			"anni_sara":
 				if punteggio().sara_anni < float(v):
+					return false
+			"flag":
+				if not ricordato(str(v)):
+					return false
+			"senza_flag":
+				if ricordato(str(v)):
+					return false
+			"oggetto":
+				if not oggetti.has(v):
+					return false
+			"senza_oggetto":
+				if oggetti.has(v):
+					return false
+			"stat":
+				if int(stat.get(v[0], 1)) < int(v[1]):
+					return false
+			"vittorie_azzardo":
+				if vittorie_azzardo < int(v):
+					return false
+			"sabbia":
+				if sirio < float(v):
+					return false
+			"pista":
+				if not piste.has(v):
+					return false
+			"senza_pista":
+				if piste.has(v):
+					return false
+			"contatto":
+				if not contatti_noti.has(v):
 					return false
 	return true
 
@@ -800,7 +963,9 @@ func ha_novita(id: String) -> bool:
 	return false
 
 
-func scegli_opzione(cid: String, oid: String) -> Dictionary:
+## Opzione di un contatto. Al telefono costa qualche minuto; di persona il
+## tempo lo conta il dialogo.
+func scegli_opzione(cid: String, oid: String, al_telefono: bool = true) -> Dictionary:
 	var c := contatto_dati(cid)
 	for o in c.get("opzioni", []):
 		if o.id != oid or not _opzione_valida(c, o):
@@ -809,12 +974,15 @@ func scegli_opzione(cid: String, oid: String) -> Dictionary:
 		var esito := _esito()
 		esito["risposta"] = risposta(o)
 		for e in o.get("effetti", []):
-			_effetto(e, esito)
+			applica_effetto(e, esito)
+		if al_telefono:
+			esito.eventi.append_array(passa_tempo(float(par().minuti_telefonata)))
 		return esito
 	return _rifiuto("Non risponde.")
 
 
-func _effetto(e: Dictionary, esito: Dictionary) -> void:
+## Effetti condivisi da telefono, dialoghi, oggetti da esaminare e minigiochi.
+func applica_effetto(e: Dictionary, esito: Dictionary) -> void:
 	if e.has("apri_giro") and not giri_aperti.has(e.apri_giro):
 		giri_aperti[e.apri_giro] = true
 		var d: Dictionary = dati().giri[e.apri_giro]
@@ -822,12 +990,49 @@ func _effetto(e: Dictionary, esito: Dictionary) -> void:
 	if e.has("luogo") and not luoghi_noti.has(e.luogo):
 		luoghi_noti[e.luogo] = true
 		esito.notifiche.append("Nuovo luogo sulla mappa: %s" % luogo_dati(e.luogo).nome)
-	if e.has("contatto") and not contatti_noti.has(e.contatto):
-		contatti_noti[e.contatto] = true
+	if e.has("contatto") and incontra(e.contatto):
 		esito.notifiche.append("Nuovo contatto in rubrica: %s" % contatto_dati(e.contatto).nome)
 	if e.has("pista") and not piste.has(e.pista):
 		piste[e.pista] = true
 		esito.notifiche.append("Nuova grande mossa nel taccuino: %s" % dati().mosse[e.pista].nome)
+	if e.has("flag"):
+		ricorda(e.flag)
+	if e.has("oggetto") and not oggetti.has(e.oggetto):
+		oggetti[e.oggetto] = true
+		esito.notifiche.append("Hai preso: %s" % dati().oggetti[e.oggetto].nome)
+	if e.has("stat"):
+		var s := aumenta_stat(e.stat[0], int(e.stat[1]))
+		if s != "":
+			esito.notifiche.append(s)
+	if e.has("karma"):
+		karma = clampf(karma + float(e.karma), -100.0, 100.0)
+	if e.has("sabbia"):
+		sirio += float(e.sabbia)
+		esito.notifiche.append("Sabbia %s%s" % ["+" if float(e.sabbia) >= 0.0 else "", _ore(float(e.sabbia))])
+	if e.has("polizia"):
+		polizia = maxf(0.0, polizia + float(e.polizia))
+	if e.has("rivalita"):
+		rivalita = maxf(0.0, rivalita + float(e.rivalita))
+	if e.has("fama"):
+		fama = maxf(0.0, fama + float(e.fama))
+	if e.has("uomini"):
+		uomini = maxi(0, uomini + int(e.uomini))
+		esito.notifiche.append("Uomini: %d" % uomini)
+	if e.has("condona") and rate_debito > 0:
+		var n := mini(int(e.condona), rate_debito)
+		rate_debito -= n
+		esito.notifiche.append("Rate a Rocco condonate: %d" % n)
+	if e.has("debito"):
+		rate_debito += int(e.debito)
+		esito.notifiche.append("Nuove rate da pagare: %d" % int(e.debito))
+	if e.has("sara"):
+		sara += float(e.sara)
+		esito.notifiche.append("Sara +%s" % _ore(float(e.sara)))
+	if e.has("giro_persone"):
+		var g: String = e.giro_persone[0]
+		giri[g].persone = float(giri[g].persone) + float(e.giro_persone[1])
+		esito.notifiche.append("%s +%d" % [str(dati().giri[g].persone).capitalize(), int(e.giro_persone[1])])
+	_controlla_fine()
 
 
 func risposta(o: Dictionary) -> String:

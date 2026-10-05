@@ -1,6 +1,21 @@
 {
  "parametri": {
   "ore_fascia": 6.0,
+  "ora_inizio": 23,
+  "durate": {
+   "cresci": 3.0,
+   "riscuoti": 2.0,
+   "luogotenente": 1.0,
+   "mossa": 4.0,
+   "mangia": 0.5
+  },
+  "minuti_telefonata": 5,
+  "minuti_stanza": 1,
+  "minuti_esamina": 2,
+  "minuti_roulette": 10,
+  "minuti_lotta": 30,
+  "stat_iniziali": 7,
+  "stat_max": 5,
   "giorni": 21,
   "sirio_iniziale": 24.0,
   "anticipo": {
@@ -35,7 +50,7 @@
   "crisi": {
    "base": 0.004,
    "visita": 0.5,
-   "fasce_visita": 8,
+   "ore_visita": 48,
    "danno": [
     12.0,
     24.0
@@ -70,43 +85,89 @@
  },
  "sonno": [
   [
-   4,
+   24,
    "Stanco",
    -1
   ],
   [
-   6,
+   36,
    "Sfinito",
    -2
   ],
   [
-   10,
+   60,
    "Allo stremo",
    -3
   ]
  ],
  "fame": [
   [
-   4,
+   24,
    "Affamato",
    -1
   ],
   [
-   8,
+   48,
    "Debilitato",
    -2
   ],
   [
-   12,
+   72,
    "A digiuno",
    -3
   ]
  ],
+ "stat": {
+  "carisma": {
+   "nome": "Carisma",
+   "descrizione": "Convincere, sedurre, predicare."
+  },
+  "intuizione": {
+   "nome": "Intuizione",
+   "descrizione": "Leggere le persone, i tavoli, le bugie."
+  },
+  "freddezza": {
+   "nome": "Freddezza",
+   "descrizione": "Mani ferme quando conta. Minacciare senza alzare la voce."
+  }
+ },
+ "oggetti": {
+  "pistola": {
+   "nome": "Una pistola",
+   "descrizione": "Vecchia, pulita. +1 ai colpi.",
+   "bonus": {
+    "colpo": 1
+   }
+  },
+  "grimaldello": {
+   "nome": "Grimaldelli",
+   "descrizione": "Un rotolo di ferri sottili. +2 agli scassi.",
+   "bonus": {
+    "scasso": 2
+   }
+  },
+  "chiave_retro": {
+   "nome": "La chiave del retro",
+   "descrizione": "Apre la saletta privata della bisca."
+  },
+  "lanterna": {
+   "nome": "Una lanterna a olio",
+   "descrizione": "Senza, le catacombe finiscono al primo livello."
+  },
+  "santino": {
+   "nome": "Il santino di Santa Rena",
+   "descrizione": "Serena lo teneva nel portafoglio. +1 a predicare.",
+   "bonus": {
+    "culto": 1
+   }
+  }
+ },
  "giri": {
   "usura": {
    "nome": "Usura",
    "persone": "debitori",
    "sede": "bottega_nando",
+   "stat": "freddezza",
    "tributo": 0.4,
    "base": 4,
    "perc": 0.18,
@@ -125,6 +186,7 @@
    "nome": "Protezione",
    "persone": "negozi",
    "sede": "piazza",
+   "stat": "freddezza",
    "tributo": 0.9,
    "base": 3,
    "perc": 0.2,
@@ -143,6 +205,7 @@
    "nome": "Bische",
    "persone": "tavoli",
    "sede": "bisca",
+   "stat": "intuizione",
    "tributo": 3.5,
    "base": 1,
    "perc": 0.15,
@@ -161,6 +224,7 @@
    "nome": "Culto",
    "persone": "fedeli",
    "sede": "chiesa",
+   "stat": "carisma",
    "tributo": 0.15,
    "base": 5,
    "perc": 0.22,
@@ -179,6 +243,7 @@
    "nome": "Cooperativa",
    "persone": "operai",
    "sede": "porto",
+   "stat": "carisma",
    "tributo": 0.25,
    "base": 5,
    "perc": 0.15,
@@ -197,6 +262,7 @@
  "azioni": [
   {
    "id": "turno",
+   "durata": 6,
    "nome": "Turno al porto",
    "luogo": "porto",
    "tipo": "lavoro",
@@ -206,16 +272,18 @@
   },
   {
    "id": "lavoretto",
+   "durata": 6,
+   "attesa": 24,
    "nome": "Lavoretto per Rocco",
    "luogo": "osteria",
    "tipo": "lavoro",
    "resa": 16.0,
    "karma": -1,
-   "attesa": 4,
    "ok": "Un magazzino da guardare fino all'alba. Non è passato nessuno. Rocco paga."
   },
   {
    "id": "mendicare",
+   "durata": 2,
    "nome": "Chiedere l'elemosina",
    "luogo": "piazza",
    "tipo": "lavoro",
@@ -225,14 +293,16 @@
   },
   {
    "id": "scippo",
+   "durata": 3,
    "nome": "Uno scippo",
    "luogo": "piazza",
    "tipo": "colpo",
    "resa": [
-    8.0,
-    22.0
+    6.0,
+    16.0
    ],
    "rischio": 0.2,
+   "stat": "freddezza",
    "polizia": 6,
    "karma": -2,
    "ok": "Una borsa, un vicolo, trenta secondi.",
@@ -240,9 +310,12 @@
   },
   {
    "id": "scasso",
+   "durata": 4,
+   "attesa": 12,
    "nome": "Un appartamento vuoto",
    "luogo": "quartiere_alto",
    "tipo": "colpo",
+   "stat": "freddezza",
    "resa": [
     20.0,
     45.0
@@ -250,15 +323,17 @@
    "rischio": 0.35,
    "polizia": 10,
    "karma": -2,
-   "attesa": 2,
    "ok": "La serratura cede senza rumore. Esci con quello che luccica.",
    "ko": "Il cane del vicino sa fare il suo mestiere."
   },
   {
    "id": "rapina",
+   "durata": 3,
+   "attesa": 12,
    "nome": "Rapina alla stazione di servizio",
    "luogo": "stazione",
    "tipo": "colpo",
+   "stat": "freddezza",
    "resa": [
     30.0,
     70.0
@@ -267,15 +342,17 @@
    "polizia": 15,
    "karma": -3,
    "uomini": 1,
-   "attesa": 2,
    "ok": "Il cassiere svuota il cassetto senza alzare gli occhi.",
    "ko": "Una volante fa benzina proprio adesso."
   },
   {
    "id": "furgone",
+   "durata": 6,
+   "attesa": 24,
    "nome": "Il furgone blindato",
    "luogo": "magazzino",
    "tipo": "colpo",
+   "stat": "freddezza",
    "resa": [
     60.0,
     120.0
@@ -285,12 +362,12 @@
    "polizia": 20,
    "karma": -4,
    "uomini": 3,
-   "attesa": 4,
    "ok": "Il furgone si ferma dove deve. Il bottino pesa.",
    "ko": "La scorta era doppia. Torni con un uomo in meno."
   },
   {
    "id": "anni_futuri",
+   "durata": 2,
    "nome": "Vendere anni futuri",
    "luogo": "agenzia",
    "tipo": "lavoro",
@@ -301,6 +378,7 @@
   },
   {
    "id": "fede",
+   "durata": 0.5,
    "nome": "Impegnare la fede nuziale",
    "luogo": "bottega_nando",
    "tipo": "lavoro",
@@ -311,6 +389,7 @@
   },
   {
    "id": "recluta",
+   "durata": 1,
    "nome": "Assoldare un uomo",
    "luogo": "osteria",
    "tipo": "recluta",
@@ -318,6 +397,7 @@
   },
   {
    "id": "corrompi",
+   "durata": 1,
    "nome": "Ungere la questura",
    "luogo": "questura",
    "tipo": "corrompi",
@@ -325,6 +405,7 @@
   },
   {
    "id": "informatore",
+   "durata": 1,
    "nome": "Comprare un informatore",
    "luogo": "questura",
    "tipo": "informatore",
@@ -332,6 +413,7 @@
   },
   {
    "id": "tributo",
+   "durata": 1,
    "nome": "Pagare un tributo ai rivali",
    "luogo": "bar_aurora",
    "tipo": "tributo",
@@ -339,6 +421,7 @@
   },
   {
    "id": "dormi",
+   "durata": 6,
    "nome": "Dormire",
    "luogo": "casa",
    "tipo": "dormi",
@@ -346,6 +429,7 @@
   },
   {
    "id": "visita",
+   "durata": 2,
    "nome": "Stare con Sara",
    "luogo": "ospedale",
    "tipo": "visita",
@@ -353,6 +437,7 @@
   },
   {
    "id": "liquida",
+   "durata": 6,
    "nome": "La grande mossa",
    "luogo": "casa",
    "tipo": "liquida",
@@ -363,6 +448,7 @@
  "mosse": {
   "tesoro_boss": {
    "nome": "Il tesoro del vecchio boss",
+   "stat": "freddezza",
    "luogo": "villa_corradi",
    "resa": [
     400.0,
@@ -383,6 +469,7 @@
   },
   "ultima_donazione": {
    "nome": "L'ultima donazione",
+   "stat": "carisma",
    "luogo": "ospedale",
    "resa": [
     300.0,
@@ -398,6 +485,7 @@
   },
   "usuraio": {
    "nome": "Il patto con l'usuraio della mezzanotte",
+   "stat": "intuizione",
    "luogo": "bar_aurora",
    "resa": [
     1500.0,
@@ -422,6 +510,7 @@
   },
   "cripta": {
    "nome": "La cripta degli eterni",
+   "stat": "carisma",
    "luogo": "catacombe",
    "resa": [
     4000.0,
@@ -446,6 +535,7 @@
   },
   "torneo": {
    "nome": "Il grande torneo dei senza-tempo",
+   "stat": "intuizione",
    "luogo": "bisca",
    "resa": [
     1500.0,
@@ -467,6 +557,7 @@
   },
   "cassa_guerra": {
    "nome": "La cassa di guerra di L'chen",
+   "stat": "freddezza",
    "luogo": "magazzino",
    "resa": [
     2500.0,
@@ -491,6 +582,7 @@
   },
   "casata": {
    "nome": "Il crollo della casata Sabbiedoro",
+   "stat": "freddezza",
    "luogo": "quartiere_alto",
    "resa": [
     6000.0,
@@ -515,6 +607,7 @@
   },
   "asta": {
    "nome": "L'asta dei secoli",
+   "stat": "intuizione",
    "luogo": "casa_aste",
    "posta": 1000.0,
    "moltiplica": 2.5,
@@ -528,6 +621,7 @@
   },
   "banca": {
    "nome": "Il grande colpo alla Banca della Sabbia",
+   "stat": "freddezza",
    "luogo": "banca",
    "resa": [
     20000.0,
@@ -616,11 +710,7 @@
     38
    ],
    "iniziale": true,
-   "descrizione": "Ceri accesi a pagamento. Il parroco conta le offerte due volte.",
-   "speciale": {
-    "testo": "Parlare con il parroco",
-    "contatto": "anselmo"
-   }
+   "descrizione": "Ceri accesi a pagamento. Il parroco conta le offerte due volte."
   },
   {
    "id": "questura",
@@ -665,11 +755,7 @@
     52
    ],
    "iniziale": true,
-   "descrizione": "Marmo, vetro blindato, guardie annoiate. Il caveau sta sotto la piazza.",
-   "speciale": {
-    "testo": "Chiedere un prestito allo sportello",
-    "contatto": "bassi"
-   }
+   "descrizione": "Marmo, vetro blindato, guardie annoiate. Il caveau sta sotto la piazza."
   },
   {
    "id": "agenzia",
@@ -745,7 +831,7 @@
   },
   {
    "id": "catacombe",
-   "nome": "Le catacombe",
+   "nome": "La Cripta degli Eterni",
    "tipo": "catacombe",
    "pos": [
     58,

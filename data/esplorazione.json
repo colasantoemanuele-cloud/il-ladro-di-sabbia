@@ -1,0 +1,3713 @@
+{
+ "stanze": [
+  {
+   "id": "casa/soggiorno",
+   "luogo": "casa",
+   "nome": "Soggiorno",
+   "tema": "casa",
+   "w": 14,
+   "h": 9,
+   "porte": [
+    {
+     "pos": [
+      7,
+      8
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire in strada"
+    },
+    {
+     "pos": [
+      0,
+      5
+     ],
+     "verso": "casa/camera",
+     "arrivo": [
+      11,
+      5
+     ],
+     "nome": "Camera"
+    },
+    {
+     "pos": [
+      13,
+      5
+     ],
+     "verso": "casa/cucina",
+     "arrivo": [
+      1,
+      5
+     ],
+     "nome": "Cucina"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "divano",
+     "tipo": "divano",
+     "pos": [
+      2,
+      3
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "Il divano",
+     "esamina": "Il divano dove Serena si addormentava col libro aperto. Il segno è ancora a pagina novanta."
+    },
+    {
+     "id": "cornice",
+     "tipo": "cornice",
+     "pos": [
+      7,
+      1
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Una foto",
+     "esamina": "Serena al mare, tre anni fa. Ride di qualcosa che hai detto tu. Non ricordi cosa."
+    },
+    {
+     "id": "scrittoio",
+     "tipo": "scrivania",
+     "pos": [
+      10,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Lo scrittoio",
+     "voci": [
+      "liquida"
+     ],
+     "esamina": "Qui tieni i conti. Se un giorno vorrai vendere tutto in una notte, si comincia da questo foglio."
+    },
+    {
+     "id": "tavolino",
+     "tipo": "tavolino",
+     "pos": [
+      5,
+      5
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Il tavolino",
+     "esamina": "Bollette, una ninna nanna stampata da internet, le chiavi di Serena."
+    }
+   ],
+   "npc": [],
+   "entrata": [
+    7,
+    7
+   ],
+   "musica": "casa"
+  },
+  {
+   "id": "casa/camera",
+   "luogo": "casa",
+   "nome": "Camera da letto",
+   "tema": "casa",
+   "w": 13,
+   "h": 9,
+   "porte": [
+    {
+     "pos": [
+      12,
+      5
+     ],
+     "verso": "casa/soggiorno",
+     "arrivo": [
+      1,
+      5
+     ],
+     "nome": "Soggiorno"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "letto",
+     "tipo": "letto",
+     "pos": [
+      2,
+      3
+     ],
+     "dim": [
+      2,
+      3
+     ],
+     "nome": "Il letto",
+     "voci": [
+      "dormi"
+     ],
+     "esamina": "Metà del letto è fredda da tre giorni."
+    },
+    {
+     "id": "culla",
+     "tipo": "culla",
+     "pos": [
+      7,
+      3
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "La culla",
+     "esamina": "L'hai montata tu, sbagliando due viti. Sara non ci ha ancora dormito."
+    },
+    {
+     "id": "armadio",
+     "tipo": "armadio",
+     "pos": [
+      9,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "L'armadio",
+     "esamina": "Tra i vestiti di Serena c'è il suo portafoglio. Dentro, un santino di Santa Rena consumato agli angoli.",
+     "effetti": [
+      {
+       "oggetto": "santino"
+      }
+     ]
+    }
+   ],
+   "npc": [],
+   "musica": "casa"
+  },
+  {
+   "id": "casa/cucina",
+   "luogo": "casa",
+   "nome": "Cucina",
+   "tema": "casa",
+   "w": 12,
+   "h": 9,
+   "porte": [
+    {
+     "pos": [
+      0,
+      5
+     ],
+     "verso": "casa/soggiorno",
+     "arrivo": [
+      12,
+      5
+     ],
+     "nome": "Soggiorno"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "fornello",
+     "tipo": "fornello",
+     "pos": [
+      2,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Il fornello",
+     "esamina": "Una pentola di sugo che nessuno ha finito. Ormai è da buttare."
+    },
+    {
+     "id": "tavolo_cucina",
+     "tipo": "tavolo",
+     "pos": [
+      5,
+      4
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "Il tavolo",
+     "voci": [
+      "mangia"
+     ],
+     "esamina": "Due sedie. Ne basterebbe una."
+    },
+    {
+     "id": "frigo",
+     "tipo": "frigo",
+     "pos": [
+      9,
+      2
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Il frigorifero",
+     "esamina": "Un biglietto attaccato con la calamita: «Compra il latte. Ti amo.»"
+    }
+   ],
+   "npc": [],
+   "musica": "casa"
+  },
+  {
+   "id": "ospedale/corridoio",
+   "luogo": "ospedale",
+   "nome": "Corridoio del terzo piano",
+   "tema": "ospedale",
+   "w": 16,
+   "h": 9,
+   "porte": [
+    {
+     "pos": [
+      8,
+      8
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire dall'ospedale"
+    },
+    {
+     "pos": [
+      8,
+      1
+     ],
+     "verso": "ospedale/reparto",
+     "arrivo": [
+      8,
+      8
+     ],
+     "nome": "Terapia intensiva neonatale"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "distributore",
+     "tipo": "distributore",
+     "pos": [
+      13,
+      2
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Il distributore",
+     "esamina": "Caffè a un minuto di sabbia. Il cartello dice che è un'offerta."
+    },
+    {
+     "id": "sedie",
+     "tipo": "sedie",
+     "pos": [
+      2,
+      3
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "Le sedie",
+     "esamina": "Sedie di plastica arancione. Ci hai passato la prima notte."
+    }
+   ],
+   "npc": [
+    {
+     "id": "infermiera",
+     "aspetto": "infermiera",
+     "pos": [
+      5,
+      5
+     ],
+     "nome": "Un'infermiera",
+     "battute": [
+      "Il turno di notte è il più lungo. Anche per i genitori.",
+      "Non corra nel corridoio. Qui il tempo passa uguale.",
+      "La dottoressa Venti è in reparto. Bussi piano."
+     ]
+    }
+   ],
+   "entrata": [
+    8,
+    7
+   ],
+   "musica": "ospedale"
+  },
+  {
+   "id": "ospedale/reparto",
+   "luogo": "ospedale",
+   "nome": "Terapia intensiva neonatale",
+   "tema": "ospedale",
+   "w": 16,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      8,
+      9
+     ],
+     "verso": "ospedale/corridoio",
+     "arrivo": [
+      8,
+      2
+     ],
+     "nome": "Corridoio"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "incubatrice",
+     "tipo": "incubatrice",
+     "pos": [
+      6,
+      3
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "L'incubatrice di Sara",
+     "voci": [
+      "visita",
+      "dona"
+     ],
+     "esamina": "Sara dorme sotto la luce. Un tubicino, un cerotto, una clessidra piccola sul monitor."
+    },
+    {
+     "id": "lettino",
+     "tipo": "lettino",
+     "pos": [
+      12,
+      3
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "Il letto in fondo",
+     "voci": [
+      "mossa:ultima_donazione"
+     ],
+     "esamina": "Un vecchio dorme con la bocca aperta. Sul comodino, nessun fiore."
+    },
+    {
+     "id": "monitor",
+     "tipo": "monitor",
+     "pos": [
+      3,
+      2
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Il monitor",
+     "esamina": "Una linea verde che sale e scende. La guardi finché non ti fa male."
+    }
+   ],
+   "npc": [
+    {
+     "id": "venti",
+     "aspetto": "venti",
+     "pos": [
+      10,
+      5
+     ],
+     "nome": "Dott.ssa Ilaria Venti",
+     "dialogo": "venti",
+     "contatto": "venti"
+    }
+   ],
+   "musica": "ospedale"
+  },
+  {
+   "id": "osteria/sala",
+   "luogo": "osteria",
+   "nome": "Osteria di Rocco",
+   "tema": "osteria",
+   "w": 16,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      8,
+      9
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "bancone",
+     "tipo": "bancone",
+     "pos": [
+      2,
+      2
+     ],
+     "dim": [
+      6,
+      1
+     ],
+     "nome": "Il bancone",
+     "voci": [
+      "lavoretto",
+      "mangia"
+     ],
+     "esamina": "Legno segnato dai bicchieri. Rocco ci passa lo straccio anche quando è pulito."
+    },
+    {
+     "id": "tavolo_uomini",
+     "tipo": "tavolo",
+     "pos": [
+      11,
+      6
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Il tavolo in fondo",
+     "voci": [
+      "recluta"
+     ],
+     "esamina": "Ragazzi con le mani grandi e niente da fare. Aspettano qualcuno che li paghi."
+    },
+    {
+     "id": "jukebox",
+     "tipo": "jukebox",
+     "pos": [
+      14,
+      2
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Il jukebox",
+     "esamina": "Suona sempre la stessa canzone. Nessuno si alza a cambiarla."
+    }
+   ],
+   "npc": [
+    {
+     "id": "rocco",
+     "aspetto": "rocco",
+     "pos": [
+      5,
+      4
+     ],
+     "nome": "Rocco Ferrante",
+     "dialogo": "rocco",
+     "contatto": "rocco"
+    },
+    {
+     "id": "ubriaco",
+     "aspetto": "ubriaco",
+     "pos": [
+      3,
+      7
+     ],
+     "nome": "Un ubriaco",
+     "dialogo": "ubriaco"
+    }
+   ],
+   "entrata": [
+    8,
+    8
+   ],
+   "musica": "osteria"
+  },
+  {
+   "id": "porto/banchina",
+   "luogo": "porto",
+   "nome": "La banchina",
+   "tema": "porto",
+   "w": 18,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      9,
+      9
+     ],
+     "verso": "@mappa",
+     "nome": "Lasciare il porto"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "casse",
+     "tipo": "casse",
+     "pos": [
+      3,
+      3
+     ],
+     "dim": [
+      3,
+      2
+     ],
+     "nome": "Le casse",
+     "voci": [
+      "turno",
+      "cresci:cooperativa",
+      "riscuoti:cooperativa",
+      "luogotenente:cooperativa"
+     ],
+     "esamina": "Casse da spostare, sempre. Il porto non dorme mai abbastanza."
+    },
+    {
+     "id": "gru",
+     "tipo": "gru",
+     "pos": [
+      13,
+      2
+     ],
+     "dim": [
+      3,
+      2
+     ],
+     "nome": "La gru",
+     "esamina": "Ferma da un mese. Dicono che la sabbia per ripararla non c'è."
+    },
+    {
+     "id": "bitta",
+     "tipo": "bitta",
+     "pos": [
+      9,
+      3
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Una bitta",
+     "esamina": "Ci leghi lo sguardo al mare. Il mare non restituisce niente."
+    }
+   ],
+   "npc": [
+    {
+     "id": "gaetano",
+     "aspetto": "gaetano",
+     "pos": [
+      7,
+      5
+     ],
+     "nome": "Gaetano Ruggiero",
+     "dialogo": "gaetano",
+     "contatto": "gaetano"
+    },
+    {
+     "id": "portuale",
+     "aspetto": "portuale",
+     "pos": [
+      15,
+      6
+     ],
+     "nome": "Un portuale",
+     "battute": [
+      "Gaetano è uno giusto. Raro, da queste parti.",
+      "Se cerchi lavoro, il turno parte quando arrivi.",
+      "Le casse col timbro rosso non le tocca nessuno. Sono di L'chen."
+     ]
+    }
+   ],
+   "entrata": [
+    9,
+    8
+   ],
+   "musica": "citta"
+  },
+  {
+   "id": "piazza/mercato",
+   "luogo": "piazza",
+   "nome": "Piazza del Mercato",
+   "tema": "piazza",
+   "w": 18,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      9,
+      9
+     ],
+     "verso": "@mappa",
+     "nome": "Lasciare la piazza"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "fontana",
+     "tipo": "fontana",
+     "pos": [
+      8,
+      4
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "La fontana",
+     "voci": [
+      "mendicare"
+     ],
+     "esamina": "Senz'acqua da anni. La gente ci butta lo stesso le monete, per abitudine."
+    },
+    {
+     "id": "bancarella",
+     "tipo": "bancarella",
+     "pos": [
+      2,
+      3
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "La bancarella",
+     "voci": [
+      "mangia"
+     ],
+     "esamina": "Arancini, olive, pane di ieri a metà prezzo."
+    },
+    {
+     "id": "botteghe",
+     "tipo": "botteghe",
+     "pos": [
+      13,
+      2
+     ],
+     "dim": [
+      4,
+      1
+     ],
+     "nome": "Le botteghe",
+     "voci": [
+      "cresci:protezione",
+      "riscuoti:protezione",
+      "luogotenente:protezione"
+     ],
+     "esamina": "Un fornaio, un barbiere, una merceria. Ogni negozio paga qualcuno, o pagherà."
+    },
+    {
+     "id": "folla",
+     "tipo": "folla",
+     "pos": [
+      14,
+      6
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "La folla del mercato",
+     "voci": [
+      "scippo"
+     ],
+     "esamina": "Borse aperte, tasche gonfie, occhi altrove."
+    }
+   ],
+   "npc": [
+    {
+     "id": "venditore",
+     "aspetto": "venditore",
+     "pos": [
+      5,
+      6
+     ],
+     "nome": "Un venditore",
+     "battute": [
+      "Arancini caldi. Due minuti di sabbia, uno se mi fai ridere.",
+      "Quelli dell'Aurora passano il venerdì a riscuotere. Tu chi sei?",
+      "La fontana una volta funzionava. Anche io."
+     ]
+    }
+   ],
+   "entrata": [
+    9,
+    8
+   ],
+   "musica": "citta"
+  },
+  {
+   "id": "chiesa/navata",
+   "luogo": "chiesa",
+   "nome": "Santuario di Santa Rena",
+   "tema": "chiesa",
+   "w": 14,
+   "h": 12,
+   "porte": [
+    {
+     "pos": [
+      7,
+      11
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire sul sagrato"
+    },
+    {
+     "pos": [
+      13,
+      4
+     ],
+     "verso": "chiesa/sagrestia",
+     "arrivo": [
+      1,
+      4
+     ],
+     "nome": "Sagrestia"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "pulpito",
+     "tipo": "altare",
+     "pos": [
+      6,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Il pulpito",
+     "voci": [
+      "cresci:culto",
+      "riscuoti:culto",
+      "luogotenente:culto"
+     ],
+     "esamina": "Da qui si vede tutta la navata. Da qui si chiede, e si ottiene."
+    },
+    {
+     "id": "ceri",
+     "tipo": "ceri",
+     "pos": [
+      2,
+      2
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "I ceri",
+     "esamina": "Accendi un cero per Serena. La fiamma trema e poi sta dritta.",
+     "effetti": [
+      {
+       "karma": 1
+      }
+     ]
+    },
+    {
+     "id": "banchi1",
+     "tipo": "banchi",
+     "pos": [
+      3,
+      6
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "I banchi",
+     "esamina": "Legno lucido di ginocchia."
+    },
+    {
+     "id": "banchi2",
+     "tipo": "banchi",
+     "pos": [
+      8,
+      6
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "I banchi",
+     "esamina": "Una vecchia prega a bassa voce. Prega per le ore di qualcun altro."
+    }
+   ],
+   "npc": [
+    {
+     "id": "anselmo",
+     "aspetto": "anselmo",
+     "pos": [
+      10,
+      3
+     ],
+     "nome": "Padre Anselmo",
+     "dialogo": "anselmo",
+     "contatto": "anselmo"
+    }
+   ],
+   "entrata": [
+    7,
+    10
+   ],
+   "musica": "chiesa"
+  },
+  {
+   "id": "chiesa/sagrestia",
+   "luogo": "chiesa",
+   "nome": "Sagrestia",
+   "tema": "chiesa",
+   "w": 10,
+   "h": 8,
+   "porte": [
+    {
+     "pos": [
+      0,
+      4
+     ],
+     "verso": "chiesa/navata",
+     "arrivo": [
+      12,
+      4
+     ],
+     "nome": "Navata"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "registro_offerte",
+     "tipo": "registro",
+     "pos": [
+      4,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Il registro delle offerte",
+     "esamina": "Due colonne di numeri. Quella delle offerte e quella di quello che arriva in curia. Non tornano.",
+     "effetti": [
+      {
+       "flag": "conti_parroco"
+      }
+     ]
+    },
+    {
+     "id": "armadio_paramenti",
+     "tipo": "armadio",
+     "pos": [
+      7,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "L'armadio dei paramenti",
+     "esamina": "Tra le stole c'è una lanterna a olio. Nessuno qui ne ha bisogno. Laggiù, sotto la città, sì.",
+     "effetti": [
+      {
+       "oggetto": "lanterna"
+      }
+     ]
+    }
+   ],
+   "npc": [],
+   "musica": "chiesa"
+  },
+  {
+   "id": "questura/atrio",
+   "luogo": "questura",
+   "nome": "Questura",
+   "tema": "questura",
+   "w": 16,
+   "h": 9,
+   "porte": [
+    {
+     "pos": [
+      8,
+      8
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "sportello",
+     "tipo": "sportello",
+     "pos": [
+      6,
+      2
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "Lo sportello",
+     "voci": [
+      "corrompi"
+     ],
+     "esamina": "Un vetro opaco, una fessura per i documenti. E per altro."
+    },
+    {
+     "id": "scrivania_agente",
+     "tipo": "scrivania",
+     "pos": [
+      11,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "La scrivania dell'agente",
+     "voci": [
+      "informatore"
+     ],
+     "esamina": "Fascicoli impilati, un posacenere pieno, una foto di bambini."
+    },
+    {
+     "id": "bacheca",
+     "tipo": "bacheca",
+     "pos": [
+      2,
+      1
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "La bacheca",
+     "esamina": "Ricercati. Una faccia somiglia alla tua di dieci anni fa."
+    }
+   ],
+   "npc": [
+    {
+     "id": "lombardi",
+     "aspetto": "agente",
+     "pos": [
+      12,
+      5
+     ],
+     "nome": "Agente Lombardi",
+     "dialogo": "lombardi"
+    }
+   ],
+   "entrata": [
+    8,
+    7
+   ],
+   "musica": "citta"
+  },
+  {
+   "id": "stazione/piazzale",
+   "luogo": "stazione",
+   "nome": "Stazione di servizio",
+   "tema": "stazione",
+   "w": 16,
+   "h": 9,
+   "porte": [
+    {
+     "pos": [
+      8,
+      8
+     ],
+     "verso": "@mappa",
+     "nome": "Ripartire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "negozio",
+     "tipo": "cassa",
+     "pos": [
+      10,
+      2
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "La cassa",
+     "voci": [
+      "rapina",
+      "mangia"
+     ],
+     "esamina": "Un ragazzo con le cuffie conta i resti. Dietro di lui, la cassa piena."
+    },
+    {
+     "id": "pompe",
+     "tipo": "pompe",
+     "pos": [
+      3,
+      3
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Le pompe",
+     "esamina": "Neon che ronza. Odore di benzina e di notte lunga."
+    }
+   ],
+   "npc": [
+    {
+     "id": "benzinaio",
+     "aspetto": "benzinaio",
+     "pos": [
+      6,
+      5
+     ],
+     "nome": "Il benzinaio",
+     "battute": [
+      "Il caffè è bruciato, ma è caffè.",
+      "Le volanti passano alle tre. Non lo dico per niente."
+     ]
+    }
+   ],
+   "entrata": [
+    8,
+    7
+   ],
+   "musica": "citta"
+  },
+  {
+   "id": "quartiere_alto/via",
+   "luogo": "quartiere_alto",
+   "nome": "Via dei Giardini",
+   "tema": "giardini",
+   "w": 18,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      9,
+      9
+     ],
+     "verso": "@mappa",
+     "nome": "Scendere in città"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "villetta",
+     "tipo": "cancello",
+     "pos": [
+      3,
+      2
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "Una villetta",
+     "voci": [
+      "scasso"
+     ],
+     "esamina": "Persiane chiuse, posta accumulata. I padroni sono al mare."
+    },
+    {
+     "id": "palazzo",
+     "tipo": "palazzo",
+     "pos": [
+      12,
+      1
+     ],
+     "dim": [
+      4,
+      2
+     ],
+     "nome": "Palazzo Sabbiedoro",
+     "voci": [
+      "mossa:casata"
+     ],
+     "esamina": "Lo stemma di una clessidra d'oro, scrostato. I Sabbiedoro stanno crollando da dentro."
+    },
+    {
+     "id": "siepe",
+     "tipo": "siepe",
+     "pos": [
+      7,
+      5
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "Una siepe",
+     "esamina": "Potata da qualcuno pagato bene."
+    }
+   ],
+   "npc": [
+    {
+     "id": "guardia",
+     "aspetto": "guardia",
+     "pos": [
+      14,
+      6
+     ],
+     "nome": "Una guardia privata",
+     "battute": [
+      "Circoli. Qui non c'è niente da vedere.",
+      "Lei non abita qui. Si vede dalle scarpe."
+     ]
+    }
+   ],
+   "entrata": [
+    9,
+    8
+   ],
+   "musica": "citta"
+  },
+  {
+   "id": "banca/salone",
+   "luogo": "banca",
+   "nome": "Banca della Sabbia Centrale",
+   "tema": "banca",
+   "w": 16,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      8,
+      9
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "sportelli",
+     "tipo": "sportello",
+     "pos": [
+      4,
+      2
+     ],
+     "dim": [
+      5,
+      1
+     ],
+     "nome": "Gli sportelli",
+     "esamina": "Si deposita sabbia come si deposita la vita. Con un modulo in triplice copia."
+    },
+    {
+     "id": "caveau",
+     "tipo": "caveau",
+     "pos": [
+      12,
+      1
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "La porta del caveau",
+     "voci": [
+      "mossa:banca"
+     ],
+     "esamina": "Acciaio, ruote dentate, un orologio a tempo. Sotto c'è più sabbia che in tutta Ledune."
+    }
+   ],
+   "npc": [
+    {
+     "id": "bassi",
+     "aspetto": "bassi",
+     "pos": [
+      10,
+      5
+     ],
+     "nome": "Ettore Bassi",
+     "dialogo": "bassi",
+     "contatto": "bassi"
+    },
+    {
+     "id": "guardia_banca",
+     "aspetto": "guardia",
+     "pos": [
+      3,
+      5
+     ],
+     "nome": "Una guardia",
+     "battute": [
+      "Le mani dove posso vederle, prego.",
+      "Orario di chiusura alle sei."
+     ]
+    }
+   ],
+   "entrata": [
+    8,
+    8
+   ],
+   "musica": "citta"
+  },
+  {
+   "id": "agenzia/ufficio",
+   "luogo": "agenzia",
+   "nome": "Agenzia Clessidra",
+   "tema": "agenzia",
+   "w": 12,
+   "h": 8,
+   "porte": [
+    {
+     "pos": [
+      6,
+      7
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "scrivania_agenzia",
+     "tipo": "scrivania",
+     "pos": [
+      5,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "La scrivania",
+     "voci": [
+      "anni_futuri"
+     ],
+     "esamina": "Un contratto già compilato. Manca solo il tuo nome e il tuo futuro."
+    },
+    {
+     "id": "manifesto",
+     "tipo": "quadro",
+     "pos": [
+      2,
+      1
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Un manifesto",
+     "esamina": "«Il futuro è adesso.» Sotto, a matita, qualcuno ha scritto: «Il mio no.»"
+    }
+   ],
+   "npc": [
+    {
+     "id": "impiegata",
+     "aspetto": "impiegata",
+     "pos": [
+      8,
+      4
+     ],
+     "nome": "L'impiegata",
+     "battute": [
+      "Gli anni futuri si pagano subito. È il bello del contratto.",
+      "Firmi qui, qui e qui. Il resto lo legge dopo."
+     ]
+    }
+   ],
+   "entrata": [
+    6,
+    6
+   ],
+   "musica": "citta"
+  },
+  {
+   "id": "bottega_nando/negozio",
+   "luogo": "bottega_nando",
+   "nome": "Bottega di Nando",
+   "tema": "bottega",
+   "w": 12,
+   "h": 8,
+   "porte": [
+    {
+     "pos": [
+      6,
+      7
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire"
+    },
+    {
+     "pos": [
+      11,
+      4
+     ],
+     "verso": "bottega_nando/retro",
+     "arrivo": [
+      1,
+      4
+     ],
+     "nome": "Il retro"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "teca",
+     "tipo": "teca",
+     "pos": [
+      2,
+      2
+     ],
+     "dim": [
+      3,
+      1
+     ],
+     "nome": "La teca dei pegni",
+     "voci": [
+      "fede"
+     ],
+     "esamina": "Orologi, fedi, una medaglia al valore. Ogni oggetto è una storia finita male."
+    }
+   ],
+   "npc": [
+    {
+     "id": "nando",
+     "aspetto": "nando",
+     "pos": [
+      7,
+      3
+     ],
+     "nome": "Nando",
+     "dialogo": "nando"
+    }
+   ],
+   "entrata": [
+    6,
+    6
+   ],
+   "musica": "osteria"
+  },
+  {
+   "id": "bottega_nando/retro",
+   "luogo": "bottega_nando",
+   "nome": "Il retro di Nando",
+   "tema": "bottega",
+   "w": 10,
+   "h": 8,
+   "porte": [
+    {
+     "pos": [
+      0,
+      4
+     ],
+     "verso": "bottega_nando/negozio",
+     "arrivo": [
+      10,
+      4
+     ],
+     "nome": "Il negozio"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "registro",
+     "tipo": "registro",
+     "pos": [
+      4,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Il registro dei debitori",
+     "voci": [
+      "cresci:usura",
+      "riscuoti:usura",
+      "luogotenente:usura"
+     ],
+     "esamina": "Nomi, ore prestate, ore dovute. Una calligrafia minuta e paziente."
+    },
+    {
+     "id": "scaffali",
+     "tipo": "scaffale",
+     "pos": [
+      7,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Gli scaffali",
+     "esamina": "Scatole con sopra un nome e una data. Alcune date sono passate da molto."
+    }
+   ],
+   "npc": [],
+   "musica": "osteria"
+  },
+  {
+   "id": "bisca/sala",
+   "luogo": "bisca",
+   "nome": "La Bisca del Molo",
+   "tema": "bisca",
+   "w": 18,
+   "h": 11,
+   "porte": [
+    {
+     "pos": [
+      9,
+      10
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire sul molo"
+    },
+    {
+     "pos": [
+      17,
+      5
+     ],
+     "verso": "bisca/ring",
+     "arrivo": [
+      1,
+      5
+     ],
+     "nome": "Il ring"
+    },
+    {
+     "pos": [
+      14,
+      1
+     ],
+     "verso": "bisca/retro",
+     "arrivo": [
+      5,
+      6
+     ],
+     "nome": "La saletta privata",
+     "richiede": [
+      {
+       "flag": "accesso_retro"
+      },
+      {
+       "oggetto": "chiave_retro"
+      }
+     ]
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "roulette",
+     "tipo": "roulette",
+     "pos": [
+      3,
+      4
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "La roulette",
+     "esamina": "Il croupier ha le mani bianche e gli occhi altrove.",
+     "minigioco": "roulette"
+    },
+    {
+     "id": "tavolo_verde",
+     "tipo": "tavolo_verde",
+     "pos": [
+      10,
+      4
+     ],
+     "dim": [
+      3,
+      2
+     ],
+     "nome": "Il tavolo verde",
+     "voci": [
+      "cresci:bische",
+      "mossa:torneo"
+     ],
+     "esamina": "Panno consumato, fiches di osso. Chi siede qui ha già perso qualcosa."
+    }
+   ],
+   "npc": [
+    {
+     "id": "marisa",
+     "aspetto": "marisa",
+     "pos": [
+      7,
+      3
+     ],
+     "nome": "Marisa Lo Bianco",
+     "dialogo": "marisa",
+     "contatto": "marisa"
+    },
+    {
+     "id": "giocatore",
+     "aspetto": "giocatore",
+     "pos": [
+      14,
+      7
+     ],
+     "nome": "Un giocatore",
+     "battute": [
+      "Rosso, sempre rosso. Una volta o l'altra esce.",
+      "Ho giocato un anno di mia moglie. Non glielo dica.",
+      "Al ring stasera c'è da guadagnare, se sai chi guardare."
+     ]
+    }
+   ],
+   "entrata": [
+    9,
+    9
+   ],
+   "musica": "bisca"
+  },
+  {
+   "id": "bisca/retro",
+   "luogo": "bisca",
+   "nome": "La saletta privata",
+   "tema": "retro",
+   "w": 12,
+   "h": 8,
+   "porte": [
+    {
+     "pos": [
+      5,
+      7
+     ],
+     "verso": "bisca/sala",
+     "arrivo": [
+      14,
+      2
+     ],
+     "nome": "La sala"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "tavolo_privato",
+     "tipo": "tavolo_verde",
+     "pos": [
+      4,
+      2
+     ],
+     "dim": [
+      3,
+      2
+     ],
+     "nome": "Il tavolo privato",
+     "voci": [
+      "riscuoti:bische",
+      "luogotenente:bische"
+     ],
+     "esamina": "Qui si gioca senza fiches. Si gioca a voce, e la voce vale ore."
+    },
+    {
+     "id": "cassaforte",
+     "tipo": "cassaforte",
+     "pos": [
+      9,
+      2
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "La cassaforte",
+     "esamina": "Chiusa. Marisa porta la combinazione al collo."
+    }
+   ],
+   "npc": [],
+   "musica": "bisca"
+  },
+  {
+   "id": "bisca/ring",
+   "luogo": "bisca",
+   "nome": "Il ring clandestino",
+   "tema": "ring",
+   "w": 14,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      0,
+      5
+     ],
+     "verso": "bisca/sala",
+     "arrivo": [
+      16,
+      5
+     ],
+     "nome": "La sala"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "ring",
+     "tipo": "ring",
+     "pos": [
+      5,
+      3
+     ],
+     "dim": [
+      4,
+      4
+     ],
+     "nome": "Il ring",
+     "esamina": "Corde lise, sangue vecchio sul telo. Si scommette in ore.",
+     "minigioco": "lotte"
+    }
+   ],
+   "npc": [
+    {
+     "id": "allibratore",
+     "aspetto": "allibratore",
+     "pos": [
+      11,
+      4
+     ],
+     "nome": "L'allibratore",
+     "battute": [
+      "Le quote le faccio io. Le sorprese le fa il ring.",
+      "Chi punta sul favorito non si diverte mai."
+     ]
+    }
+   ],
+   "musica": "bisca"
+  },
+  {
+   "id": "magazzino/deposito",
+   "luogo": "magazzino",
+   "nome": "Magazzino di L'chen",
+   "tema": "magazzino",
+   "w": 18,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      9,
+      9
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "casse_pesce",
+     "tipo": "casse",
+     "pos": [
+      2,
+      2
+     ],
+     "dim": [
+      3,
+      2
+     ],
+     "nome": "Le casse di pesce",
+     "esamina": "Ghiaccio e pesce, sopra. Sotto, altro."
+    },
+    {
+     "id": "furgone",
+     "tipo": "furgone",
+     "pos": [
+      11,
+      6
+     ],
+     "dim": [
+      3,
+      2
+     ],
+     "nome": "Il furgone",
+     "voci": [
+      "furgone"
+     ],
+     "esamina": "Un furgone con le targhe cambiate. Aspetta un lavoro grosso."
+    },
+    {
+     "id": "cassa_guerra",
+     "tipo": "cassaforte",
+     "pos": [
+      15,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "La cassa di guerra",
+     "voci": [
+      "mossa:cassa_guerra"
+     ],
+     "esamina": "Una cassa di ferro con il marchio di L'chen. Due uomini la guardano anche quando dormono."
+    }
+   ],
+   "npc": [
+    {
+     "id": "shen",
+     "aspetto": "shen",
+     "pos": [
+      8,
+      4
+     ],
+     "nome": "Mei Shen",
+     "dialogo": "shen",
+     "contatto": "shen"
+    }
+   ],
+   "entrata": [
+    9,
+    8
+   ],
+   "musica": "osteria"
+  },
+  {
+   "id": "bar_aurora/sala",
+   "luogo": "bar_aurora",
+   "nome": "Bar Aurora",
+   "tema": "bar",
+   "w": 14,
+   "h": 9,
+   "porte": [
+    {
+     "pos": [
+      7,
+      8
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "bancone_aurora",
+     "tipo": "bancone",
+     "pos": [
+      2,
+      2
+     ],
+     "dim": [
+      5,
+      1
+     ],
+     "nome": "Il bancone",
+     "voci": [
+      "mangia",
+      "tributo"
+     ],
+     "esamina": "Il caffè migliore di Ledune. Lo servono a chi conviene."
+    },
+    {
+     "id": "tavolo_mezzanotte",
+     "tipo": "tavolo",
+     "pos": [
+      10,
+      3
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Il tavolo in fondo",
+     "voci": [
+      "mossa:usuraio"
+     ],
+     "esamina": "Un uomo in cappotto beve acqua. Aspetta qualcuno con dei debitori da vendere."
+    }
+   ],
+   "npc": [
+    {
+     "id": "rivale",
+     "aspetto": "rivale",
+     "pos": [
+      6,
+      5
+     ],
+     "nome": "Uno dell'Aurora",
+     "battute": [
+      "La piazza è nostra da prima che nascessi.",
+      "Bevi e vattene. Oggi siamo gentili."
+     ]
+    }
+   ],
+   "entrata": [
+    7,
+    7
+   ],
+   "musica": "osteria"
+  },
+  {
+   "id": "villa_corradi/giardino",
+   "luogo": "villa_corradi",
+   "nome": "Villa Corradi",
+   "tema": "villa",
+   "w": 16,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      8,
+      9
+     ],
+     "verso": "@mappa",
+     "nome": "Andarsene"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "portone",
+     "tipo": "portone",
+     "pos": [
+      7,
+      1
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "Il portone",
+     "voci": [
+      "mossa:tesoro_boss"
+     ],
+     "esamina": "Sigilli della polizia, scoloriti. Il vecchio boss di L'chen diceva che la casa era più sicura di una banca."
+    },
+    {
+     "id": "fontana_secca",
+     "tipo": "fontana",
+     "pos": [
+      3,
+      4
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "La fontana",
+     "esamina": "Foglie marce e una statua senza testa."
+    }
+   ],
+   "npc": [],
+   "entrata": [
+    8,
+    8
+   ],
+   "musica": "cripta"
+  },
+  {
+   "id": "casa_aste/sala",
+   "luogo": "casa_aste",
+   "nome": "Casa d'aste Morandi",
+   "tema": "aste",
+   "w": 14,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      7,
+      9
+     ],
+     "verso": "@mappa",
+     "nome": "Uscire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "podio",
+     "tipo": "podio",
+     "pos": [
+      6,
+      1
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "Il podio del banditore",
+     "voci": [
+      "mossa:asta"
+     ],
+     "esamina": "Un martelletto d'avorio. Batte secoli come se fossero sedie."
+    },
+    {
+     "id": "sedie_aste",
+     "tipo": "sedie",
+     "pos": [
+      3,
+      5
+     ],
+     "dim": [
+      8,
+      1
+     ],
+     "nome": "Le sedie",
+     "esamina": "Velluto rosso. Chi siede qui ha più tempo di quanto possa spendere."
+    }
+   ],
+   "npc": [
+    {
+     "id": "morandi",
+     "aspetto": "morandi",
+     "pos": [
+      10,
+      3
+     ],
+     "nome": "Morandi",
+     "battute": [
+      "Qui non si chiede da dove viene la sabbia. Si chiede quanta.",
+      "Il prossimo lotto è un secolo intero. Rilancio minimo, dieci anni."
+     ]
+    }
+   ],
+   "entrata": [
+    7,
+    8
+   ],
+   "musica": "chiesa"
+  },
+  {
+   "id": "catacombe/ingresso",
+   "luogo": "catacombe",
+   "nome": "La Cripta: ingresso",
+   "tema": "cripta",
+   "w": 12,
+   "h": 9,
+   "porte": [
+    {
+     "pos": [
+      6,
+      8
+     ],
+     "verso": "@mappa",
+     "nome": "Risalire in città"
+    },
+    {
+     "pos": [
+      10,
+      3
+     ],
+     "verso": "catacombe/ossario",
+     "scala": true,
+     "arrivo": [
+      2,
+      3
+     ],
+     "nome": "Scendere"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "candele",
+     "tipo": "candele",
+     "pos": [
+      3,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Le candele",
+     "esamina": "Qualcuno le accende ogni notte. Nessuno sa chi."
+    },
+    {
+     "id": "iscrizione",
+     "tipo": "lapide",
+     "pos": [
+      6,
+      1
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Un'iscrizione",
+     "esamina": "Lettere più vecchie del latino. Una sola parola leggibile: ETERNI."
+    }
+   ],
+   "npc": [],
+   "entrata": [
+    6,
+    7
+   ],
+   "buio": true,
+   "musica": "cripta"
+  },
+  {
+   "id": "catacombe/ossario",
+   "luogo": "catacombe",
+   "nome": "La Cripta: ossario",
+   "tema": "cripta",
+   "w": 16,
+   "h": 10,
+   "porte": [
+    {
+     "pos": [
+      1,
+      2
+     ],
+     "verso": "catacombe/ingresso",
+     "scala": true,
+     "arrivo": [
+      9,
+      3
+     ],
+     "nome": "Risalire"
+    },
+    {
+     "pos": [
+      14,
+      8
+     ],
+     "verso": "catacombe/santuario",
+     "scala": true,
+     "arrivo": [
+      2,
+      8
+     ],
+     "nome": "Scendere ancora",
+     "richiede": [
+      {
+       "oggetto": "lanterna"
+      }
+     ]
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "teschi",
+     "tipo": "ossa",
+     "pos": [
+      5,
+      1
+     ],
+     "dim": [
+      6,
+      1
+     ],
+     "nome": "La parete di teschi",
+     "esamina": "Migliaia di teschi in file ordinate. Tutti girati verso il basso, come se ascoltassero."
+    },
+    {
+     "id": "nicchia",
+     "tipo": "lapide",
+     "pos": [
+      11,
+      4
+     ],
+     "dim": [
+      1,
+      1
+     ],
+     "nome": "Una nicchia",
+     "esamina": "Dentro, un foglio di sabbia pressata. Al tatto è calda."
+    }
+   ],
+   "npc": [
+    {
+     "id": "custode",
+     "aspetto": "custode",
+     "pos": [
+      8,
+      6
+     ],
+     "nome": "Il custode",
+     "dialogo": "custode"
+    }
+   ],
+   "buio": true,
+   "musica": "cripta"
+  },
+  {
+   "id": "catacombe/santuario",
+   "luogo": "catacombe",
+   "nome": "La Cripta: santuario",
+   "tema": "cripta",
+   "w": 14,
+   "h": 11,
+   "porte": [
+    {
+     "pos": [
+      1,
+      9
+     ],
+     "verso": "catacombe/ossario",
+     "scala": true,
+     "arrivo": [
+      13,
+      8
+     ],
+     "nome": "Risalire"
+    }
+   ],
+   "oggetti": [
+    {
+     "id": "altare_rituale",
+     "tipo": "altare_rituale",
+     "pos": [
+      6,
+      3
+     ],
+     "dim": [
+      2,
+      2
+     ],
+     "nome": "L'altare",
+     "voci": [
+      "mossa:cripta"
+     ],
+     "esamina": "Pietra nera con una conca al centro. Il fondo della conca è pieno di sabbia che non cade."
+    },
+    {
+     "id": "sarcofago",
+     "tipo": "sarcofago",
+     "pos": [
+      10,
+      2
+     ],
+     "dim": [
+      2,
+      1
+     ],
+     "nome": "Il sarcofago",
+     "esamina": "Un sacerdote scolpito con le mani aperte. Sotto le mani, una scritta: «Prendemmo senza chiedere.»",
+     "effetti": [
+      {
+       "flag": "frammento_eterni"
+      }
+     ]
+    }
+   ],
+   "npc": [],
+   "buio": true,
+   "musica": "cripta"
+  }
+ ],
+ "aspetti": {
+  "sirio": {
+   "pelle": "d9b98f",
+   "capelli": "2a2018",
+   "stile": "corti",
+   "vestito": "23233f",
+   "vestito2": "3a3a60",
+   "cappello": "1a1a28",
+   "barba": true
+  },
+  "rocco": {
+   "pelle": "c99a70",
+   "capelli": "000000",
+   "stile": "calvo",
+   "vestito": "e8e0d0",
+   "vestito2": "6a4a30",
+   "barba": true,
+   "corpulento": true
+  },
+  "gaetano": {
+   "pelle": "b8865a",
+   "capelli": "5a5a5a",
+   "stile": "corti",
+   "vestito": "3a5a8a",
+   "vestito2": "2a3a5a",
+   "cappello": "c0a040",
+   "baffi": true
+  },
+  "venti": {
+   "pelle": "e8c8a8",
+   "capelli": "3a2a20",
+   "stile": "chignon",
+   "vestito": "f0f0f0",
+   "vestito2": "8fb0c8",
+   "occhiali": true
+  },
+  "nando": {
+   "pelle": "d0b090",
+   "capelli": "c8c8c8",
+   "stile": "radi",
+   "vestito": "6a5a40",
+   "vestito2": "4a3a28",
+   "occhiali": true
+  },
+  "marisa": {
+   "pelle": "e0b898",
+   "capelli": "101010",
+   "stile": "caschetto",
+   "vestito": "a02030",
+   "vestito2": "601020",
+   "rossetto": true
+  },
+  "shen": {
+   "pelle": "e0c0a0",
+   "capelli": "0a0a0a",
+   "stile": "lunghi",
+   "vestito": "151515",
+   "vestito2": "e94560"
+  },
+  "anselmo": {
+   "pelle": "d8b090",
+   "capelli": "b0b0b0",
+   "stile": "radi",
+   "vestito": "151520",
+   "vestito2": "e8e8e8"
+  },
+  "bassi": {
+   "pelle": "e0c8b0",
+   "capelli": "4a3a2a",
+   "stile": "riporto",
+   "vestito": "4a4a5a",
+   "vestito2": "8a2020",
+   "baffi": true
+  },
+  "agente": {
+   "pelle": "c8a080",
+   "capelli": "2a2a2a",
+   "stile": "corti",
+   "vestito": "2a3a6a",
+   "vestito2": "c8a040",
+   "cappello": "1a2a5a"
+  },
+  "ubriaco": {
+   "pelle": "d0a080",
+   "capelli": "6a5040",
+   "stile": "spettinati",
+   "vestito": "5a4a3a",
+   "vestito2": "3a2a1a",
+   "barba": true
+  },
+  "custode": {
+   "pelle": "a89880",
+   "capelli": "e0e0e0",
+   "stile": "cappuccio",
+   "vestito": "2a2a2a",
+   "vestito2": "4a3a2a"
+  },
+  "infermiera": {
+   "pelle": "e0c0a0",
+   "capelli": "8a5a30",
+   "stile": "chignon",
+   "vestito": "a0d0c0",
+   "vestito2": "f0f0f0"
+  },
+  "portuale": {
+   "pelle": "a07050",
+   "capelli": "1a1a1a",
+   "stile": "corti",
+   "vestito": "c06030",
+   "vestito2": "3a3a3a",
+   "cappello": "3a3a3a"
+  },
+  "venditore": {
+   "pelle": "c89060",
+   "capelli": "3a2a1a",
+   "stile": "corti",
+   "vestito": "e8e8e8",
+   "vestito2": "c03030",
+   "baffi": true
+  },
+  "benzinaio": {
+   "pelle": "d0a880",
+   "capelli": "5a3a20",
+   "stile": "spettinati",
+   "vestito": "3a6a3a",
+   "vestito2": "f0c050"
+  },
+  "guardia": {
+   "pelle": "c0a080",
+   "capelli": "1a1a1a",
+   "stile": "corti",
+   "vestito": "1a1a1a",
+   "vestito2": "5a5a6e",
+   "occhiali": true
+  },
+  "impiegata": {
+   "pelle": "e8d0b8",
+   "capelli": "c8a050",
+   "stile": "caschetto",
+   "vestito": "a050c0",
+   "vestito2": "f0f0f0",
+   "occhiali": true
+  },
+  "giocatore": {
+   "pelle": "d8b090",
+   "capelli": "2a2a2a",
+   "stile": "riporto",
+   "vestito": "6a2a2a",
+   "vestito2": "c8a97e"
+  },
+  "allibratore": {
+   "pelle": "c8a078",
+   "capelli": "1a1a1a",
+   "stile": "calvo",
+   "vestito": "3a3a2a",
+   "vestito2": "f0c050",
+   "corpulento": true
+  },
+  "rivale": {
+   "pelle": "d0a880",
+   "capelli": "0a0a0a",
+   "stile": "corti",
+   "vestito": "e8e8e8",
+   "vestito2": "1a1a1a",
+   "occhiali": true
+  },
+  "morandi": {
+   "pelle": "e0c8b0",
+   "capelli": "f0f0f0",
+   "stile": "radi",
+   "vestito": "2a1a3a",
+   "vestito2": "c8a040",
+   "baffi": true
+  },
+  "volpe": {
+   "pelle": "e08030",
+   "capelli": "f0f0f0",
+   "stile": "volpe",
+   "vestito": "1a1a2e",
+   "vestito2": "e94560"
+  }
+ },
+ "dialoghi": {
+  "rocco": {
+   "contatto": "rocco",
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Rocco asciuga un bicchiere che è già asciutto. «Sei vivo. Me ne compiaccio, mi devi quaranta ore.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "rate",
+       "testo": "Le rate le pago quando posso.",
+       "categoria": "stat",
+       "minuti": 4,
+       "espressione": "arrabbiato",
+       "sirio": "duro",
+       "risposta": "Rocco posa il bicchiere. Ti guarda a lungo. «Va bene. Una rata te la scordo. Una.»",
+       "effetti": [
+        {
+         "condona": 1
+        }
+       ],
+       "requisito": {
+        "stat": [
+         "freddezza",
+         3
+        ]
+       }
+      },
+      {
+       "id": "serena",
+       "testo": "Questo santino era di Serena.",
+       "categoria": "memoria",
+       "minuti": 10,
+       "espressione": "triste",
+       "sirio": "triste",
+       "risposta": "Rocco lo prende tra due dita, come una cosa che scotta. «Al matrimonio ho pianto io e non tu. Le ultime due rate dimenticale.»",
+       "effetti": [
+        {
+         "condona": 2
+        },
+        {
+         "karma": 2
+        }
+       ],
+       "condizione": {
+        "oggetto": "santino"
+       }
+      },
+      {
+       "id": "garante",
+       "testo": "Fai sapere a Nando che vengo da parte tua.",
+       "categoria": "fissa",
+       "minuti": 4,
+       "espressione": "felice",
+       "sirio": "neutro",
+       "risposta": "«Gli telefono adesso. Con me alle spalle, Nando ti dà i debitori buoni.»",
+       "effetti": [
+        {
+         "flag": "rocco_garante"
+        }
+       ],
+       "condizione": {
+        "giro_aperto": "usura"
+       }
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "telefono": true,
+     "seed": [
+      "offerta"
+     ]
+    }
+   },
+   "seed": {
+    "offerta": [
+     {
+      "id": "pistola",
+      "testo": "Hai ancora quella cosa sotto il banco?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "felice",
+      "sirio": "neutro",
+      "risposta": "«Pulita e oliata. Dodici ore e non l'hai mai vista.»",
+      "effetti": [
+       {
+        "oggetto": "pistola"
+       }
+      ],
+      "requisito": {
+       "sabbia": 14
+      },
+      "costo": 12.0
+     },
+     {
+      "id": "grimaldello",
+      "testo": "Mi servono ferri sottili.",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Un rotolo di grimaldelli, roba di prima. Otto ore.»",
+      "effetti": [
+       {
+        "oggetto": "grimaldello"
+       }
+      ],
+      "requisito": {
+       "sabbia": 10
+      },
+      "costo": 8.0
+     },
+     {
+      "id": "cella",
+      "testo": "Ti ricordi la cella?",
+      "categoria": "seed",
+      "minuti": 15,
+      "espressione": "triste",
+      "sirio": "neutro",
+      "risposta": "«Ogni notte. Tu parlavi di lei e io di niente. Adesso parli di tua figlia. È un progresso.»",
+      "effetti": [
+       {
+        "stat": [
+         "carisma",
+         1
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "ubriaco": {
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Un uomo con la barba di tre giorni ti fissa il bicchiere vuoto. «Offri tu? Io ho sete e storie.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "bere",
+       "testo": "Offrirgli da bere.",
+       "categoria": "fissa",
+       "minuti": 10,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "risposta": "Beve tutto d'un fiato. Si avvicina, l'alito pesante.",
+       "vai": "storia",
+       "requisito": {
+        "sabbia": 2
+       },
+       "costo": 1.0
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ]
+    },
+    "storia": {
+     "testo": "«Te la dico perché sei gentile. Ma non l'hai sentita da me.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "seed": [
+      "soffiata"
+     ]
+    }
+   },
+   "seed": {
+    "soffiata": [
+     {
+      "id": "ring",
+      "testo": "Quale storia?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "felice",
+      "sirio": "neutro",
+      "risposta": "«Al ring della bisca qualcuno si vende, quasi ogni sera. Guarda chi non suda.»",
+      "vai": "fine",
+      "effetti": [
+       {
+        "flag": "soffiata_ring"
+       }
+      ]
+     },
+     {
+      "id": "bassi",
+      "testo": "Quale storia?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "felice",
+      "sirio": "neutro",
+      "risposta": "«Quello della banca, Bassi. Gioca forte alla bisca e perde più forte. Deve ore a mezza città.»",
+      "vai": "fine",
+      "effetti": [
+       {
+        "flag": "debito_bassi"
+       }
+      ]
+     },
+     {
+      "id": "lanterna",
+      "testo": "Quale storia?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "sorpreso",
+      "sirio": "neutro",
+      "risposta": "«Sotto la città c'è una cripta. Al primo livello ci arrivi. Al secondo serve luce, e la luce sta in chiesa.»",
+      "vai": "fine",
+      "effetti": [
+       {
+        "flag": "voce_cripta"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "gaetano": {
+   "contatto": "gaetano",
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Gaetano si toglie il cappello e se lo rimette. «Sirio. Qui si lavora sei ore e si va a casa. Tu cosa cerchi?»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "operai",
+       "testo": "Fammi parlare con gli operai.",
+       "categoria": "stat",
+       "minuti": 30,
+       "espressione": "sorpreso",
+       "sirio": "duro",
+       "risposta": "Gli operai ti ascoltano. Alla fine Gaetano annuisce. «Una cooperativa. Tu porti le commesse, io le braccia.»",
+       "effetti": [
+        {
+         "apri_giro": "cooperativa"
+        }
+       ],
+       "condizione": {
+        "giro_chiuso": "cooperativa"
+       },
+       "requisito": {
+        "stat": [
+         "carisma",
+         3
+        ]
+       }
+      },
+      {
+       "id": "fiducia",
+       "testo": "Tre turni puliti. Ti fidi?",
+       "categoria": "memoria",
+       "minuti": 4,
+       "espressione": "felice",
+       "sirio": "neutro",
+       "risposta": "«Mi fido. Prendi dieci dei miei. Lavorano per la cooperativa da domani.»",
+       "effetti": [
+        {
+         "giro_persone": [
+          "cooperativa",
+          10
+         ]
+        }
+       ],
+       "condizione": {
+        "lavori": 3,
+        "giro_aperto": "cooperativa"
+       }
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "telefono": true,
+     "seed": [
+      "extra"
+     ]
+    }
+   },
+   "seed": {
+    "extra": [
+     {
+      "id": "doppio",
+      "testo": "Hai un turno di notte?",
+      "categoria": "seed",
+      "minuti": 240,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Doppio turno, paga doppia. Quattro ore di casse al buio.»",
+      "effetti": [
+       {
+        "sabbia": 9.0
+       },
+       {
+        "karma": 1
+       }
+      ]
+     },
+     {
+      "id": "bolla",
+      "testo": "C'è qualche container senza bolla?",
+      "categoria": "seed",
+      "minuti": 120,
+      "espressione": "arrabbiato",
+      "sirio": "neutro",
+      "risposta": "Gaetano guarda il mare. «Uno. Non l'hai sentito da me. E non tornare a chiedere.»",
+      "effetti": [
+       {
+        "sabbia": 18.0
+       },
+       {
+        "polizia": 8
+       },
+       {
+        "karma": -2
+       }
+      ]
+     },
+     {
+      "id": "sciopero",
+      "testo": "Come va al porto?",
+      "categoria": "seed",
+      "minuti": 10,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Parlano di sciopero. Se succede, chi ha una cooperativa comanda il porto per una settimana.»",
+      "effetti": [
+       {
+        "stat": [
+         "intuizione",
+         1
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "venti": {
+   "contatto": "venti",
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "La dottoressa Venti ha le occhiaie di chi non dorme da un turno e mezzo. «Signor Sirio. Ho poco tempo, come tutti qui.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "verita",
+       "testo": "Lei non mi dice tutto.",
+       "categoria": "stat",
+       "minuti": 4,
+       "espressione": "sorpreso",
+       "sirio": "duro",
+       "risposta": "Si toglie gli occhiali. «Il vecchio nel letto in fondo. Senza parenti, con più sabbia di quanta gliene serva. Regala a chi lo fa ridere.»",
+       "effetti": [
+        {
+         "pista": "ultima_donazione"
+        }
+       ],
+       "condizione": {
+        "senza_pista": "ultima_donazione"
+       },
+       "requisito": {
+        "stat": [
+         "intuizione",
+         3
+        ]
+       }
+      },
+      {
+       "id": "braccio",
+       "testo": "Posso tenerla in braccio?",
+       "categoria": "memoria",
+       "minuti": 20,
+       "espressione": "felice",
+       "sirio": "triste",
+       "risposta": "Venti esita, poi apre l'incubatrice. Sara pesa meno di un'arancia. Ti stringe il pollice.",
+       "effetti": [
+        {
+         "karma": 3
+        },
+        {
+         "stat": [
+          "carisma",
+          1
+         ]
+        }
+       ],
+       "condizione": {
+        "visite": 3
+       }
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "telefono": true,
+     "seed": [
+      "notizia"
+     ]
+    }
+   },
+   "seed": {
+    "notizia": [
+     {
+      "id": "farmaco",
+      "testo": "Le serve qualcosa per Sara?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "triste",
+      "sirio": "neutro",
+      "risposta": "«Un farmaco che il reparto non può comprare. Se lo paga lei, a Sara regala mezza giornata.»",
+      "effetti": [
+       {
+        "sara": 12.0
+       },
+       {
+        "karma": 2
+       }
+      ],
+      "requisito": {
+       "sabbia": 8
+      },
+      "costo": 6.0
+     },
+     {
+      "id": "occhi",
+      "testo": "Novità?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "felice",
+      "sirio": "triste",
+      "risposta": "«Ha aperto gli occhi, stamattina. Grigi. Come quelli di sua moglie, dice l'infermiera.»",
+      "effetti": [
+       {
+        "karma": 1
+       }
+      ]
+     },
+     {
+      "id": "donatore",
+      "testo": "C'è qualcuno che dona, qui?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Una signora del quartiere alto dona ore ai neonati. Una volta l'anno. Quest'anno è passata ieri.»",
+      "effetti": [
+       {
+        "stat": [
+         "intuizione",
+         1
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "nando": {
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Nando pulisce una fede con un panno giallo. Non alza gli occhi. «Comprare, vendere, impegnare. Il resto non lo faccio.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "presentazione",
+       "testo": "Mi manda Rocco.",
+       "categoria": "memoria",
+       "minuti": 4,
+       "espressione": "triste",
+       "sirio": "neutro",
+       "risposta": "Nando sospira. «Rocco manda sempre gente che non torna. Va bene. Il registro è sul retro. Ti do i debitori che pagano.»",
+       "effetti": [
+        {
+         "giro_persone": [
+          "usura",
+          6
+         ]
+        }
+       ],
+       "condizione": {
+        "flag": "rocco_garante",
+        "giro_aperto": "usura"
+       }
+      },
+      {
+       "id": "registro",
+       "testo": "Il registro lo tengo io, da oggi.",
+       "categoria": "stat",
+       "minuti": 4,
+       "espressione": "triste",
+       "sirio": "duro",
+       "risposta": "Nando ti guarda le mani. Poi ti passa la chiave del retro. «Non farli piangere troppo.»",
+       "effetti": [
+        {
+         "giro_persone": [
+          "usura",
+          8
+         ]
+        },
+        {
+         "karma": -2
+        }
+       ],
+       "condizione": {
+        "giro_aperto": "usura"
+       },
+       "requisito": {
+        "stat": [
+         "freddezza",
+         3
+        ]
+       }
+      },
+      {
+       "id": "chi",
+       "testo": "Chi sono i tuoi debitori?",
+       "categoria": "fissa",
+       "minuti": 4,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "risposta": "«Gente che aveva bisogno di un'ora in più. Un'ora oggi costa due domani. È così che va.»",
+       "vai": "inizio"
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "seed": [
+      "offerta"
+     ]
+    }
+   },
+   "seed": {
+    "offerta": [
+     {
+      "id": "grimaldelli",
+      "testo": "Hai qualcosa di utile?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Grimaldelli di un fabbro morto. Sei ore.»",
+      "effetti": [
+       {
+        "oggetto": "grimaldello"
+       }
+      ],
+      "requisito": {
+       "sabbia": 8
+      },
+      "costo": 6.0
+     },
+     {
+      "id": "lanterna",
+      "testo": "Hai qualcosa di utile?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "sorpreso",
+      "sirio": "neutro",
+      "risposta": "«Una lanterna a olio. Chi la impegnò diceva che serviva per scendere sotto la città. Quattro ore.»",
+      "effetti": [
+       {
+        "oggetto": "lanterna"
+       }
+      ],
+      "requisito": {
+       "sabbia": 6
+      },
+      "costo": 4.0
+     },
+     {
+      "id": "orologio",
+      "testo": "Ti vendo un orologio.",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "Nando lo pesa, lo ascolta, lo posa. «Cinque ore. Non chiedo di chi era.»",
+      "effetti": [
+       {
+        "sabbia": 5.0
+       },
+       {
+        "karma": -1
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "marisa": {
+   "contatto": "marisa",
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Marisa mescola un mazzo senza guardarlo. «Il fortunato. O lo sfortunato, dipende da come finisce la sera.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "banco",
+       "testo": "Il banco bara sul tavolo tre.",
+       "categoria": "stat",
+       "minuti": 4,
+       "espressione": "arrabbiato",
+       "sirio": "duro",
+       "risposta": "Marisa smette di mescolare. Ti fa scivolare in mano una chiave. «La saletta privata. E tu stasera non hai visto niente.»",
+       "effetti": [
+        {
+         "oggetto": "chiave_retro"
+        }
+       ],
+       "condizione": {
+        "senza_oggetto": "chiave_retro"
+       },
+       "requisito": {
+        "stat": [
+         "intuizione",
+         3
+        ]
+       }
+      },
+      {
+       "id": "ring",
+       "testo": "So che al ring qualcuno si vende.",
+       "categoria": "memoria",
+       "minuti": 4,
+       "espressione": "sorpreso",
+       "sirio": "neutro",
+       "risposta": "«Lo sanno tutti quelli che contano. Tu adesso conti. Tieni, e tieni la bocca chiusa.»",
+       "effetti": [
+        {
+         "sabbia": 12.0
+        },
+        {
+         "rivalita": 5
+        }
+       ],
+       "condizione": {
+        "flag": "soffiata_ring"
+       }
+      },
+      {
+       "id": "tre",
+       "testo": "Tre vittorie stasera.",
+       "categoria": "memoria",
+       "minuti": 4,
+       "espressione": "felice",
+       "sirio": "neutro",
+       "risposta": "«Ti ho visto. Il capo vuole conoscerti. Da adesso la saletta è aperta anche per te.»",
+       "effetti": [
+        {
+         "flag": "accesso_retro"
+        }
+       ],
+       "condizione": {
+        "vittorie_azzardo": 3
+       }
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "telefono": true,
+     "seed": [
+      "storia"
+     ]
+    }
+   },
+   "seed": {
+    "storia": [
+     {
+      "id": "chiave",
+      "testo": "Quanto costa la saletta?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Dieci ore e la chiave è tua. Il resto lo paghi giocando.»",
+      "effetti": [
+       {
+        "oggetto": "chiave_retro"
+       }
+      ],
+      "condizione": {
+       "senza_oggetto": "chiave_retro"
+      },
+      "requisito": {
+       "sabbia": 12
+      },
+      "costo": 10.0
+     },
+     {
+      "id": "passato",
+      "testo": "Perché lavori qui?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "triste",
+      "sirio": "neutro",
+      "risposta": "«Mio padre ha giocato la mia infanzia a questo tavolo. Adesso il tavolo lo tengo io.»",
+      "effetti": [
+       {
+        "stat": [
+         "intuizione",
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "id": "mano",
+      "testo": "Dammi una mano fortunata.",
+      "categoria": "seed",
+      "minuti": 20,
+      "espressione": "felice",
+      "sirio": "neutro",
+      "risposta": "Marisa ti distribuisce una mano a bassa voce. Vinci, per una volta, senza capire come.",
+      "effetti": [
+       {
+        "sabbia": 8.0
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "shen": {
+   "contatto": "shen",
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Mei Shen non si alza. «Il figliol prodigo. L'chen ha la memoria lunga e la pazienza corta. Parla.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "vecchio",
+       "testo": "Il vecchio boss era mio amico. Anche tuo.",
+       "categoria": "stat",
+       "minuti": 4,
+       "espressione": "sorpreso",
+       "sirio": "duro",
+       "risposta": "Shen ti guarda per la prima volta davvero. «Villa Corradi. Sotto il pavimento. Vai prima che ci vada qualcun altro.»",
+       "effetti": [
+        {
+         "pista": "tesoro_boss"
+        },
+        {
+         "luogo": "villa_corradi"
+        }
+       ],
+       "condizione": {
+        "senza_pista": "tesoro_boss"
+       },
+       "requisito": {
+        "stat": [
+         "freddezza",
+         4
+        ]
+       }
+      },
+      {
+       "id": "tesoro",
+       "testo": "Ho trovato il tesoro del vecchio.",
+       "categoria": "memoria",
+       "minuti": 4,
+       "espressione": "felice",
+       "sirio": "neutro",
+       "risposta": "«Lo so. Lo sa tutta L'chen. Prendi due dei miei. Ti serviranno.»",
+       "effetti": [
+        {
+         "uomini": 2
+        }
+       ],
+       "condizione": {
+        "flag": "mossa_tesoro_boss"
+       }
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "telefono": true,
+     "seed": [
+      "incarico"
+     ]
+    }
+   },
+   "seed": {
+    "incarico": [
+     {
+      "id": "pacco",
+      "testo": "Hai un lavoro per me?",
+      "categoria": "seed",
+      "minuti": 90,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Un pacco da consegnare al porto. Non aprirlo. Un'ora e mezza.»",
+      "effetti": [
+       {
+        "sabbia": 15.0
+       },
+       {
+        "polizia": 5
+       },
+       {
+        "karma": -1
+       }
+      ]
+     },
+     {
+      "id": "uomo",
+      "testo": "Mi serve gente fidata.",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Uno dei miei cerca un padrone nuovo. Dieci ore, e ti è fedele finché paghi.»",
+      "effetti": [
+       {
+        "uomini": 1
+       }
+      ],
+      "requisito": {
+       "sabbia": 12
+      },
+      "costo": 10.0
+     },
+     {
+      "id": "pistola",
+      "testo": "Mi servirebbe un ferro.",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "Shen apre un cassetto. «Questa non ha storia. Nove ore.»",
+      "effetti": [
+       {
+        "oggetto": "pistola"
+       }
+      ],
+      "condizione": {
+       "senza_oggetto": "pistola"
+      },
+      "requisito": {
+       "sabbia": 11
+      },
+      "costo": 9.0
+     }
+    ]
+   }
+  },
+  "anselmo": {
+   "contatto": "anselmo",
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Padre Anselmo conta monete sul bordo dell'acquasantiera. «Figliolo. Il Signore ascolta. Io anche, ma costo meno.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "insieme",
+       "testo": "Predichiamo insieme, padre.",
+       "categoria": "stat",
+       "minuti": 20,
+       "espressione": "felice",
+       "sirio": "duro",
+       "risposta": "Anselmo ride piano. «Hai la voce giusta. I miei fedeli più devoti ascolteranno te. Metà delle offerte a me.»",
+       "effetti": [
+        {
+         "apri_giro": "culto"
+        },
+        {
+         "giro_persone": [
+          "culto",
+          8
+         ]
+        }
+       ],
+       "condizione": {
+        "giro_chiuso": "culto"
+       },
+       "requisito": {
+        "stat": [
+         "carisma",
+         3
+        ]
+       }
+      },
+      {
+       "id": "conti",
+       "testo": "Ho visto il registro delle offerte.",
+       "categoria": "memoria",
+       "minuti": 4,
+       "espressione": "arrabbiato",
+       "sirio": "duro",
+       "risposta": "Il parroco smette di contare. «La curia non deve sapere. Prendi i miei fedeli migliori. E tieni chiuso quel libro.»",
+       "effetti": [
+        {
+         "apri_giro": "culto"
+        },
+        {
+         "giro_persone": [
+          "culto",
+          15
+         ]
+        },
+        {
+         "karma": -2
+        }
+       ],
+       "condizione": {
+        "flag": "conti_parroco"
+       }
+      },
+      {
+       "id": "santino",
+       "testo": "Questo santino era di mia moglie.",
+       "categoria": "memoria",
+       "minuti": 4,
+       "espressione": "triste",
+       "sirio": "triste",
+       "risposta": "Anselmo lo benedice con due dita. «Santa Rena protegge chi aspetta. Portalo quando predichi: la gente sente queste cose.»",
+       "effetti": [
+        {
+         "karma": 2
+        }
+       ],
+       "condizione": {
+        "oggetto": "santino"
+       }
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "telefono": true,
+     "seed": [
+      "confessione"
+     ]
+    }
+   },
+   "seed": {
+    "confessione": [
+     {
+      "id": "confessa",
+      "testo": "Voglio confessarmi.",
+      "categoria": "seed",
+      "minuti": 30,
+      "espressione": "triste",
+      "sirio": "neutro",
+      "risposta": "Ti ascolta senza interrompere. «Tre Ave Maria e tre ore per la parrocchia.»",
+      "effetti": [
+       {
+        "karma": 5
+       }
+      ],
+      "requisito": {
+       "sabbia": 5
+      },
+      "costo": 3.0
+     },
+     {
+      "id": "chiesa_vuota",
+      "testo": "La chiesa è vuota.",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Le chiese si riempiono quando la gente ha paura. Dai tempo alla paura.»",
+      "effetti": [
+       {
+        "stat": [
+         "carisma",
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "id": "cripta_voci",
+      "testo": "Cosa c'è sotto la città?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "sorpreso",
+      "sirio": "neutro",
+      "risposta": "«Gente che pregava prima di Cristo. Non scendere senza luce, e senza fede.»",
+      "effetti": [
+       {
+        "flag": "voce_cripta"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "bassi": {
+   "contatto": "bassi",
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Ettore Bassi si sistema il riporto e controlla che nessuno guardi. «Non qui. Cosa vuole?»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "amico",
+       "testo": "Mi serve un amico in banca.",
+       "categoria": "stat",
+       "minuti": 4,
+       "espressione": "sorpreso",
+       "sirio": "duro",
+       "risposta": "Bassi suda. «Morandi. Casa d'aste. Compra e vende secoli. Le scrivo l'indirizzo, poi lei si scorda la mia faccia.»",
+       "effetti": [
+        {
+         "pista": "asta"
+        },
+        {
+         "luogo": "casa_aste"
+        }
+       ],
+       "condizione": {
+        "senza_pista": "asta"
+       },
+       "requisito": {
+        "stat": [
+         "carisma",
+         4
+        ]
+       }
+      },
+      {
+       "id": "debiti",
+       "testo": "So dei suoi debiti alla bisca.",
+       "categoria": "memoria",
+       "minuti": 10,
+       "espressione": "arrabbiato",
+       "sirio": "duro",
+       "risposta": "Bassi diventa grigio. «Martedì e venerdì, alle quattro, cambiano le guardie. Il caveau. Adesso mi lasci in pace.»",
+       "effetti": [
+        {
+         "pista": "banca"
+        },
+        {
+         "karma": -3
+        }
+       ],
+       "condizione": {
+        "flag": "debito_bassi"
+       }
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "telefono": true,
+     "seed": [
+      "offerta"
+     ]
+    }
+   },
+   "seed": {
+    "offerta": [
+     {
+      "id": "prestito",
+      "testo": "Mi serve un prestito.",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Trenta ore subito. Le restituisce in sei rate, come tutti.»",
+      "effetti": [
+       {
+        "sabbia": 30.0
+       },
+       {
+        "debito": 6
+       }
+      ]
+     },
+     {
+      "id": "consiglio",
+      "testo": "Un consiglio da banchiere.",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "triste",
+      "sirio": "neutro",
+      "risposta": "«Non tenga mai tutta la sabbia nello stesso posto. Nemmeno in sua figlia.»",
+      "effetti": [
+       {
+        "stat": [
+         "intuizione",
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "id": "guardie",
+      "testo": "Quante guardie ci sono?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "sorpreso",
+      "sirio": "neutro",
+      "risposta": "«Quattro di giorno, sei di notte. Perché lo chiede?» Bassi si pente della risposta.",
+      "effetti": [
+       {
+        "flag": "turni_guardie"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "lombardi": {
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "L'agente Lombardi mastica una penna. «Denuncia, ritiro o confessione? Ho tempo per una sola.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "fascicolo",
+       "testo": "Quanto costa un fascicolo smarrito?",
+       "categoria": "stat",
+       "minuti": 4,
+       "espressione": "neutro",
+       "sirio": "duro",
+       "risposta": "Lombardi non risponde. Apre un cassetto, lo richiude più leggero. «Smarrito.»",
+       "effetti": [
+        {
+         "polizia": -15
+        }
+       ],
+       "requisito": {
+        "stat": [
+         "freddezza",
+         3
+        ]
+       },
+       "costo": 6.0
+      },
+      {
+       "id": "bassi_info",
+       "testo": "Cosa sai di Ettore Bassi?",
+       "categoria": "memoria",
+       "minuti": 4,
+       "espressione": "felice",
+       "sirio": "neutro",
+       "risposta": "«Quello della banca? Ha debiti alla bisca del molo. Il commissario lo sa e aspetta. Ti costa niente, sei dei nostri.»",
+       "effetti": [
+        {
+         "flag": "debito_bassi"
+        }
+       ],
+       "condizione": {
+        "flag": "informatore"
+       }
+      },
+      {
+       "id": "retate",
+       "testo": "Ci sono retate in vista?",
+       "categoria": "fissa",
+       "minuti": 3,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "risposta": "«Ci sono sempre retate in vista. La domanda è chi c'è dentro.»",
+       "ripetibile": true
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ]
+    }
+   }
+  },
+  "custode": {
+   "inizio": "inizio",
+   "nodi": {
+    "inizio": {
+     "testo": "Un vecchio incappucciato spazza la polvere da un teschio all'altro. Non ti guarda. «Chi scende chiede sempre la stessa cosa.»",
+     "espressione": "neutro",
+     "opzioni": [
+      {
+       "id": "eterni",
+       "testo": "Chi erano gli Eterni?",
+       "categoria": "memoria",
+       "minuti": 15,
+       "espressione": "triste",
+       "sirio": "neutro",
+       "risposta": "«Sacerdoti, prima di tutto. Volevano prendere la sabbia senza che nessuno la desse. Ci sono riusciti.»",
+       "effetti": [
+        {
+         "stat": [
+          "intuizione",
+          1
+         ]
+        },
+        {
+         "flag": "lore_eterni"
+        }
+       ],
+       "condizione": {
+        "flag": "frammento_eterni"
+       }
+      },
+      {
+       "id": "vado",
+       "testo": "Niente. Vado.",
+       "categoria": "fissa",
+       "minuti": 0,
+       "espressione": "neutro",
+       "sirio": "neutro",
+       "vai": "fine",
+       "ripetibile": true
+      }
+     ],
+     "seed": [
+      "presagio"
+     ]
+    }
+   },
+   "seed": {
+    "presagio": [
+     {
+      "id": "mare",
+      "testo": "Cosa chiedono?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "sorpreso",
+      "sirio": "neutro",
+      "risposta": "«Se è vero degli Uomini del Mare. È vero. Non scendere oltre, se hai qualcuno che aspetta.»",
+      "effetti": [
+       {
+        "flag": "voce_cripta"
+       }
+      ]
+     },
+     {
+      "id": "sabbia",
+      "testo": "Cosa chiedono?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "neutro",
+      "sirio": "neutro",
+      "risposta": "«Se la sabbia di qui sotto si può portare via. Si può. Poi però torna, e torna con te.»",
+      "effetti": [
+       {
+        "karma": -1
+       }
+      ]
+     },
+     {
+      "id": "tempo",
+      "testo": "Cosa chiedono?",
+      "categoria": "seed",
+      "minuti": 4,
+      "espressione": "triste",
+      "sirio": "neutro",
+      "risposta": "«Quanto tempo resta. A te poco. A lei, dipende da te.»",
+      "effetti": [
+       {
+        "stat": [
+         "freddezza",
+         1
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

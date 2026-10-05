@@ -81,7 +81,7 @@ func _deve_delegare(args: PackedStringArray) -> bool:
 	if args.has("--demo-test") or args.has("--demo-foto"):
 		return false
 	for a in args:
-		if a.begins_with("--test-") or a.begins_with("--simulate") or FLAG_LEGACY.has(a):
+		if a.begins_with("--test-") or a.begins_with("--simulate") or a.begins_with("--impero-bilancio") or FLAG_LEGACY.has(a):
 			return true
 	return false
 
