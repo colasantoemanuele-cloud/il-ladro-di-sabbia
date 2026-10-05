@@ -70,7 +70,15 @@ static func opzioni(s: ImperoState, npc: String, id_nodo: String) -> Array:
 		c["requisito_testo"] = requisito_testo(o.get("requisito", {}))
 		c["minuti"] = int(o.get("minuti", MINUTI_DEFAULT))
 		out.append(c)
-	return out
+	var ordine := {"fissa": 0, "stat": 1, "memoria": 2, "seed": 3}
+	var chiave := func(o: Dictionary) -> int:
+		return 9 if o.id == "vado" else int(ordine.get(o.categoria, 0))
+	var ordinate: Array = []
+	for k in [0, 1, 2, 3, 9]:
+		for o in out:
+			if chiave.call(o) == k:
+				ordinate.append(o)
+	return ordinate
 
 
 static func requisito_testo(r: Dictionary) -> String:

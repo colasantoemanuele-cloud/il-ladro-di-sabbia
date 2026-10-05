@@ -12,16 +12,16 @@ const INTRO := "Mi chiamo Sirio. A Ledune rubavo per chi pagava meglio. Qui il t
 
 const TUTORIAL := [
 	{
-		"titolo": "Sei ore alla volta",
-		"testo": "Il giorno ha quattro fasce: notte, mattina, pomeriggio, sera. In ogni fascia fai una cosa sola, poi la città gira. Ogni fascia costa sei ore a te e sei a Sara. I colpi ti tengono in vita per un giorno. Solo una rete di persone rende abbastanza.",
+		"titolo": "Un minuto è un minuto",
+		"testo": "Ogni minuto che passa nel mondo costa un minuto a te e uno a Sara. Camminare, parlare, giocare, viaggiare: tutto si paga. Le cose grosse durano ore. Ogni sei ore la città gira: la tua rete rende, il calore sale, Sara può avere una crisi.",
 	},
 	{
-		"titolo": "La rete",
-		"testo": "Chi conosci decide in quali giri puoi entrare: chiama Rocco. Ogni giro cresce in proporzione a quanto è grande e rende a ogni fascia. Ma scotta: polizia, rivali, scandali. Un luogotenente lo fa crescere senza di te, finché non ti tradisce. Telefonare e mangiare non occupano la fascia.",
+		"titolo": "Ledune a piedi",
+		"testo": "Tocca il pavimento per camminare. Tocca un oggetto o una persona per avvicinarti e agire. I segni gialli sono cose da fare, quelli bianchi persone con qualcosa da dire. Uscendo da un luogo si apre la mappa della città, e il viaggio costa tempo.",
 	},
 	{
-		"titolo": "La donazione",
-		"testo": "Più aspetti, più la rete rende. Ma Sara ha crisi sempre più spesso, e ogni crisi le toglie ore. Starle vicino le dimezza. Quando decidi, vai in reparto e dona. Anche un'ora. Una volta sola, e la partita finisce.",
+		"titolo": "Le parole",
+		"testo": "Nei dialoghi le risposte hanno un colore. Bianche: le solite. Azzurre: chiedono Carisma, Intuizione o Freddezza. Oro: ricordi di questa partita. Viola: occasioni di oggi, diverse a ogni seed. Quando hai deciso, dona a Sara in reparto. Anche un'ora.",
 	},
 ]
 

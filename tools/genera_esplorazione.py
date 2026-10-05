@@ -101,7 +101,7 @@ STANZE = [
         ogg("frigo", "frigo", (9, 2), nome="Il frigorifero", esamina="Un biglietto attaccato con la calamita: «Compra il latte. Ti amo.»"),
     ], musica="casa"),
     # ------------------------------------------------------------ ospedale
-    stanza("ospedale/corridoio", "Corridoio del terzo piano", "ospedale", 16, 9, [
+    stanza("ospedale/corridoio", "Corridoio", "ospedale", 16, 9, [
         porta([8, 8], MAPPA, nome="Uscire dall'ospedale"),
         porta([8, 1], "ospedale/reparto", [8, 8], "Terapia intensiva neonatale"),
     ], [
@@ -114,7 +114,7 @@ STANZE = [
             "La dottoressa Venti è in reparto. Bussi piano.",
         ]),
     ], entrata=[8, 7], musica="ospedale"),
-    stanza("ospedale/reparto", "Terapia intensiva neonatale", "ospedale", 16, 10, [
+    stanza("ospedale/reparto", "Neonatologia", "ospedale", 16, 10, [
         porta([8, 9], "ospedale/corridoio", [8, 2], "Corridoio"),
     ], [
         ogg("incubatrice", "incubatrice", (6, 3), (2, 2), "L'incubatrice di Sara", voci=["visita", "dona"],
@@ -304,7 +304,7 @@ STANZE = [
             esamina="Qui si gioca senza fiches. Si gioca a voce, e la voce vale ore."),
         ogg("cassaforte", "cassaforte", (9, 2), nome="La cassaforte", esamina="Chiusa. Marisa porta la combinazione al collo."),
     ], musica="bisca"),
-    stanza("bisca/ring", "Il ring clandestino", "ring", 14, 10, [
+    stanza("bisca/ring", "Il ring", "ring", 14, 10, [
         porta([0, 5], "bisca/sala", [16, 5], "La sala"),
     ], [
         ogg("ring", "ring", (5, 3), (4, 4), "Il ring", minigioco="lotte",
@@ -363,14 +363,14 @@ STANZE = [
         ]),
     ], entrata=[7, 8], musica="chiesa"),
     # ------------------------------------------------------------ cripta degli Eterni
-    stanza("catacombe/ingresso", "La Cripta: ingresso", "cripta", 12, 9, [
+    stanza("catacombe/ingresso", "Ingresso", "cripta", 12, 9, [
         porta([6, 8], MAPPA, nome="Risalire in città"),
         porta([10, 3], "catacombe/ossario", [2, 3], "Scendere", scala=True),
     ], [
         ogg("candele", "candele", (3, 2), (2, 1), "Le candele", esamina="Qualcuno le accende ogni notte. Nessuno sa chi."),
         ogg("iscrizione", "lapide", (6, 1), nome="Un'iscrizione", esamina="Lettere più vecchie del latino. Una sola parola leggibile: ETERNI."),
     ], buio=True, entrata=[6, 7], musica="cripta"),
-    stanza("catacombe/ossario", "La Cripta: ossario", "cripta", 16, 10, [
+    stanza("catacombe/ossario", "Ossario", "cripta", 16, 10, [
         porta([1, 2], "catacombe/ingresso", [9, 3], "Risalire", scala=True),
         porta([14, 8], "catacombe/santuario", [2, 8], "Scendere ancora", richiede=[{"oggetto": "lanterna"}], scala=True),
     ], [
@@ -379,7 +379,7 @@ STANZE = [
     ], [
         npc("custode", "custode", (8, 6), "Il custode", dialogo="custode"),
     ], buio=True, musica="cripta"),
-    stanza("catacombe/santuario", "La Cripta: santuario", "cripta", 14, 11, [
+    stanza("catacombe/santuario", "Santuario", "cripta", 14, 11, [
         porta([1, 9], "catacombe/ossario", [13, 8], "Risalire", scala=True),
     ], [
         ogg("altare_rituale", "altare_rituale", (6, 3), (2, 2), "L'altare", voci=["mossa:cripta"],
@@ -415,6 +415,9 @@ ASPETTI = {
     "allibratore": {"pelle": "c8a078", "capelli": "1a1a1a", "stile": "calvo", "vestito": "3a3a2a", "vestito2": "f0c050", "corpulento": True},
     "rivale": {"pelle": "d0a880", "capelli": "0a0a0a", "stile": "corti", "vestito": "e8e8e8", "vestito2": "1a1a1a", "occhiali": True},
     "morandi": {"pelle": "e0c8b0", "capelli": "f0f0f0", "stile": "radi", "vestito": "2a1a3a", "vestito2": "c8a040", "baffi": True},
+    "serena": {"pelle": "f0d8c0", "capelli": "6a3a20", "stile": "lunghi", "vestito": "e8e0f0", "vestito2": "c8a97e"},
+    "lottatore1": {"pelle": "c89060", "capelli": "1a1a1a", "stile": "calvo", "vestito": "c89060", "vestito2": "c03030", "corpulento": True, "barba": True},
+    "lottatore2": {"pelle": "e0b890", "capelli": "8a5a30", "stile": "corti", "vestito": "e0b890", "vestito2": "3060c0", "corpulento": True},
     "volpe": {"pelle": "e08030", "capelli": "f0f0f0", "stile": "volpe", "vestito": "1a1a2e", "vestito2": "e94560"},
 }
 

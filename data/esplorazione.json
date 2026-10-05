@@ -259,7 +259,7 @@
   {
    "id": "ospedale/corridoio",
    "luogo": "ospedale",
-   "nome": "Corridoio del terzo piano",
+   "nome": "Corridoio",
    "tema": "ospedale",
    "w": 16,
    "h": 9,
@@ -340,7 +340,7 @@
   {
    "id": "ospedale/reparto",
    "luogo": "ospedale",
-   "nome": "Terapia intensiva neonatale",
+   "nome": "Neonatologia",
    "tema": "ospedale",
    "w": 16,
    "h": 10,
@@ -1613,7 +1613,7 @@
   {
    "id": "bisca/ring",
    "luogo": "bisca",
-   "nome": "Il ring clandestino",
+   "nome": "Il ring",
    "tema": "ring",
    "w": 14,
    "h": 10,
@@ -1957,7 +1957,7 @@
   {
    "id": "catacombe/ingresso",
    "luogo": "catacombe",
-   "nome": "La Cripta: ingresso",
+   "nome": "Ingresso",
    "tema": "cripta",
    "w": 12,
    "h": 9,
@@ -2025,7 +2025,7 @@
   {
    "id": "catacombe/ossario",
    "luogo": "catacombe",
-   "nome": "La Cripta: ossario",
+   "nome": "Ossario",
    "tema": "cripta",
    "w": 16,
    "h": 10,
@@ -2110,7 +2110,7 @@
   {
    "id": "catacombe/santuario",
    "luogo": "catacombe",
-   "nome": "La Cripta: santuario",
+   "nome": "Santuario",
    "tema": "cripta",
    "w": 14,
    "h": 11,
@@ -2345,6 +2345,30 @@
    "vestito": "2a1a3a",
    "vestito2": "c8a040",
    "baffi": true
+  },
+  "serena": {
+   "pelle": "f0d8c0",
+   "capelli": "6a3a20",
+   "stile": "lunghi",
+   "vestito": "e8e0f0",
+   "vestito2": "c8a97e"
+  },
+  "lottatore1": {
+   "pelle": "c89060",
+   "capelli": "1a1a1a",
+   "stile": "calvo",
+   "vestito": "c89060",
+   "vestito2": "c03030",
+   "corpulento": true,
+   "barba": true
+  },
+  "lottatore2": {
+   "pelle": "e0b890",
+   "capelli": "8a5a30",
+   "stile": "corti",
+   "vestito": "e0b890",
+   "vestito2": "3060c0",
+   "corpulento": true
   },
   "volpe": {
    "pelle": "e08030",

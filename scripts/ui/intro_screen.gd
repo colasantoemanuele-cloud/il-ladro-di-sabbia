@@ -6,7 +6,7 @@ extends Control
 signal finita
 
 var audio: MusicEngine
-var _fase := 0
+var _fase := 1
 var _testo: RichTextLabel
 var _titolo: Label
 var _avanti: Button

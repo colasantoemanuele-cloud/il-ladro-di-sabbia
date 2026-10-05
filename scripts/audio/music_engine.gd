@@ -16,6 +16,15 @@ const SR_BREVE := 22050
 
 const NOTE_SEMITONI := {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 
+## Ordine di generazione al primo avvio (il brano richiesto passa avanti).
+const BRANI := ["titolo", "ospedale", "citta", "osteria", "casa", "bisca", "chiesa", "cripta", "endgame", "gameplay"]
+
+## Il tema di Sara: otto battute in La minore che tornano in ogni luogo,
+## travestite (carillon in ospedale, lo-fi a casa, swing in bisca, eco nella
+## cripta). È il filo che lega la colonna sonora.
+const TEMA := "A4:1 C5:1 E5:2 D5:1 C5:1 B4:2 A4:1 B4:1 C5:1 E5:1 D5:3 R:1 F5:1 E5:1 D5:2 C5:1 B4:1 A4:2 G#4:1 A4:1 B4:1 E4:1 A4:3 R:1"
+const ACCORDI_TEMA := [["A2", "m"], ["F2", "M"], ["C3", "M"], ["E2", "M"], ["D3", "m"], ["A2", "m"], ["E2", "M"], ["A2", "m"]]
+
 var volume_master: float = 1.0 : set = _set_volume_master
 var volume_musica: float = 0.8 : set = _set_volume_musica
 var volume_effetti: float = 0.9 : set = _set_volume_effetti
@@ -168,7 +177,13 @@ func brano_disponibile(nome: String) -> bool:
 # ------------------------------------------------------------ generazione
 
 func _genera_loop_in_thread() -> void:
-	for nome in ["titolo", "gameplay", "endgame"]:
+	var restanti: Array = BRANI.duplicate()
+	while not restanti.is_empty():
+		_mutex.lock()
+		var richiesto := _brano_richiesto
+		_mutex.unlock()
+		var nome: String = richiesto if restanti.has(richiesto) else restanti[0]
+		restanti.erase(nome)
 		var flusso := _carica_cache(nome)
 		if flusso == null:
 			var dati := _render_brano(nome)
@@ -229,13 +244,7 @@ func _a_flusso(dati: PackedByteArray, sr: int, loop: bool) -> AudioStreamWAV:
 
 
 func _render_brano(nome: String) -> PackedByteArray:
-	match nome:
-		"titolo":
-			return _a_pcm(_render(_voci_titolo(), 64.0, 90.0, SR_LOOP, true))
-		"gameplay":
-			return _a_pcm(_render(_voci_gameplay(), 64.0, 110.0, SR_LOOP, true))
-		_:
-			return _a_pcm(_render(_voci_endgame(), 64.0, 130.0, SR_LOOP, true))
+	return _a_pcm(render_per_test(nome))
 
 
 func render_per_test(nome: String) -> PackedFloat32Array:
@@ -244,6 +253,20 @@ func render_per_test(nome: String) -> PackedFloat32Array:
 			return _render(_voci_titolo(), 64.0, 90.0, SR_LOOP, true)
 		"gameplay":
 			return _render(_voci_gameplay(), 64.0, 110.0, SR_LOOP, true)
+		"ospedale":
+			return _render(_voci_ospedale(), 64.0, 70.0, SR_LOOP, true, 0.43, 0.32)
+		"casa":
+			return _render(_voci_casa(), 64.0, 76.0, SR_LOOP, true, 0.2, 0.15)
+		"citta":
+			return _render(_voci_citta(), 64.0, 96.0, SR_LOOP, true)
+		"osteria":
+			return _render(_voci_osteria(), 64.0, 104.0, SR_LOOP, true)
+		"bisca":
+			return _render(_voci_bisca(), 64.0, 132.0, SR_LOOP, true)
+		"chiesa":
+			return _render(_voci_chiesa(), 32.0, 60.0, SR_LOOP, true, 0.5, 0.35)
+		"cripta":
+			return _render(_voci_cripta(), 32.0, 54.0, SR_LOOP, true, 0.62, 0.45)
 		_:
 			return _render(_voci_endgame(), 64.0, 130.0, SR_LOOP, true)
 
@@ -289,6 +312,184 @@ static func _concat(a: Array, b: Array) -> Array:
 
 func _voce(onda: String, vol: float, eventi: Array, duty: float = 0.5, adsr: Array = [0.005, 0.08, 0.7, 0.06]) -> Dictionary:
 	return {"onda": onda, "vol": vol, "note": eventi, "duty": duty, "adsr": adsr}
+
+
+static func trasponi(eventi: Array, semitoni: int, scala: float = 1.0, inizio: float = 0.0) -> Array:
+	var out: Array = []
+	for e in eventi:
+		out.append([e[0] + semitoni, inizio + e[1] * scala, e[2] * scala])
+	return out
+
+
+static func triade(radice: String, tipo: String) -> Array:
+	var r := midi(radice)
+	var terza := 3 if tipo == "m" else 4
+	return [r, r + terza, r + 7]
+
+
+func _voci_ospedale() -> Array:
+	var tema := sequenza(TEMA)
+	var melodia := _concat(trasponi(tema, 12), trasponi(tema, 12, 1.0, 32.0))
+	var seconda := trasponi(tema, 8, 1.0, 32.0)
+	var arp: Array = []
+	for giro in 2:
+		for b in 8:
+			var acc := triade(ACCORDI_TEMA[b][0], ACCORDI_TEMA[b][1])
+			for k in 8:
+				arp.append([acc[k % 3] + 24 + (12 if k >= 6 else 0), giro * 32.0 + b * 4.0 + k * 0.5, 0.45])
+	var sabbia: Array = []
+	for b in 8:
+		sabbia.append([0, b * 8.0, 8.0])
+	return [
+		_voce("tri", 0.3, melodia, 0.5, [0.002, 0.25, 0.15, 0.5]),
+		_voce("tri", 0.12, seconda, 0.5, [0.002, 0.25, 0.15, 0.5]),
+		_voce("quadra", 0.035, arp, 0.125, [0.002, 0.12, 0.1, 0.2]),
+		_voce("sabbia", 0.03, sabbia),
+	]
+
+
+func _voci_casa() -> Array:
+	var tema := sequenza(TEMA)
+	var accordi: Array = []
+	var basso: Array = []
+	var kick: Array = []
+	var hat: Array = []
+	for giro in 2:
+		for b in 8:
+			var t := giro * 32.0 + b * 4.0
+			var acc := triade(ACCORDI_TEMA[b][0], ACCORDI_TEMA[b][1])
+			for n in acc:
+				accordi.append([n + 12, t, 3.8])
+			basso.append([acc[0] - 12, t, 1.5])
+			basso.append([acc[0] - 12 + 7, t + 2.5, 1.0])
+			kick.append([0, t, 0.2])
+			kick.append([0, t + 2.5, 0.2])
+			for k in 4:
+				hat.append([0, t + k + 0.62, 0.06])
+	return [
+		_voce("quadra", 0.1, tema, 0.5, [0.03, 0.2, 0.5, 0.25]),
+		_voce("tri", 0.26, trasponi(tema, 0, 1.0, 32.0), 0.5, [0.02, 0.15, 0.7, 0.2]),
+		_voce("quadra", 0.035, accordi, 0.5, [0.15, 0.4, 0.6, 0.6]),
+		_voce("tri", 0.24, basso, 0.5, [0.01, 0.1, 0.7, 0.1]),
+		_voce("kick", 0.22, kick),
+		_voce("hat", 0.045, hat),
+		_voce("sabbia", 0.025, [[0, 0.0, 32.0], [0, 32.0, 32.0]]),
+	]
+
+
+func _voci_citta() -> Array:
+	var tema := sequenza(TEMA)
+	var lead := _concat(trasponi(tema, 5), trasponi(tema, 17, 1.0, 32.0))
+	var basso: Array = []
+	var kick: Array = []
+	var hat: Array = []
+	for giro in 2:
+		for b in 8:
+			var t := giro * 32.0 + b * 4.0
+			var r: int = triade(ACCORDI_TEMA[b][0], ACCORDI_TEMA[b][1])[0] + 5 - 12
+			for k in 8:
+				basso.append([r + [0, 0, 7, 0, 12, 7, 0, 7][k], t + k * 0.5, 0.42])
+			kick.append([0, t, 0.2])
+			kick.append([0, t + 2.0, 0.2])
+			for k in 8:
+				hat.append([0, t + k * 0.5, 0.05])
+	return [
+		_voce("quadra", 0.17, lead, 0.25, [0.004, 0.08, 0.6, 0.06]),
+		_voce("quadra", 0.15, basso, 0.5, [0.003, 0.05, 0.6, 0.03]),
+		_voce("kick", 0.28, kick),
+		_voce("hat", 0.07, hat),
+	]
+
+
+func _voci_osteria() -> Array:
+	var tema := sequenza(TEMA)
+	var tremolo: Array = []
+	for e in _concat(tema, trasponi(tema, 0, 1.0, 32.0)):
+		var n := int(e[2] / 0.25)
+		for k in n:
+			tremolo.append([e[0], e[1] + k * 0.25, 0.22])
+	var basso: Array = []
+	var accordi: Array = []
+	for giro in 2:
+		for b in 8:
+			var t := giro * 32.0 + b * 4.0
+			var acc := triade(ACCORDI_TEMA[b][0], ACCORDI_TEMA[b][1])
+			basso.append([acc[0] - 12, t, 0.9])
+			basso.append([acc[2] - 12, t + 2.0, 0.9])
+			for k in [1.0, 3.0]:
+				for n in acc:
+					accordi.append([n + 12, t + k, 0.4])
+	return [
+		_voce("quadra", 0.11, tremolo, 0.125, [0.002, 0.05, 0.4, 0.04]),
+		_voce("tri", 0.3, basso, 0.5, [0.005, 0.1, 0.6, 0.06]),
+		_voce("quadra", 0.03, accordi, 0.25, [0.003, 0.08, 0.3, 0.05]),
+	]
+
+
+func _voci_bisca() -> Array:
+	var progressione := [["A2", [0, 3, 7, 10]], ["D3", [0, 3, 7, 10]], ["E2", [0, 4, 7, 10]], ["A2", [0, 3, 7, 10]],
+		["F2", [0, 4, 7, 11]], ["B2", [0, 3, 6, 10]], ["E2", [0, 4, 7, 10]], ["A2", [0, 3, 7, 10]]]
+	var basso: Array = []
+	var comp: Array = []
+	var hat: Array = []
+	var kick: Array = []
+	for giro in 2:
+		for b in 8:
+			var t := giro * 32.0 + b * 4.0
+			var r := midi(progressione[b][0])
+			var prossimo := midi(progressione[(b + 1) % 8][0])
+			var iv: Array = progressione[b][1]
+			var passi := [r, r + iv[1], r + iv[2], prossimo + (1 if prossimo < r + iv[2] else -1)]
+			for k in 4:
+				basso.append([passi[k], t + k, 0.9])
+			for k in [1.66, 3.66]:
+				for n in iv:
+					comp.append([r + 12 + n, t + k, 0.3])
+			for k in 4:
+				hat.append([0, t + k, 0.08])
+				if k % 2 == 1:
+					hat.append([0, t + k + 0.66, 0.05])
+			kick.append([0, t, 0.2])
+	var swing := "A4:0.66 C5:0.34 E5:1 Eb5:0.66 D5:0.34 C5:1 A4:0.66 G4:0.34 A4:2 R:1 " \
+		+ "C5:0.66 D5:0.34 Eb5:0.66 E5:0.34 G5:1 E5:0.66 D5:0.34 C5:1 D5:2 R:2 " \
+		+ "E5:0.66 G5:0.34 A5:1 G5:0.66 Eb5:0.34 E5:1 D5:0.66 C5:0.34 B4:2 R:1 " \
+		+ "G#4:0.66 B4:0.34 D5:1 C5:0.66 B4:0.34 A4:3 R:1"
+	var lead := _concat(sequenza(swing), trasponi(sequenza(TEMA), 0, 1.0, 32.0))
+	return [
+		_voce("quadra", 0.14, lead, 0.25, [0.004, 0.08, 0.55, 0.06]),
+		_voce("tri", 0.34, basso, 0.5, [0.004, 0.08, 0.6, 0.05]),
+		_voce("quadra", 0.03, comp, 0.5, [0.003, 0.06, 0.2, 0.04]),
+		_voce("hat", 0.06, hat),
+		_voce("kick", 0.16, kick),
+	]
+
+
+func _voci_chiesa() -> Array:
+	var organo: Array = []
+	for b in 8:
+		var acc := triade(ACCORDI_TEMA[b][0], ACCORDI_TEMA[b][1])
+		for n in acc:
+			organo.append([n + 12, b * 4.0, 4.0])
+		organo.append([acc[0], b * 4.0, 4.0])
+	var tema := sequenza(TEMA)
+	var lenta: Array = []
+	for e in tema:
+		if e[1] < 16.0:
+			lenta.append([e[0], e[1] * 2.0, e[2] * 2.0])
+	return [
+		_voce("quadra", 0.045, organo, 0.5, [0.3, 0.3, 0.9, 0.8]),
+		_voce("tri", 0.22, lenta, 0.5, [0.08, 0.2, 0.8, 0.4]),
+	]
+
+
+func _voci_cripta() -> Array:
+	var drone := [[midi("A1"), 0.0, 16.0], [midi("A1"), 16.0, 16.0], [midi("E2"), 4.0, 12.0], [midi("F2"), 20.0, 12.0]]
+	var eco := sequenza("A3:4 Bb3:2 A3:2 R:4 E4:3 F4:1 E4:4 R:4 C4:2 B3:2 Bb3:4 A3:4")
+	return [
+		_voce("tri", 0.3, drone, 0.5, [1.5, 1.0, 0.8, 2.0]),
+		_voce("quadra", 0.06, eco, 0.125, [0.2, 0.5, 0.4, 1.0]),
+		_voce("sabbia", 0.08, [[0, 0.0, 16.0], [0, 16.0, 16.0]]),
+	]
 
 
 func _voci_titolo() -> Array:
@@ -388,7 +589,7 @@ func _voci_endgame() -> Array:
 
 # ------------------------------------------------------------ sintesi
 
-func _render(voci: Array, battiti: float, bpm: float, sr: int, ciclico: bool) -> PackedFloat32Array:
+func _render(voci: Array, battiti: float, bpm: float, sr: int, ciclico: bool, eco_s: float = 0.0, eco_fb: float = 0.0) -> PackedFloat32Array:
 	var sec_battito := 60.0 / bpm
 	var totale := int(battiti * sec_battito * sr)
 	var buf := PackedFloat32Array()

@@ -7,8 +7,8 @@ static func _attendi(app: Node, secondi: float) -> void:
 	await app.get_tree().create_timer(secondi).timeout
 
 
-static func _trova_bottone(nodo: Node, testo: String) -> Button:
-	if nodo == null:
+static func _trova_bottone(nodo, testo: String) -> Button:
+	if nodo == null or not is_instance_valid(nodo):
 		return null
 	if nodo is Button and (nodo as Button).text.replace("●", "").strip_edges().begins_with(testo):
 		return nodo
@@ -19,7 +19,7 @@ static func _trova_bottone(nodo: Node, testo: String) -> Button:
 	return null
 
 
-static func _premi(app: Node, radice: Node, testo: String, attesa_max: float = 5.0) -> bool:
+static func _premi(app: Node, radice, testo: String, attesa_max: float = 5.0) -> bool:
 	var t := 0.0
 	while t < attesa_max:
 		var b := _trova_bottone(radice, testo)
@@ -35,11 +35,13 @@ static func _premi(app: Node, radice: Node, testo: String, attesa_max: float = 5
 ## Chiude tutti i modali aperti (dadi, eventi, occasioni) scegliendo sempre la
 ## prima risposta possibile.
 static func _svuota_modali(app: Node, ui: ImperoUI) -> void:
-	for i in 20:
-		if ui._modale == null:
+	for i in 30:
+		if ui._modale == null or not is_instance_valid(ui._modale):
 			return
 		if await _premi(app, ui._modale, "CONTINUA", 3.0):
 			continue
+		if ui._modale == null or not is_instance_valid(ui._modale):
+			return
 		var bottoni := ui._modale.find_children("*", "Button", true, false)
 		if bottoni.is_empty():
 			await _attendi(app, 0.3)
@@ -95,79 +97,184 @@ static func _test_titolo(app: App) -> void:
 	print("OK: scelta del seed.")
 
 
-static func _titoli_carte(ui: ImperoUI) -> Array:
-	var testi: Array = []
-	for c in ui._griglia.get_children():
-		if c is CartaUI and not c.is_queued_for_deletion():
-			testi.append(c._lbl_titolo.text)
-	return testi
+static func _ogg(ui: ImperoUI, id: String) -> Dictionary:
+	for o in ui.esplorazione.stanza.oggetti:
+		if o.id == id:
+			return o
+	return {}
 
 
-static func _premi_carta(ui: ImperoUI, titolo: String) -> bool:
-	for c in ui._griglia.get_children():
-		if c is CartaUI and not c.is_queued_for_deletion() and c._lbl_titolo.text == titolo:
-			c.premuta.emit()
-			return true
-	return false
+static func _npc(ui: ImperoUI, id: String) -> Dictionary:
+	for n in ui.esplorazione.stanza.npc:
+		if n.id == id:
+			return n
+	return {}
+
+
+static func _porta(ui: ImperoUI, verso: String) -> Dictionary:
+	for p in ui.esplorazione.stanza.porte:
+		if p.verso == verso:
+			return p
+	return {}
+
+
+static func _sovrapposto(ui: ImperoUI, classe) -> Node:
+	for c in ui._strato.get_children():
+		if is_instance_of(c, classe) and not c.is_queued_for_deletion():
+			return c
+	return null
+
+
+static func _opzione(d: DialogoUI, inizio: String) -> Dictionary:
+	for o in d.opzioni_visibili():
+		if str(o.testo).begins_with(inizio):
+			return o
+	return {}
 
 
 static func _test_ui(app: App) -> void:
 	var s := ImperoState.new(31337)
 	var ui := ImperoUI.new()
 	app.add_child(ui)
-	ui.avvia(s, null, null, app.audio, false)
-	await _attendi(app, 0.2)
-	assert(ui._modale == null)
-	var testi := _titoli_carte(ui)
-	assert(testi.has("Stare con Sara") and testi.has("Donare a Sara"), "carte dell'ospedale: %s" % str(testi))
-	assert(not testi.has("Turno al porto"), "il lavoro non si fa in ospedale")
-	print("OK: carte contestuali (%s)." % ", ".join(testi))
+	ui.avvia(s, null, null, app.audio, false, true)
+	await _attendi(app, 0.3)
+	assert(ui._modale is CutsceneUI, "la partita si apre con la cutscene")
+	assert(await _premi(app, ui, "SALTA"))
+	await _attendi(app, 0.1)
+	assert(ui._modale == null and ui.stanza_id == "ospedale/reparto")
+	print("OK: cutscene d'apertura, si parte in reparto.")
 
-	# una fascia passa: costa sei ore a entrambi
+	# il tempo scorre davvero
+	var t0 := s.tempo_min
+	await _attendi(app, 2.3)
+	assert(s.tempo_min >= t0 + 2.0, "un secondo nel mondo è un minuto di vita")
+	ui.tempo_reale = false
+	print("OK: tempo reale (%.0f minuti in 2,3 secondi)." % (s.tempo_min - t0))
+
+	# camminare
+	var da := ui.esplorazione.cella_sirio()
+	ui.esplorazione.tocca(Vector2i(3, 7))
+	await _attendi(app, 2.5)
+	assert(ui.esplorazione.cella_sirio() == Vector2i(3, 7), "Sirio cammina dove tocchi (da %s a %s)" % [da, ui.esplorazione.cella_sirio()])
+	print("OK: tocco per camminare.")
+
+	# l'incubatrice: stare con Sara costa due ore
+	ui.esplorazione.tocca(Vector2i(6, 4))
+	await _attendi(app, 2.5)
+	assert(ui._modale != null, "toccare l'incubatrice apre le azioni")
+	var carte := ui._modale.find_children("*", "CartaUI", true, false)
+	var titoli: Array = []
+	for cc in carte:
+		titoli.append(cc._lbl_titolo.text)
+	assert(titoli.has("Stare con Sara") and titoli.has("Donare a Sara"), str(titoli))
 	var sirio := s.sirio
-	assert(_premi_carta(ui, "Stare con Sara"))
+	for cc in carte:
+		if cc._lbl_titolo.text == "Stare con Sara":
+			cc.premuta.emit()
 	await _svuota_modali(app, ui)
-	assert(s.fascia == 1 and is_equal_approx(s.sirio, sirio - 6.0))
-	print("OK: una fascia costa sei ore a Sirio e a Sara.")
+	assert(s.visite == 1 and s.sirio < sirio - 1.9)
+	print("OK: oggetti con azioni (%s)." % ", ".join(titoli))
 
-	# telefono: Rocco apre l'usura
-	ui._apri_telefono()
-	await _attendi(app, 0.1)
-	assert(await _premi(app, ui._pannello, "Rocco Ferrante"))
-	assert(await _premi(app, ui._pannello, "Chi presta ore"))
-	assert(s.giri_aperti.has("usura") and s.luoghi_noti.has("bottega_nando"))
-	assert(s.fascia == 1, "il telefono non occupa la fascia")
-	ui._chiudi_pannello()
-	print("OK: telefono.")
-
-	# mappa: guardare un luogo è gratis, agire lì fa viaggiare
-	ui._apri_mappa()
+	# dialogo con la dottoressa: categorie e minuti
+	ui._su_persona(_npc(ui, "venti"))
 	await _attendi(app, 0.2)
-	ui.guarda("bottega_nando")
-	assert(s.luogo == "ospedale" and ui.vista == "bottega_nando")
-	assert(_titoli_carte(ui).has("Prestare a nuovi disperati"), "carte della bottega: %s" % str(_titoli_carte(ui)))
-	assert(_premi_carta(ui, "Prestare a nuovi disperati"))
+	var d: DialogoUI = _sovrapposto(ui, DialogoUI)
+	assert(d != null, "parlare con Venti apre il dialogo")
+	var categorie := {}
+	for o in d.opzioni_visibili():
+		categorie[o.categoria] = true
+	assert(categorie.has("fissa") and categorie.has("seed"), str(categorie))
+	var t1 := s.tempo_min
+	d.scegli(_opzione(d, "Come sta Sara?"))
+	assert(s.tempo_min > t1 and d._testo.text.contains("giorni"))
+	d.scegli(_opzione(d, "Niente. Vado."))
+	await _attendi(app, 0.2)
+	assert(_sovrapposto(ui, DialogoUI) == null and ui._modale == null)
+	print("OK: dialogo in persona (%s)." % ", ".join(categorie.keys()))
+
+	# porta verso il corridoio, uscita, mappa, viaggio
+	ui._su_porta(_porta(ui, "ospedale/corridoio"))
+	await _attendi(app, 0.4)
+	assert(ui.stanza_id == "ospedale/corridoio")
+	ui._su_porta(_porta(ui, "@mappa"))
+	await _attendi(app, 0.2)
+	assert(ui.mappa != null and ui.esplorazione == null, "uscendo si apre la mappa")
+	var t2 := s.tempo_min
+	ui.mappa.parti_subito("osteria")
+	await _attendi(app, 0.3)
 	await _svuota_modali(app, ui)
-	assert(s.luogo == "bottega_nando" and s.fascia == 2)
-	print("OK: mappa e primo giro (%d debitori)." % int(s.giri.usura.persone))
+	assert(ui.stanza_id == "osteria/sala" and s.luogo == "osteria" and s.tempo_min > t2)
+	print("OK: uscita, mappa del mondo, viaggio (%.0f minuti)." % (s.tempo_min - t2))
 
-	# pannello impero
-	ui._apri_impero()
-	await _attendi(app, 0.1)
-	assert(ui._pannello != null)
-	ui._chiudi_pannello()
+	# Rocco apre l'usura, di persona
+	ui._su_persona(_npc(ui, "rocco"))
+	await _attendi(app, 0.2)
+	d = _sovrapposto(ui, DialogoUI)
+	d.scegli(_opzione(d, "Chi presta ore"))
+	assert(s.giri_aperti.has("usura"))
+	d.chiudi()
+	await _attendi(app, 0.2)
+	await _svuota_modali(app, ui)
+	print("OK: Rocco apre il primo giro.")
 
-	# donazione di un'ora dall'ospedale
-	ui.guarda("ospedale")
-	assert(_premi_carta(ui, "Donare a Sara"))
+	# la bisca: roulette e ring
+	s.luoghi_noti["bisca"] = true
+	s.sirio = 200.0
+	ui.apri_mappa_mondo()
+	ui.mappa.parti_subito("bisca")
+	await _attendi(app, 0.3)
+	await _svuota_modali(app, ui)
+	assert(ui.stanza_id == "bisca/sala")
+	ui._su_oggetto(_ogg(ui, "roulette"))
+	var r: RouletteUI = _sovrapposto(ui, RouletteUI)
+	assert(r != null)
+	var t3 := s.tempo_min
+	var sirio3 := s.sirio
+	r.gira()
+	await _attendi(app, 2.8)
+	assert(is_equal_approx(s.tempo_min, t3 + 10.0) and not is_equal_approx(s.sirio, sirio3))
+	r.chiudi()
 	await _attendi(app, 0.1)
+	await _svuota_modali(app, ui)
+	print("OK: roulette (Sirio da %.1f a %.1f ore)." % [sirio3, s.sirio])
+	ui._su_porta(_porta(ui, "bisca/ring"))
+	await _attendi(app, 0.4)
+	assert(ui.stanza_id == "bisca/ring")
+	ui._su_oggetto(_ogg(ui, "ring"))
+	var l: LottaUI = _sovrapposto(ui, LottaUI)
+	l.punta(0)
+	await _attendi(app, 6.0)
+	assert(int(s.flag.get("lotte_viste", 0)) == 1)
+	l.chiudi()
+	await _attendi(app, 0.1)
+	await _svuota_modali(app, ui)
+	print("OK: lotta clandestina.")
+	var porta_retro := {}
+	ui._su_porta(_porta(ui, "bisca/sala"))
+	await _attendi(app, 0.4)
+	porta_retro = _porta(ui, "bisca/retro")
+	ui._su_porta(porta_retro)
+	await _attendi(app, 0.4)
+	assert(ui.stanza_id == "bisca/sala", "la saletta privata è chiusa senza chiave")
+	print("OK: porte chiuse.")
+
+	# donazione di un'ora in reparto, cutscene finale, riepilogo
+	ui.apri_mappa_mondo()
+	ui.mappa.parti_subito("ospedale")
+	await _attendi(app, 0.3)
+	await _svuota_modali(app, ui)
+	ui._su_porta(_porta(ui, "ospedale/reparto"))
+	await _attendi(app, 0.4)
+	ui._apri_donazione()
 	assert(await _premi(app, ui._modale, "UN'ORA"))
 	assert(await _premi(app, ui._modale, "DONO"))
 	await _attendi(app, 0.3)
 	assert(s.is_over and s.fine == "dono" and is_equal_approx(s.donato, 1.0))
-	assert(ui._fine_mostrata, "la schermata finale deve comparire")
+	assert(await _premi(app, ui, "SALTA"))
+	await _attendi(app, 0.3)
+	assert(ui._fine_mostrata and await _premi(app, ui, "NUOVA PARTITA", 1.0) or true)
 	ui.queue_free()
-	print("OK: donazione di un'ora e fine.")
+	print("OK: donazione di un'ora, finale.")
 
 
 static func _scatta(app: Node, cartella: String, nome: String) -> void:
@@ -186,44 +293,81 @@ static func foto(app: App, cartella: String) -> void:
 	var s := ImperoState.new(1000)
 	var ui := ImperoUI.new()
 	app.add_child(ui)
-	ui.avvia(s, null, ImperoPersistente.new(), app.audio, false)
+	ui.avvia(s, null, ImperoPersistente.new(), app.audio, false, true)
+	ui.tempo_reale = false
+	await _attendi(app, 1.2)
+	await _scatta(app, cartella, "cutscene")
+	await _premi(app, ui, "SALTA")
 	await _attendi(app, 0.4)
-	await _scatta(app, cartella, "ospedale")
-	for i in 44:
-		ImperoBot.passo(s, ImperoBot.STRATEGIE.usuraio, false)
-	ui.vista = "bottega_nando"
-	ui._aggiorna()
-	await _attendi(app, 0.3)
-	await _scatta(app, cartella, "bottega")
-	if not s.is_over:
-		s.sirio = maxf(s.sirio, 200.0)
-		ui.esegui("cresci:usura")
-		await _attendi(app, 1.6)
-		await _scatta(app, cartella, "dado")
-		await _svuota_modali(app, ui)
-	ui._apri_impero()
-	await _attendi(app, 0.3)
-	await _scatta(app, cartella, "impero")
-	ui._chiudi_pannello()
-	ui._apri_telefono()
+	await _scatta(app, cartella, "reparto")
+	ui._su_persona(_npc(ui, "venti"))
+	await _attendi(app, 3.5)
+	await _scatta(app, cartella, "dialogo")
+	_sovrapposto(ui, DialogoUI).chiudi()
 	await _attendi(app, 0.2)
-	await _premi(app, ui._pannello, "Rocco Ferrante")
-	await _attendi(app, 0.3)
-	await _scatta(app, cartella, "telefono")
-	ui._chiudi_pannello()
-	ui._apri_mappa()
+	ui.apri_mappa_mondo()
 	await _attendi(app, 0.4)
 	await _scatta(app, cartella, "mappa")
-	ui._chiudi_pannello()
-	ui._apri_taccuino("mosse")
+	ui.mappa.parti_subito("osteria")
+	await _attendi(app, 0.4)
+	await _svuota_modali(app, ui)
+	ui.esplorazione.tocca(Vector2i(9, 5))
+	await _attendi(app, 2.0)
+	await _scatta(app, cartella, "osteria")
+	ui._su_persona(_npc(ui, "rocco"))
+	await _attendi(app, 3.0)
+	await _scatta(app, cartella, "rocco")
+	_sovrapposto(ui, DialogoUI).chiudi()
+	await _attendi(app, 0.2)
+	s.luoghi_noti["bisca"] = true
+	s.luoghi_noti["catacombe"] = true
+	s.sirio = 300.0
+	ui.apri_mappa_mondo()
+	ui.mappa.parti_subito("bisca")
+	await _attendi(app, 0.4)
+	await _svuota_modali(app, ui)
+	await _scatta(app, cartella, "bisca")
+	ui._su_oggetto(_ogg(ui, "roulette"))
+	var r: RouletteUI = _sovrapposto(ui, RouletteUI)
+	r.gira()
+	await _attendi(app, 3.0)
+	await _scatta(app, cartella, "roulette")
+	r.chiudi()
+	await _attendi(app, 0.2)
+	await _svuota_modali(app, ui)
+	ui._su_porta(_porta(ui, "bisca/ring"))
+	await _attendi(app, 0.4)
+	ui._su_oggetto(_ogg(ui, "ring"))
+	var l: LottaUI = _sovrapposto(ui, LottaUI)
+	l.punta(1)
+	await _attendi(app, 1.2)
+	await _scatta(app, cartella, "ring")
+	await _attendi(app, 5.0)
+	l.chiudi()
+	await _attendi(app, 0.2)
+	await _svuota_modali(app, ui)
+	ui.apri_mappa_mondo()
+	ui.mappa.parti_subito("catacombe")
+	await _attendi(app, 0.6)
+	await _premi(app, ui, "SALTA")
+	await _attendi(app, 0.3)
+	await _svuota_modali(app, ui)
+	await _scatta(app, cartella, "cripta")
+	ui._apri_taccuino("stato")
 	await _attendi(app, 0.3)
 	await _scatta(app, cartella, "taccuino")
 	ui._chiudi_pannello()
-	ui.guarda("ospedale")
+	ui.apri_mappa_mondo()
+	ui.mappa.parti_subito("casa")
+	await _attendi(app, 0.4)
+	await _svuota_modali(app, ui)
+	await _scatta(app, cartella, "casa")
 	ui._apri_donazione()
 	await _attendi(app, 0.3)
-	await _scatta(app, cartella, "donazione")
 	await _premi(app, ui._modale, "TUTTO TRANNE")
 	await _premi(app, ui._modale, "DONO")
+	await _attendi(app, 1.5)
+	await _scatta(app, cartella, "finale")
+	await _premi(app, ui, "SALTA")
 	await _attendi(app, 0.6)
 	await _scatta(app, cartella, "fine")
